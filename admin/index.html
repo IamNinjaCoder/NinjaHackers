@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Admin | NinjaHackers</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;500;600;700&family=Exo+2:wght@300;400;600;700&display=swap"
+        rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/easymde/dist/easymde.min.css" />
+    <link rel="stylesheet" href="admin.css" />
+</head>
+
+<body>
+
+    <!-- LOGIN SCREEN -->
+    <div class="login-screen" id="loginScreen">
+        <div class="login-card">
+            <div class="login-logo"><i class="fas fa-terminal"></i> <span>Ninja<span
+                        class="accent">Hackers</span></span></div>
+            <div class="login-subtitle">Admin Panel</div>
+            <form id="loginForm" onsubmit="handleLogin(event)">
+                <div class="form-group">
+                    <label for="username"><i class="fas fa-user"></i> Username</label>
+                    <input type="text" id="username" placeholder="admin" required autocomplete="username" />
+                </div>
+                <div class="form-group">
+                    <label for="password"><i class="fas fa-lock"></i> Password</label>
+                    <input type="password" id="password" placeholder="••••••••" required
+                        autocomplete="current-password" />
+                </div>
+                <div class="login-error" id="loginError"></div>
+                <button type="submit" class="btn-login"><i class="fas fa-sign-in-alt"></i> Login</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- ADMIN DASHBOARD -->
+    <div class="admin-dashboard" id="adminDashboard" style="display:none;">
+
+        <!-- TOP BAR -->
+        <header class="admin-header">
+            <div class="admin-brand"><i class="fas fa-terminal"></i> <span>Ninja<span
+                        class="accent">Hackers</span></span> <span class="admin-badge">ADMIN</span></div>
+            <div class="admin-actions">
+                <a href="/" class="btn-view-site" target="_blank"><i class="fas fa-external-link-alt"></i> Site</a>
+                <a href="/learn" class="btn-view-site" target="_blank"><i class="fas fa-graduation-cap"></i> LMS</a>
+                <button class="btn-logout" onclick="handleLogout()"><i class="fas fa-sign-out-alt"></i></button>
+            </div>
+        </header>
+
+        <!-- TABS -->
+        <div class="admin-tabs">
+            <button class="tab active" data-tab="blogs" onclick="switchTab('blogs')"><i class="fas fa-newspaper"></i>
+                Blogs</button>
+            <button class="tab" data-tab="courses" onclick="switchTab('courses')"><i class="fas fa-graduation-cap"></i>
+                Courses</button>
+            <button class="tab" data-tab="students" onclick="switchTab('students')"><i class="fas fa-user-graduate"></i>
+                Students</button>
+            <button class="tab" data-tab="enrollments" onclick="switchTab('enrollments')"><i class="fas fa-link"></i>
+                Enrollments</button>
+            <button class="tab" data-tab="payments" onclick="switchTab('payments')"><i class="fas fa-credit-card"></i>
+                Payments</button>
+            <button class="tab" data-tab="messages" onclick="switchTab('messages')"><i class="fas fa-envelope"></i>
+                Messages</button>
+            <button class="tab" data-tab="security" onclick="switchTab('security')"><i class="fas fa-shield-alt"></i>
+                Security</button>
+            <button class="tab" data-tab="analytics" onclick="switchTab('analytics')"><i class="fas fa-chart-bar"></i>
+                Analytics</button>
+            <button class="tab" data-tab="coupons" onclick="switchTab('coupons')"><i class="fas fa-ticket-alt"></i>
+                Coupons</button>
+            <button class="tab" data-tab="announcements" onclick="switchTab('announcements')"><i
+                    class="fas fa-bullhorn"></i>
+                Announce</button>
+        </div>
+
+        <!-- ═══ BLOGS TAB ═══ -->
+        <div class="admin-content tab-content active" id="tab-blogs">
+            <div class="admin-title-bar">
+                <div>
+                    <h1><i class="fas fa-newspaper" style="color:var(--green);margin-right:.5rem;"></i>Blog Posts</h1>
+                    <p class="admin-subtitle" id="blogCount">Loading...</p>
+                </div>
+                <button class="btn-new" onclick="openBlogEditor()"><i class="fas fa-plus"></i> New Post</button>
+            </div>
+            <div class="blog-list" id="blogList"></div>
+        </div>
+
+        <!-- Blog Editor -->
+        <div class="admin-content" id="blogEditorView" style="display:none;">
+            <div class="admin-title-bar">
+                <h1 id="editorTitle"><i class="fas fa-edit" style="color:var(--green);margin-right:.5rem;"></i>New Blog
+                    Post</h1>
+                <div style="display:flex;gap:.6rem;">
+                    <button class="btn-cancel" onclick="closeBlogEditor()"><i class="fas fa-times"></i> Cancel</button>
+                    <button class="btn-save" onclick="saveBlog()"><i class="fas fa-save"></i> Save</button>
+                </div>
+            </div>
+            <div class="editor-form">
+                <input type="hidden" id="editBlogId" />
+                <div class="editor-row">
+                    <div class="form-group" style="flex:2;"><label>Title</label><input type="text" id="blogTitleInput"
+                            placeholder="Blog post title" /></div>
+                    <div class="form-group" style="flex:1;"><label>Author</label><input type="text" id="blogAuthor"
+                            placeholder="NinjaHacker" /></div>
+                </div>
+                <div class="form-group"><label>Excerpt</label><textarea id="blogExcerpt" rows="2"
+                        placeholder="Short intro..."></textarea></div>
+                <div class="editor-row">
+                    <div class="form-group" style="flex:1;"><label>Date</label><input type="text" id="blogDate"
+                            placeholder="Mar 2025" /></div>
+                    <div class="form-group" style="flex:1;"><label>Read Time</label><input type="text" id="blogReadTime"
+                            placeholder="5 min read" /></div>
+                    <div class="form-group" style="flex:1;"><label>Status</label><select id="blogPublished">
+                            <option value="1">Published</option>
+                            <option value="0">Draft</option>
+                        </select></div>
+                </div>
+                <div class="form-group"><label><i class="fas fa-image"></i> Cover Image</label>
+                    <div class="cover-image-area">
+                        <div class="cover-preview" id="coverPreview" style="display:none;"><img id="coverPreviewImg"
+                                alt="Cover" /><button type="button" class="cover-remove" onclick="removeCover()"><i
+                                    class="fas fa-times"></i></button></div>
+                        <div class="cover-upload" id="coverUpload"><input type="file" id="coverFileInput"
+                                accept="image/*" onchange="handleCoverUpload(event)" style="display:none;" />
+                            <button type="button" class="btn-upload"
+                                onclick="document.getElementById('coverFileInput').click()"><i
+                                    class="fas fa-cloud-upload-alt"></i> Upload</button><span class="upload-hint">PNG,
+                                JPG, WEBP</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="form-group"><label>Tags</label>
+                    <div class="tags-editor">
+                        <div class="tags-list" id="tagsList"></div>
+                        <div class="tag-add-row"><input type="text" id="tagInput" placeholder="Tag name"
+                                onkeydown="if(event.key==='Enter'){event.preventDefault();addTag();}" />
+                            <select id="tagColor">
+                                <option value="tag-green">Green</option>
+                                <option value="tag-cyan">Cyan</option>
+                                <option value="tag-red">Red</option>
+                                <option value="tag-purple">Purple</option>
+                                <option value="tag-orange">Orange</option>
+                            </select>
+                            <button type="button" class="btn-add-tag" onclick="addTag()"><i
+                                    class="fas fa-plus"></i></button>
+                        </div>
+                    </div>
+                </div>
+                <div class="form-group"><label><i class="fas fa-edit"></i> Content (Markdown)</label><textarea
+                        id="blogContent"></textarea></div>
+                <div class="form-group"><label><i class="fas fa-images"></i> Upload Image for Content</label>
+                    <div class="inline-upload-area"><input type="file" id="inlineFileInput" accept="image/*"
+                            onchange="handleInlineUpload(event)" style="display:none;" />
+                        <button type="button" class="btn-upload-sm"
+                            onclick="document.getElementById('inlineFileInput').click()"><i class="fas fa-image"></i>
+                            Upload</button>
+                        <span class="upload-hint">Inserts Markdown at cursor</span>
+                        <div id="inlineUploadResult" style="display:none;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═══ COURSES TAB ═══ -->
+        <div class="admin-content tab-content" id="tab-courses" style="display:none;">
+            <div class="admin-title-bar">
+                <div>
+                    <h1><i class="fas fa-graduation-cap" style="color:var(--cyan);margin-right:.5rem;"></i>Courses</h1>
+                    <p class="admin-subtitle" id="courseCount">Loading...</p>
+                </div>
+                <button class="btn-new" onclick="openCourseEditor()"><i class="fas fa-plus"></i> New Course</button>
+            </div>
+            <div class="blog-list" id="courseList"></div>
+        </div>
+
+        <!-- Course Editor -->
+        <div class="admin-content" id="courseEditorView" style="display:none;">
+            <div class="admin-title-bar">
+                <h1 id="courseEditorTitle"><i class="fas fa-graduation-cap"
+                        style="color:var(--cyan);margin-right:.5rem;"></i>New Course</h1>
+                <div style="display:flex;gap:.6rem;">
+                    <button class="btn-cancel" onclick="closeCourseEditor()"><i class="fas fa-times"></i>
+                        Cancel</button>
+                    <button class="btn-save" onclick="saveCourse()"><i class="fas fa-save"></i> Save Course</button>
+                </div>
+            </div>
+            <div class="editor-form">
+                <input type="hidden" id="editCourseId" />
+                <div class="editor-row">
+                    <div class="form-group" style="flex:2;"><label>Course Title</label><input type="text"
+                            id="courseTitle" placeholder="Ethical Hacking Bootcamp" /></div>
+                    <div class="form-group" style="flex:1;"><label>Code</label><input type="text" id="courseCode"
+                            placeholder="EHB-001" /></div>
+                </div>
+                <div class="form-group"><label>Description</label><textarea id="courseDesc" rows="3"
+                        placeholder="What students will learn..."></textarea></div>
+                <div class="editor-row">
+                    <div class="form-group" style="flex:1;"><label>Price (₹)</label><input type="number"
+                            id="coursePrice" placeholder="4999" min="0" /></div>
+                    <div class="form-group" style="flex:1;"><label>Instructor</label><input type="text"
+                            id="courseInstructor" placeholder="NinjaHacker" /></div>
+                    <div class="form-group" style="flex:1;"><label>Duration</label><input type="text"
+                            id="courseDuration" placeholder="40+ Hours" /></div>
+                </div>
+                <div class="editor-row">
+                    <div class="form-group" style="flex:1;"><label>Level</label><select id="courseLevel">
+                            <option>Beginner</option>
+                            <option>Intermediate</option>
+                            <option>Advanced</option>
+                        </select></div>
+                    <div class="form-group" style="flex:1;"><label>Status</label><select id="coursePublished">
+                            <option value="1">Published</option>
+                            <option value="0">Draft</option>
+                        </select></div>
+                </div>
+            </div>
+            <!-- Module Manager -->
+            <div class="module-manager" id="moduleManager" style="display:none;">
+                <h2 style="font-family:'Rajdhani',sans-serif;font-size:1.2rem;color:#fff;margin:1.5rem 0 1rem;"><i
+                        class="fas fa-sitemap" style="color:var(--green);margin-right:.4rem;"></i>Modules & Content</h2>
+                <div id="moduleList"></div>
+                <div class="add-module-row">
+                    <input type="text" id="newModuleTitle"
+                        placeholder="New module title (e.g. Module 02: Web Security)" />
+                    <button class="btn-new" onclick="addModule()"><i class="fas fa-plus"></i> Add Module</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═══ STUDENTS TAB ═══ -->
+        <div class="admin-content tab-content" id="tab-students" style="display:none;">
+            <div class="admin-title-bar">
+                <div>
+                    <h1><i class="fas fa-user-graduate" style="color:var(--green);margin-right:.5rem;"></i>Students</h1>
+                    <p class="admin-subtitle" id="studentCount">Loading...</p>
+                </div>
+                <div style="display:flex;gap:.6rem;align-items:center;">
+                    <div class="search-box"><i class="fas fa-search"></i><input type="text" id="studentSearch"
+                            placeholder="Search name or email..." oninput="filterStudents()" /></div>
+                </div>
+            </div>
+            <div class="blog-list" id="studentList"></div>
+        </div>
+
+        <!-- Student Detail (hidden) -->
+        <div class="admin-content" id="studentDetailView" style="display:none;">
+            <div class="admin-title-bar">
+                <h1 id="studentDetailTitle"><i class="fas fa-user"
+                        style="color:var(--green);margin-right:.5rem;"></i>Student</h1>
+                <button class="btn-cancel" onclick="closeStudentDetail()"><i class="fas fa-arrow-left"></i>
+                    Back</button>
+            </div>
+            <div class="student-profile" id="studentProfile"></div>
+            <!-- Enrolled courses -->
+            <div class="section-block">
+                <h3><i class="fas fa-book-open" style="color:var(--cyan);margin-right:.4rem;"></i>Enrolled Courses</h3>
+                <div id="studentEnrolledCourses"></div>
+            </div>
+            <!-- Assign new course -->
+            <div class="section-block">
+                <h3><i class="fas fa-plus-circle" style="color:var(--green);margin-right:.4rem;"></i>Assign Course</h3>
+                <div class="assign-course-row">
+                    <select id="assignCourseSelect" class="assign-select"></select>
+                    <button class="btn-save" onclick="assignCourseToStudent()"><i class="fas fa-plus"></i>
+                        Assign</button>
+                </div>
+            </div>
+            <!-- Payment History -->
+            <div class="section-block">
+                <h3><i class="fas fa-credit-card" style="color:var(--orange);margin-right:.4rem;"></i>Payment History
+                </h3>
+                <div id="studentPayments"></div>
+            </div>
+        </div>
+
+        <!-- ═══ ENROLLMENTS TAB ═══ -->
+        <div class="admin-content tab-content" id="tab-enrollments" style="display:none;">
+            <div class="admin-title-bar">
+                <div>
+                    <h1><i class="fas fa-link" style="color:var(--purple);margin-right:.5rem;"></i>Enrollments</h1>
+                    <p class="admin-subtitle" id="enrollmentCount">Loading...</p>
+                </div>
+                <button class="btn-new" onclick="showManualEnrollForm()"><i class="fas fa-user-plus"></i> Quick
+                    Enroll</button>
+            </div>
+            <div class="manual-enroll-form" id="manualEnrollForm" style="display:none;">
+                <div class="editor-form" style="margin-bottom:1.5rem;">
+                    <div class="editor-row">
+                        <div class="form-group" style="flex:1;"><label>Student Email</label><input type="email"
+                                id="enrollEmail" placeholder="student@gmail.com" /></div>
+                        <div class="form-group" style="flex:1;"><label>Course</label><select
+                                id="enrollCourseSelect"></select></div>
+                        <div class="form-group" style="flex:0;align-self:flex-end;"><button class="btn-save"
+                                onclick="manualEnroll()"><i class="fas fa-check"></i> Enroll</button></div>
+                    </div>
+                </div>
+            </div>
+            <div class="data-table-wrap">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Student</th>
+                            <th>Email</th>
+                            <th>Course</th>
+                            <th>Source</th>
+                            <th>Enrolled</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody id="enrollmentBody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- ═══ PAYMENTS TAB ═══ -->
+        <div class="admin-content tab-content" id="tab-payments" style="display:none;">
+            <div class="admin-title-bar">
+                <div>
+                    <h1><i class="fas fa-credit-card" style="color:var(--orange);margin-right:.5rem;"></i>Payments</h1>
+                    <p class="admin-subtitle" id="paymentCount">Loading...</p>
+                </div>
+            </div>
+            <div class="payment-stats" id="paymentStats"></div>
+            <div class="data-table-wrap">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Student</th>
+                            <th>Course</th>
+                            <th>Amount</th>
+                            <th>Status</th>
+                            <th>Date</th>
+                            <th>Payment ID</th>
+                        </tr>
+                    </thead>
+                    <tbody id="paymentBody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- ═══ MESSAGES TAB ═══ -->
+        <div class="admin-content tab-content" id="tab-messages" style="display:none;">
+            <div class="admin-title-bar">
+                <div>
+                    <h1><i class="fas fa-envelope" style="color:var(--cyan);margin-right:.5rem;"></i>Contact Messages
+                    </h1>
+                    <p class="admin-subtitle" id="messageCount">Loading...</p>
+                </div>
+            </div>
+            <div class="blog-list" id="messageList"></div>
+        </div>
+
+        <!-- ═══ SECURITY TAB ═══ -->
+        <div class="admin-content tab-content" id="tab-security" style="display:none;">
+            <div class="admin-title-bar">
+                <div>
+                    <h1><i class="fas fa-shield-alt" style="color:var(--red);margin-right:.5rem;"></i>Security Logs</h1>
+                    <p class="admin-subtitle" id="securityCount">Loading...</p>
+                </div>
+                <button class="btn-new" onclick="loadSecurityLogs()"
+                    style="background:rgba(255,80,80,.1);border:1px solid rgba(255,80,80,.3);color:var(--red);"><i
+                        class="fas fa-sync-alt"></i> Refresh</button>
+            </div>
+            <div class="data-table-wrap">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Event</th>
+                            <th>IP</th>
+                            <th>Details</th>
+                            <th>Time</th>
+                        </tr>
+                    </thead>
+                    <tbody id="securityBody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- ═══ ANALYTICS TAB ═══ -->
+        <div class="admin-content tab-content" id="tab-analytics" style="display:none;">
+            <div class="admin-title-bar">
+                <h1><i class="fas fa-chart-bar" style="color:var(--green);margin-right:.5rem;"></i>Dashboard Analytics
+                </h1>
+            </div>
+            <div id="analyticsCards"
+                style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:1rem;margin-bottom:1.5rem;">
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;">
+                <div>
+                    <h3 style="color:var(--green);margin-bottom:.8rem;font-size:.85rem;"><i class="fas fa-fire"></i>
+                        Popular Courses</h3>
+                    <div id="popularCourses"></div>
+                </div>
+                <div>
+                    <h3 style="color:var(--cyan);margin-bottom:.8rem;font-size:.85rem;"><i class="fas fa-clock"></i>
+                        Recent Enrollments</h3>
+                    <div id="recentEnrollments"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═══ COUPONS TAB ═══ -->
+        <div class="admin-content tab-content" id="tab-coupons" style="display:none;">
+            <div class="admin-title-bar">
+                <div>
+                    <h1><i class="fas fa-ticket-alt" style="color:var(--orange);margin-right:.5rem;"></i>Coupon Codes
+                    </h1>
+                    <p class="admin-subtitle" id="couponCount">Loading...</p>
+                </div>
+                <button class="btn-new" onclick="toggleCouponForm()"
+                    style="background:rgba(255,160,0,.1);border:1px solid rgba(255,160,0,.3);color:var(--orange);"><i
+                        class="fas fa-plus"></i> New Coupon</button>
+            </div>
+            <div id="couponForm"
+                style="display:none;background:var(--surface);border:1px solid rgba(255,160,0,.15);border-radius:8px;padding:1rem;margin-bottom:1rem;">
+                <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr;gap:.5rem;align-items:end;">
+                    <div><label style="font-size:.7rem;color:var(--muted);">Code</label><input type="text"
+                            id="couponCode" placeholder="NINJA20" style="width:100%;" /></div>
+                    <div><label style="font-size:.7rem;color:var(--muted);">Type</label><select id="couponType"
+                            style="width:100%;">
+                            <option value="percent">% Off</option>
+                            <option value="flat">₹ Flat Off</option>
+                        </select></div>
+                    <div><label style="font-size:.7rem;color:var(--muted);">Value</label><input type="number"
+                            id="couponValue" value="10" style="width:100%;" /></div>
+                    <div><label style="font-size:.7rem;color:var(--muted);">Max Uses</label><input type="number"
+                            id="couponMaxUses" value="100" style="width:100%;" /></div>
+                    <button class="btn-save" onclick="saveCoupon()" style="height:36px;"><i class="fas fa-save"></i>
+                        Save</button>
+                </div>
+            </div>
+            <div id="couponList"></div>
+        </div>
+
+        <!-- ═══ ANNOUNCEMENTS TAB ═══ -->
+        <div class="admin-content tab-content" id="tab-announcements" style="display:none;">
+            <div class="admin-title-bar">
+                <div>
+                    <h1><i class="fas fa-bullhorn" style="color:var(--purple);margin-right:.5rem;"></i>Announcements
+                    </h1>
+                    <p class="admin-subtitle" id="announcementCount">Loading...</p>
+                </div>
+                <button class="btn-new" onclick="toggleAnnouncementForm()"
+                    style="background:rgba(168,85,247,.1);border:1px solid rgba(168,85,247,.3);color:var(--purple);"><i
+                        class="fas fa-plus"></i> New Announcement</button>
+            </div>
+            <div id="announcementForm"
+                style="display:none;background:var(--surface);border:1px solid rgba(168,85,247,.15);border-radius:8px;padding:1rem;margin-bottom:1rem;">
+                <input type="text" id="annTitle" placeholder="Announcement title"
+                    style="width:100%;margin-bottom:.5rem;" />
+                <textarea id="annMessage" placeholder="Message to students..." rows="3"
+                    style="width:100%;margin-bottom:.5rem;background:var(--bg);color:var(--text);border:1px solid rgba(168,85,247,.2);border-radius:6px;padding:.5rem;"></textarea>
+                <div style="display:flex;gap:.5rem;align-items:center;">
+                    <select id="annCourseId" style="flex:1;">
+                        <option value="">All students (global)</option>
+                    </select>
+                    <button class="btn-save" onclick="saveAnnouncement()"><i class="fas fa-paper-plane"></i>
+                        Send</button>
+                </div>
+            </div>
+            <div id="announcementList"></div>
+        </div>
+
+    </div>
+
+    <!-- DELETE MODAL -->
+    <div class="modal-overlay" id="deleteModal" style="display:none;">
+        <div class="modal-card">
+            <div class="modal-icon"><i class="fas fa-trash-alt"></i></div>
+            <h3>Delete?</h3>
+            <p>This action cannot be undone.</p>
+            <div class="modal-actions">
+                <button class="btn-cancel" onclick="closeDeleteModal()">Cancel</button>
+                <button class="btn-delete-confirm" onclick="confirmDelete()"><i class="fas fa-trash"></i>
+                    Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/easymde/dist/easymde.min.js"></script>
+    <script src="admin.js"></script>
+</body>
+
+</html>

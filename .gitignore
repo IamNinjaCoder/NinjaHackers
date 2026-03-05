@@ -1,0 +1,7 @@
+node_modules/
+.data/
+.env
+database.db
+database.db.migrated
+uploads/
+*.db

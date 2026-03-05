@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Work | NinjaHackers</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;500;600;700&family=Exo+2:wght@300;400;600;700&display=swap"
+        rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <link rel="stylesheet" href="style.css" />
+</head>
+
+<body>
+    <canvas id="matrix-canvas"></canvas>
+    <nav id="navbar">
+        <a href="index.html" class="nav-logo">
+            <img src="logo.png" alt="NinjaHackers" class="logo-img"
+                onerror="this.style.display='none';document.getElementById('lt').style.display='flex'" />
+            <span id="lt" class="logo-text-fallback" style="display:none"><i class="fas fa-terminal"></i>
+                Ninja<span>Hackers</span></span>
+        </a>
+        <ul class="nav-links">
+            <li><a href="index.html">Home</a></li>
+            <li><a href="blog.html">Blog</a></li>
+            <li><a href="work.html" class="active">Work</a></li>
+            <li><a href="videos.html">Videos</a></li>
+            <li><a href="contact.html">Contact</a></li>
+            <li><a href="courses.html" class="nav-cta">Courses</a></li>
+        </ul>
+        <div class="hamburger" onclick="toggleMenu()"><span></span><span></span><span></span></div>
+    </nav>
+    <div class="mobile-menu" id="mobileMenu">
+        <a href="index.html">Home</a><a href="blog.html">Blog</a><a href="work.html">Work</a>
+        <a href="videos.html">Videos</a><a href="contact.html">Contact</a><a href="courses.html">Courses</a>
+    </div>
+
+    <div class="page-header">
+        <div class="section-tag">// PROJECTS & TOOLS</div>
+        <h1>My <span>Work</span></h1>
+        <p>Security tools, scripts, and projects I've built or contributed to.</p>
+    </div>
+
+    <section class="work-section">
+        <div class="container">
+            <div class="work-grid">
+
+                <div class="work-card">
+                    <div class="work-icon green"><i class="fas fa-spider"></i></div>
+                    <div class="work-title">WebRecon Scanner</div>
+                    <div class="work-desc">An automated web reconnaissance tool that performs subdomain enumeration,
+                        port scanning, directory brute-forcing, and technology fingerprinting in one workflow.</div>
+                    <div style="display:flex;gap:.6rem;flex-wrap:wrap;align-items:center;">
+                        <span class="work-status status-done"><i class="fas fa-check-circle"></i> Completed</span>
+                        <span class="tag tag-green">Python</span>
+                        <span class="tag tag-cyan">Tool</span>
+                    </div>
+                </div>
+
+                <div class="work-card">
+                    <div class="work-icon cyan"><i class="fas fa-shield-alt"></i></div>
+                    <div class="work-title">XSS Payload Generator</div>
+                    <div class="work-desc">A context-aware XSS payload generator that crafts bypass payloads based on
+                        WAF detection and encoding filters. Supports reflected, stored, and DOM-based contexts.</div>
+                    <div style="display:flex;gap:.6rem;flex-wrap:wrap;align-items:center;">
+                        <span class="work-status status-done"><i class="fas fa-check-circle"></i> Completed</span>
+                        <span class="tag tag-green">Python</span>
+                        <span class="tag tag-red">Web Security</span>
+                    </div>
+                </div>
+
+                <div class="work-card">
+                    <div class="work-icon purple"><i class="fas fa-network-wired"></i></div>
+                    <div class="work-title">NetStalker</div>
+                    <div class="work-desc">A lightweight network monitoring and packet sniffing tool built with Scapy.
+                        Detects ARP spoofing, rogue DHCP servers, and suspicious traffic patterns in real-time.</div>
+                    <div style="display:flex;gap:.6rem;flex-wrap:wrap;align-items:center;">
+                        <span class="work-status status-wip"><i class="fas fa-code"></i> In Progress</span>
+                        <span class="tag tag-green">Python</span>
+                        <span class="tag tag-cyan">Network</span>
+                    </div>
+                </div>
+
+                <div class="work-card">
+                    <div class="work-icon green"><i class="fas fa-lock"></i></div>
+                    <div class="work-title">CryptoBreaker CTF Toolkit</div>
+                    <div class="work-desc">A collection of cryptography challenge solvers — including Caesar, Vigenère,
+                        RSA, and custom encoding decoders — designed for CTF competitions.</div>
+                    <div style="display:flex;gap:.6rem;flex-wrap:wrap;align-items:center;">
+                        <span class="work-status status-done"><i class="fas fa-check-circle"></i> Completed</span>
+                        <span class="tag tag-green">Python</span>
+                        <span class="tag tag-purple">Crypto</span>
+                    </div>
+                </div>
+
+                <div class="work-card">
+                    <div class="work-icon cyan"><i class="fas fa-search"></i></div>
+                    <div class="work-title">OSINT Framework Dashboard</div>
+                    <div class="work-desc">A web-based dashboard that aggregates OSINT data from multiple sources —
+                        including Shodan, crt.sh, WHOIS, and DNS records — into one unified interface.</div>
+                    <div style="display:flex;gap:.6rem;flex-wrap:wrap;align-items:center;">
+                        <span class="work-status status-wip"><i class="fas fa-code"></i> In Progress</span>
+                        <span class="tag tag-cyan">JavaScript</span>
+                        <span class="tag tag-orange">OSINT</span>
+                    </div>
+                </div>
+
+                <div class="work-card">
+                    <div class="work-icon purple"><i class="fas fa-terminal"></i></div>
+                    <div class="work-title">Bash Pentest Automation Suite</div>
+                    <div class="work-desc">A modular Bash scripting suite automating common penetration testing tasks —
+                        from initial enumeration to privilege escalation checks on Linux targets.</div>
+                    <div style="display:flex;gap:.6rem;flex-wrap:wrap;align-items:center;">
+                        <span class="work-status status-idea"><i class="fas fa-lightbulb"></i> Idea</span>
+                        <span class="tag tag-orange">Bash</span>
+                        <span class="tag tag-red">Pentest</span>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </section>
+
+    <footer>
+        <div class="footer-logo">
+            <img src="logo.png" alt="" class="footer-logo-img" onerror="this.style.display='none'" />
+            <span>Ninja<span style="color:var(--cyan)">Hackers</span>.site</span>
+        </div>
+        <div class="footer-links">
+            <a href="index.html">Home</a><a href="blog.html">Blog</a><a href="work.html">Work</a>
+            <a href="videos.html">Videos</a><a href="courses.html">Courses</a><a href="contact.html">Contact</a>
+        </div>
+        <div class="social-links">
+            <a href="#" class="social-link"><i class="fab fa-github"></i></a>
+            <a href="#" class="social-link"><i class="fab fa-youtube"></i></a>
+            <a href="#" class="social-link"><i class="fab fa-linkedin-in"></i></a>
+            <a href="#" class="social-link"><i class="fab fa-twitter"></i></a>
+        </div>
+        <div class="footer-copy">© 2025 <span>NinjaHackers.site</span> — Hack the Planet, Legally.</div>
+    </footer>
+
+    <script>
+        (function () { const c = document.getElementById('matrix-canvas'); if (!c) return; const x = c.getContext('2d'); c.width = window.innerWidth; c.height = window.innerHeight; const ch = '01アイウエオカキクケコサシスセソ', fs = 14; let dr = Array(Math.floor(c.width / fs)).fill(1); function d() { x.fillStyle = 'rgba(5,10,14,0.05)'; x.fillRect(0, 0, c.width, c.height); x.fillStyle = '#00ff88'; x.font = fs + 'px Share Tech Mono'; dr.forEach((y, i) => { x.fillText(ch[Math.floor(Math.random() * ch.length)], i * fs, y * fs); if (y * fs > c.height && Math.random() > 0.975) dr[i] = 0; dr[i]++; }); } setInterval(d, 50); window.addEventListener('resize', () => { c.width = window.innerWidth; c.height = window.innerHeight; dr = Array(Math.floor(c.width / fs)).fill(1); }); })();
+        function toggleMenu() { document.getElementById('mobileMenu').classList.toggle('open'); }
+        window.addEventListener('scroll', () => { const nav = document.getElementById('navbar'); if (nav) nav.style.boxShadow = window.scrollY > 20 ? '0 4px 30px rgba(0,0,0,0.4)' : ''; });
+    </script>
+</body>
+
+</html>

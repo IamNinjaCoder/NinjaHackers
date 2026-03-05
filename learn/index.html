@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Learn | NinjaHackers</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;500;600;700&family=Exo+2:wght@300;400;600;700&display=swap"
+        rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <link rel="stylesheet" href="learn.css" />
+</head>
+
+<body>
+
+    <!-- TOP NAV -->
+    <nav class="learn-nav">
+        <a href="/" class="learn-brand"><i class="fas fa-terminal"></i> Ninja<span class="accent">Hackers</span></a>
+        <div class="learn-nav-right" id="navRight">
+            <span class="student-name" id="navStudentName"></span>
+            <button class="btn-nav" onclick="handleLogout()"><i class="fas fa-sign-out-alt"></i></button>
+        </div>
+    </nav>
+
+    <!-- AUTH SCREEN -->
+    <div class="auth-screen" id="authScreen">
+        <div class="auth-card">
+            <div class="auth-logo"><i class="fas fa-graduation-cap"></i></div>
+            <h2 class="auth-title">Student Portal</h2>
+            <p class="auth-sub">Access your enrolled courses and learning materials</p>
+
+            <!-- Login -->
+            <form id="loginForm" onsubmit="handleLogin(event)">
+                <div class="form-group"><label><i class="fas fa-envelope"></i> Email</label>
+                    <input type="email" id="loginEmail" placeholder="you@gmail.com" required />
+                </div>
+                <div class="form-group"><label><i class="fas fa-lock"></i> Password</label>
+                    <input type="password" id="loginPassword" placeholder="••••••••" required />
+                </div>
+                <div class="auth-error" id="loginError"></div>
+                <button type="submit" class="btn-primary"><i class="fas fa-sign-in-alt"></i> Login</button>
+                <div style="margin-top:.8rem;text-align:right;">
+                    <button type="button" class="btn-link" onclick="showForgotForm()" style="font-size:.75rem;">Forgot
+                        Password?</button>
+                </div>
+            </form>
+
+            <!-- Signup -->
+            <form id="signupForm" style="display:none;" onsubmit="handleSignup(event)">
+                <div class="form-group"><label><i class="fas fa-user"></i> Full Name</label>
+                    <input type="text" id="signupName" placeholder="Your name" required />
+                </div>
+                <div class="form-group"><label><i class="fas fa-envelope"></i> Email</label>
+                    <input type="email" id="signupEmail" placeholder="you@gmail.com" required />
+                </div>
+                <div class="form-group"><label><i class="fas fa-lock"></i> Password</label>
+                    <input type="password" id="signupPassword" placeholder="Min 8 chars, A-z, 0-9" required
+                        minlength="8" />
+                </div>
+                <div class="auth-hint" style="font-size:.7rem;color:var(--muted);margin-bottom:.5rem;">Gmail, Outlook,
+                    Yahoo, ProtonMail, and other major providers only</div>
+                <div class="auth-error" id="signupError"></div>
+                <button type="submit" class="btn-primary"><i class="fas fa-user-plus"></i> Create Account</button>
+            </form>
+
+            <!-- OTP Verification -->
+            <form id="otpForm" style="display:none;" onsubmit="handleVerifyOTP(event)">
+                <div style="text-align:center;margin-bottom:1rem;">
+                    <i class="fas fa-envelope-open-text"
+                        style="font-size:2rem;color:var(--green);margin-bottom:.5rem;display:block;"></i>
+                    <p style="font-size:.85rem;color:var(--text);">We sent a 6-digit code to</p>
+                    <p style="font-family:'Share Tech Mono',monospace;color:var(--cyan);font-size:.85rem;margin-top:.2rem;"
+                        id="otpEmailDisplay"></p>
+                </div>
+                <div class="form-group"><label><i class="fas fa-key"></i> Verification Code</label>
+                    <input type="text" id="otpInput" placeholder="123456" required maxlength="6" pattern="[0-9]{6}"
+                        style="text-align:center;font-size:1.5rem;letter-spacing:8px;font-family:'Share Tech Mono',monospace;" />
+                </div>
+                <div class="auth-error" id="otpError"></div>
+                <button type="submit" class="btn-primary"><i class="fas fa-check-circle"></i> Verify</button>
+                <div style="margin-top:1rem;text-align:center;">
+                    <button type="button" class="btn-link" onclick="resendOTP()">Resend Code</button>
+                    <span style="color:var(--muted);margin:0 .5rem;">·</span>
+                    <button type="button" class="btn-link" onclick="showLoginForm()">Back to Login</button>
+                </div>
+            </form>
+
+            <!-- Forgot Password -->
+            <form id="forgotForm" style="display:none;" onsubmit="handleForgotPassword(event)">
+                <div style="text-align:center;margin-bottom:1rem;">
+                    <i class="fas fa-lock-open"
+                        style="font-size:2rem;color:var(--orange);margin-bottom:.5rem;display:block;"></i>
+                    <p style="font-size:.85rem;color:var(--text);">Enter your registered email to receive a reset code
+                    </p>
+                </div>
+                <div class="form-group"><label><i class="fas fa-envelope"></i> Email</label>
+                    <input type="email" id="forgotEmail" placeholder="you@gmail.com" required />
+                </div>
+                <div class="auth-error" id="forgotError"></div>
+                <button type="submit" class="btn-primary"
+                    style="background:linear-gradient(135deg,var(--orange),#cc6a00);"><i class="fas fa-paper-plane"></i>
+                    Send Reset Code</button>
+                <div style="margin-top:1rem;text-align:center;">
+                    <button type="button" class="btn-link" onclick="showLoginForm()">Back to Login</button>
+                </div>
+            </form>
+
+            <!-- Reset Password -->
+            <form id="resetForm" style="display:none;" onsubmit="handleResetPassword(event)">
+                <div style="text-align:center;margin-bottom:1rem;">
+                    <i class="fas fa-key"
+                        style="font-size:2rem;color:var(--orange);margin-bottom:.5rem;display:block;"></i>
+                    <p style="font-size:.85rem;color:var(--text);">Enter the code sent to your email</p>
+                    <p style="font-family:'Share Tech Mono',monospace;color:var(--cyan);font-size:.85rem;margin-top:.2rem;"
+                        id="resetEmailDisplay"></p>
+                </div>
+                <div class="form-group"><label><i class="fas fa-key"></i> Reset Code</label>
+                    <input type="text" id="resetOtp" placeholder="123456" required maxlength="6" pattern="[0-9]{6}"
+                        style="text-align:center;font-size:1.5rem;letter-spacing:8px;font-family:'Share Tech Mono',monospace;" />
+                </div>
+                <div class="form-group"><label><i class="fas fa-lock"></i> New Password</label>
+                    <input type="password" id="resetNewPassword" placeholder="Min 8 chars, A-z, 0-9" required
+                        minlength="8" />
+                </div>
+                <div class="auth-error" id="resetError"></div>
+                <button type="submit" class="btn-primary"
+                    style="background:linear-gradient(135deg,var(--orange),#cc6a00);"><i
+                        class="fas fa-check-circle"></i> Reset Password</button>
+                <div style="margin-top:1rem;text-align:center;">
+                    <button type="button" class="btn-link" onclick="showLoginForm()">Back to Login</button>
+                </div>
+            </form>
+
+            <div class="auth-toggle" id="authToggle">
+                <span id="toggleText">Don't have an account?</span>
+                <button class="btn-link" id="toggleBtn" onclick="toggleAuthMode()">Sign Up</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- DASHBOARD -->
+    <div class="dashboard" id="dashboard" style="display:none;">
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header"><i class="fas fa-book-open" style="color:var(--green);"></i><span>My
+                    Courses</span></div>
+            <div class="sidebar-courses" id="sidebarCourses"></div>
+            <div class="sidebar-footer"><a href="/courses.html" class="btn-browse"><i class="fas fa-search"></i> Browse
+                    Courses</a></div>
+        </aside>
+        <main class="main-content" id="mainContent">
+            <div id="dashboardHome">
+                <div class="welcome-bar">
+                    <div>
+                        <h1 id="welcomeName">Welcome back!</h1>
+                        <p class="welcome-sub">Continue learning from where you left off</p>
+                    </div>
+                    <button onclick="openProfile()"
+                        style="background:rgba(0,255,136,.08);border:1px solid rgba(0,255,136,.2);color:var(--green);padding:.4rem .8rem;border-radius:6px;cursor:pointer;font-size:.75rem;font-weight:600;"><i
+                            class="fas fa-user-circle"></i> Profile</button>
+                </div>
+                <div id="announcementsBanner" style="display:none;margin-bottom:1rem;"></div>
+                <div class="course-grid" id="courseGrid"></div>
+            </div>
+            <div id="courseViewer" style="display:none;">
+                <button class="btn-back" onclick="showDashboardHome()"><i class="fas fa-arrow-left"></i> Back to
+                    Dashboard</button>
+                <div class="viewer-header">
+                    <h1 id="viewerCourseTitle"></h1>
+                    <p id="viewerCourseMeta" class="viewer-meta"></p>
+                    <div id="progressBar" style="margin-top:.3rem;"></div>
+                </div>
+                <div class="viewer-layout">
+                    <div class="module-sidebar" id="moduleSidebar"></div>
+                    <div class="content-area" id="contentArea">
+                        <div class="content-placeholder"><i class="fas fa-play-circle"></i>
+                            <p>Select a class or resource from the sidebar to begin</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <button class="sidebar-toggle" id="sidebarToggle" onclick="toggleSidebar()" style="display:none;"><i
+            class="fas fa-bars"></i></button>
+    <div class="toast" id="toast"></div>
+    <script src="learn.js"></script>
+</body>
+
+</html>
