@@ -461,7 +461,13 @@ function checkAccountLock(user) {
     return false;
 }
 
+
+const ALLOWED_TABLES = new Set(['admin_users', 'students']);
+
 function recordFailedLogin(table, id) {
+    if (!ALLOWED_TABLES.has(table)) {
+        throw new Error('Invalid table name');
+    }
     const user = db.prepare(`SELECT loginAttempts FROM ${table} WHERE id = ?`).get(id);
     const attempts = (user?.loginAttempts || 0) + 1;
     if (attempts >= MAX_LOGIN_ATTEMPTS) {
@@ -473,6 +479,9 @@ function recordFailedLogin(table, id) {
 }
 
 function resetLoginAttempts(table, id) {
+    if (!ALLOWED_TABLES.has(table)) {
+        throw new Error('Invalid table name');
+    }
     db.prepare(`UPDATE ${table} SET loginAttempts = 0, lockedUntil = NULL WHERE id = ?`).run(id);
 }
 
@@ -485,7 +494,9 @@ function generateOTP() {
 
 async function sendOTPEmail(email, otp, name) {
     if (!transporter) {
-        console.log(`📧 OTP for ${email}: ${otp} (email not configured, showing in console)`);
+        if (process.env.NODE_ENV !== 'production') {
+            console.log(`📧 OTP for ${email}: ${otp}`);
+        }
         return true;
     }
     try {
@@ -559,8 +570,14 @@ const app = express();
 
 // Security headers
 app.use(helmet({
-    contentSecurityPolicy: false,
-    crossOriginEmbedderPolicy: false,
+    contentSecurityPolicy: {
+        directives: {
+            defaultSrc: ["'self'"],
+            scriptSrc: ["'self'", "https://checkout.razorpay.com"],
+            frameSrc: ["https://drive.google.com"],
+            // add others as needed
+        }
+    }
 }));
 
 // Additional security headers
@@ -634,7 +651,8 @@ app.use((req, res, next) => {
 
 // Static files
 app.use('/uploads', express.static(uploadsDir));
-app.use('/admin', express.static(path.join(__dirname, 'admin')));
+const requireAuth = require('./middleware/requireAuth');
+app.use('/admin', requireAuth, express.static(path.join(__dirname, 'admin')));
 app.use('/learn', express.static(path.join(__dirname, 'learn')));
 app.use(express.static(__dirname, { index: 'index.html', extensions: ['html'] }));
 
@@ -930,7 +948,12 @@ app.post('/api/student/reset-password', (req, res) => {
     const student = db.prepare('SELECT * FROM students WHERE email = ?').get(email.toLowerCase());
     if (!student) return res.status(404).json({ error: 'Account not found.' });
 
-    if (!student.otpCode || student.otpCode !== otp.trim()) {
+
+    const safeEqual = (a, b) => {
+        const ba = Buffer.from(a), bb = Buffer.from(b);
+        return ba.length === bb.length && crypto.timingSafeEqual(ba, bb);
+    };
+    if (!student.otpCode || !safeEqual(student.otpCode, otp.trim())) {
         logSecurity('PASSWORD_RESET_FAIL', ip, email);
         return res.status(400).json({ error: 'Invalid reset code.' });
     }
@@ -1117,9 +1140,16 @@ app.post('/api/contact', (req, res) => {
 app.post('/api/admin/upload', requireAdmin, (req, res) => {
     const { image, filename } = req.body;
     if (!image) return res.status(400).json({ error: 'No image.' });
-    const matches = image.match(/^data:image\/([\w+]+);base64,(.+)$/);
-    if (!matches) return res.status(400).json({ error: 'Invalid format.' });
+    // const matches = image.match(/^data:image\/([\w+]+);base64,(.+)$/);
+    const ALLOWED_IMAGE_TYPES = ['png', 'jpg', 'jpeg', 'gif', 'webp'];
     const ext = matches[1] === 'jpeg' ? 'jpg' : matches[1];
+    if (!ALLOWED_IMAGE_TYPES.includes(ext)) {
+        return res.status(400).json({ error: 'Only PNG, JPG, GIF, WebP allowed.' });
+    }
+
+
+    // if (!matches) return res.status(400).json({ error: 'Invalid format.' });
+    // const ext = matches[1] === 'jpeg' ? 'jpg' : matches[1];
     const data = Buffer.from(matches[2], 'base64');
     if (data.length > 5 * 1024 * 1024) return res.status(400).json({ error: 'Max 5MB.' });
     const safeName = (filename || 'img').replace(/[^a-zA-Z0-9_-]/g, '_');
@@ -1321,6 +1351,10 @@ app.get('/api/student/quiz/:itemId', requireStudent, (req, res) => {
 });
 
 app.post('/api/student/quiz/:itemId/submit', requireStudent, (req, res) => {
+    const ip = getClientIP(req);
+    if (!rateLimit(`quiz-submit:${ip}`, 30, 60000)) {
+        return res.status(429).json({ error: 'Too many requests.' });
+    }
     const quiz = db.prepare('SELECT * FROM quizzes WHERE itemId=?').get(req.params.itemId);
     if (!quiz) return res.status(404).json({ error: 'Quiz not found.' });
     const attempts = db.prepare('SELECT COUNT(*) as c FROM quiz_attempts WHERE studentId=? AND quizId=?').get(req.session.studentId, quiz.id);
