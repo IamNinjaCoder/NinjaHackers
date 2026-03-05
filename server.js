@@ -570,14 +570,8 @@ const app = express();
 
 // Security headers
 app.use(helmet({
-    contentSecurityPolicy: {
-        directives: {
-            defaultSrc: ["'self'"],
-            scriptSrc: ["'self'", "https://checkout.razorpay.com"],
-            frameSrc: ["https://drive.google.com"],
-            // add others as needed
-        }
-    }
+    contentSecurityPolicy: false,
+    crossOriginEmbedderPolicy: false,
 }));
 
 // Additional security headers
@@ -651,8 +645,7 @@ app.use((req, res, next) => {
 
 // Static files
 app.use('/uploads', express.static(uploadsDir));
-const requireAuth = require('./middleware/requireAuth');
-app.use('/admin', requireAuth, express.static(path.join(__dirname, 'admin')));
+app.use('/admin', express.static(path.join(__dirname, 'admin')));
 app.use('/learn', express.static(path.join(__dirname, 'learn')));
 app.use(express.static(__dirname, { index: 'index.html', extensions: ['html'] }));
 
