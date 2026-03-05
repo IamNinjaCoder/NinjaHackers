@@ -1,22 +1,14 @@
 // middleware/requireAuth.js
-const jwt = require('jsonwebtoken');
-
 function requireAuth(req, res, next) {
-    const token = req.cookies?.token || req.headers.authorization?.split(' ')[1];
-
-    if (!token) {
-        // Redirect browsers to login, reject API calls with 401
-        return req.accepts('html')
-            ? res.redirect('/login')
-            : res.status(401).json({ error: 'Unauthorized' });
+    if (req.session && req.session.isAdmin) {
+        return next();
     }
 
-    try {
-        const payload = jwt.verify(token, process.env.JWT_SECRET);
-        req.user = payload;
-        next();
-    } catch {
-        res.status(401).json({ error: 'Invalid or expired token' });
+    // If not admin, redirect HTML requests to login, or reject API calls
+    if (req.accepts('html')) {
+        return res.redirect('/admin/login.html'); // Or whatever the admin login path is
+    } else {
+        return res.status(401).json({ error: 'Admin login required.' });
     }
 }
 
