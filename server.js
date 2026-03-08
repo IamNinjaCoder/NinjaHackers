@@ -588,11 +588,13 @@ app.use((req, res, next) => {
 // Static files
 app.use(helmet({
     contentSecurityPolicy: {
+        useDefaults: true,
         directives: {
-            defaultSrc: ["'self'"],
-            scriptSrc: ["'self'", "https://checkout.razorpay.com"],
-            frameSrc: ["https://drive.google.com"],
-            imgSrc: ["'self'", "data:", "https:"],
+            "default-src": ["'self'"],
+            "script-src": ["'self'", "'unsafe-inline'", "https://checkout.razorpay.com"],
+            "script-src-attr": ["'unsafe-inline'"],
+            "frame-src": ["https://drive.google.com"],
+            "img-src": ["'self'", "data:", "https:"]
         }
     }
 }));
