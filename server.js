@@ -1234,16 +1234,13 @@ app.post('/api/contact', async (req, res) => {
 app.post('/api/admin/upload', requireAdmin, (req, res) => {
     const { image, filename } = req.body;
     if (!image) return res.status(400).json({ error: 'No image.' });
-    // const matches = image.match(/^data:image\/([\w+]+);base64,(.+)$/);
-    const ALLOWED_IMAGE_TYPES = ['png', 'jpg', 'jpeg', 'gif', 'webp'];
-    const ext = matches[1] === 'jpeg' ? 'jpg' : matches[1];
-    if (!ALLOWED_IMAGE_TYPES.includes(ext)) {
+    const matches = image.match(/^data:image\/([a-zA-Z0-9+.-]+);base64,([A-Za-z0-9+/=\s]+)$/);
+    if (!matches) return res.status(400).json({ error: 'Invalid format.' });
+    const allowedImageTypes = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp']);
+    const ext = matches[1].toLowerCase() === 'jpeg' ? 'jpg' : matches[1].toLowerCase();
+    if (!allowedImageTypes.has(ext)) {
         return res.status(400).json({ error: 'Only PNG, JPG, GIF, WebP allowed.' });
     }
-
-
-    // if (!matches) return res.status(400).json({ error: 'Invalid format.' });
-    // const ext = matches[1] === 'jpeg' ? 'jpg' : matches[1];
     const data = Buffer.from(matches[2], 'base64');
     if (data.length > 5 * 1024 * 1024) return res.status(400).json({ error: 'Max 5MB.' });
     const safeName = (filename || 'img').replace(/[^a-zA-Z0-9_-]/g, '_');
@@ -1548,110 +1545,180 @@ app.get('/api/admin/payments', requireAdmin, async (req, res) => {
 });
 
 // Messages
-app.get('/api/admin/messages', requireAdmin, (req, res) => { res.json(db.prepare('SELECT * FROM contact_messages ORDER BY createdAt DESC').all()); });
-app.delete('/api/admin/messages/:id', requireAdmin, (req, res) => { db.prepare('DELETE FROM contact_messages WHERE id=?').run(req.params.id); res.json({ success: true }); });
+app.get('/api/admin/messages', requireAdmin, async (req, res) => {
+    try {
+        const r = await pool.query('SELECT * FROM contact_messages ORDER BY createdAt DESC');
+        res.json(r.rows);
+    } catch (e) { res.status(500).json({ error: 'Server error' }); }
+});
+
+app.delete('/api/admin/messages/:id', requireAdmin, async (req, res) => {
+    try {
+        await pool.query('DELETE FROM contact_messages WHERE id=$1', [req.params.id]);
+        res.json({ success: true });
+    } catch (e) { res.status(500).json({ error: 'Server error' }); }
+});
 
 // Security logs
-app.get('/api/admin/security-logs', requireAdmin, (req, res) => {
-    res.json(db.prepare('SELECT * FROM security_logs ORDER BY createdAt DESC LIMIT 100').all());
+app.get('/api/admin/security-logs', requireAdmin, async (req, res) => {
+    try {
+        const r = await pool.query('SELECT * FROM security_logs ORDER BY createdAt DESC LIMIT 100');
+        res.json(r.rows);
+    } catch (e) { res.status(500).json({ error: 'Server error' }); }
 });
 
 // ═══════════════════════════════════════
 //  QUIZ — ADMIN
 // ═══════════════════════════════════════
-app.post('/api/admin/quizzes', requireAdmin, (req, res) => {
+app.post('/api/admin/quizzes', requireAdmin, async (req, res) => {
     const { itemId, passingPercent, maxAttempts, questions } = req.body;
     if (!itemId || !questions?.length) return res.status(400).json({ error: 'itemId and questions required.' });
     try {
-        const q = db.prepare('INSERT OR REPLACE INTO quizzes (itemId, passingPercent, maxAttempts) VALUES (?,?,?)').run(itemId, passingPercent || 60, maxAttempts || 3);
-        const quizId = db.prepare('SELECT id FROM quizzes WHERE itemId=?').get(itemId).id;
-        db.prepare('DELETE FROM quiz_questions WHERE quizId=?').run(quizId);
-        const ins = db.prepare('INSERT INTO quiz_questions (quizId,question,optionA,optionB,optionC,optionD,correctOption,sortOrder) VALUES (?,?,?,?,?,?,?,?)');
-        questions.forEach((q, i) => ins.run(quizId, q.question, q.optionA, q.optionB, q.optionC || '', q.optionD || '', q.correctOption || 'A', i));
+        await pool.query('INSERT INTO quizzes (itemId, passingPercent, maxAttempts) VALUES ($1,$2,$3) ON CONFLICT(itemId) DO UPDATE SET passingPercent=EXCLUDED.passingPercent, maxAttempts=EXCLUDED.maxAttempts', [itemId, passingPercent || 60, maxAttempts || 3]);
+
+        const quizRes = await pool.query('SELECT id FROM quizzes WHERE itemId=$1', [itemId]);
+        const quizId = quizRes.rows[0].id;
+
+        await pool.query('DELETE FROM quiz_questions WHERE quizId=$1', [quizId]);
+
+        for (let i = 0; i < questions.length; i++) {
+            const q = questions[i];
+            await pool.query('INSERT INTO quiz_questions (quizId,question,optionA,optionB,optionC,optionD,correctOption,sortOrder) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)', [quizId, q.question, q.optionA, q.optionB, q.optionC || '', q.optionD || '', q.correctOption || 'A', i]);
+        }
+
         res.json({ success: true, quizId });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.get('/api/admin/quizzes/:itemId', requireAdmin, (req, res) => {
-    const quiz = db.prepare('SELECT * FROM quizzes WHERE itemId=?').get(req.params.itemId);
-    if (!quiz) return res.json({ quiz: null, questions: [] });
-    const questions = db.prepare('SELECT * FROM quiz_questions WHERE quizId=? ORDER BY sortOrder').all(quiz.id);
-    res.json({ quiz, questions });
+app.get('/api/admin/quizzes/:itemId', requireAdmin, async (req, res) => {
+    try {
+        const quizRes = await pool.query('SELECT * FROM quizzes WHERE itemId=$1', [req.params.itemId]);
+        const quiz = quizRes.rows[0];
+        if (!quiz) return res.json({ quiz: null, questions: [] });
+
+        const questionsRes = await pool.query('SELECT * FROM quiz_questions WHERE quizId=$1 ORDER BY sortOrder', [quiz.id]);
+        res.json({ quiz, questions: questionsRes.rows });
+    } catch (e) { res.status(500).json({ error: 'Server error' }); }
 });
 
-app.get('/api/admin/quizzes/:itemId/attempts', requireAdmin, (req, res) => {
-    const quiz = db.prepare('SELECT id FROM quizzes WHERE itemId=?').get(req.params.itemId);
-    if (!quiz) return res.json([]);
-    res.json(db.prepare('SELECT qa.*, s.name, s.email FROM quiz_attempts qa JOIN students s ON s.id=qa.studentId WHERE qa.quizId=? ORDER BY qa.createdAt DESC').all(quiz.id));
+app.get('/api/admin/quizzes/:itemId/attempts', requireAdmin, async (req, res) => {
+    try {
+        const quizRes = await pool.query('SELECT id FROM quizzes WHERE itemId=$1', [req.params.itemId]);
+        const quiz = quizRes.rows[0];
+        if (!quiz) return res.json([]);
+        const attemptsRes = await pool.query('SELECT qa.*, s.name, s.email FROM quiz_attempts qa JOIN students s ON s.id=qa.studentId WHERE qa.quizId=$1 ORDER BY qa.createdAt DESC', [quiz.id]);
+        res.json(attemptsRes.rows.map(a => ({ ...a, answers: JSON.parse(a.answers) })));
+    } catch (err) {
+        res.status(500).json({ error: 'Server error' });
+    }
 });
 
 // ═══════════════════════════════════════
 //  QUIZ — STUDENT
 // ═══════════════════════════════════════
-app.get('/api/student/quiz/:itemId', requireStudent, (req, res) => {
-    const quiz = db.prepare('SELECT * FROM quizzes WHERE itemId=?').get(req.params.itemId);
-    if (!quiz) return res.status(404).json({ error: 'Quiz not found.' });
-    const questions = db.prepare('SELECT id,question,optionA,optionB,optionC,optionD,sortOrder FROM quiz_questions WHERE quizId=? ORDER BY sortOrder').all(quiz.id);
-    const attempts = db.prepare('SELECT * FROM quiz_attempts WHERE studentId=? AND quizId=? ORDER BY createdAt DESC').all(req.session.studentId, quiz.id);
-    res.json({ quiz: { id: quiz.id, passingPercent: quiz.passingPercent, maxAttempts: quiz.maxAttempts }, questions, attempts, attemptsUsed: attempts.length });
+app.get('/api/student/quiz/:itemId', requireStudent, async (req, res) => {
+    try {
+        const quizRes = await pool.query('SELECT * FROM quizzes WHERE itemId=$1', [req.params.itemId]);
+        const quiz = quizRes.rows[0];
+        if (!quiz) return res.status(404).json({ error: 'Quiz not found.' });
+
+        const questionsRes = await pool.query('SELECT id,question,optionA,optionB,optionC,optionD,sortOrder FROM quiz_questions WHERE quizId=$1 ORDER BY sortOrder', [quiz.id]);
+
+        const attemptsRes = await pool.query('SELECT * FROM quiz_attempts WHERE studentId=$1 AND quizId=$2 ORDER BY createdAt DESC', [req.session.studentId, quiz.id]);
+
+        res.json({ quiz: { id: quiz.id, passingPercent: quiz.passingpercent || quiz.passingPercent, maxAttempts: quiz.maxattempts || quiz.maxAttempts }, questions: questionsRes.rows, attempts: attemptsRes.rows.map(a => ({ ...a, answers: JSON.parse(a.answers) })), attemptsUsed: attemptsRes.rows.length });
+    } catch (err) {
+        res.status(500).json({ error: 'Server error' });
+    }
 });
 
-app.post('/api/student/quiz/:itemId/submit', requireStudent, (req, res) => {
+app.post('/api/student/quiz/:itemId/submit', requireStudent, async (req, res) => {
     const ip = getClientIP(req);
-    if (!rateLimit(`quiz-submit:${ip}`, 30, 60000)) {
+    const studentId = req.session?.studentId || 'anon';
+    const key = `quiz-submit:${studentId}:${ip}`;
+    if (!rateLimit(key, 30, 60000)) {
         return res.status(429).json({ error: 'Too many requests.' });
     }
-    const quiz = db.prepare('SELECT * FROM quizzes WHERE itemId=?').get(req.params.itemId);
-    if (!quiz) return res.status(404).json({ error: 'Quiz not found.' });
-    const attempts = db.prepare('SELECT COUNT(*) as c FROM quiz_attempts WHERE studentId=? AND quizId=?').get(req.session.studentId, quiz.id);
-    if (attempts.c >= quiz.maxAttempts) return res.status(400).json({ error: `Max ${quiz.maxAttempts} attempts reached.` });
 
-    const questions = db.prepare('SELECT * FROM quiz_questions WHERE quizId=? ORDER BY sortOrder').all(quiz.id);
-    const { answers } = req.body; // { questionId: 'A'|'B'|'C'|'D' }
-    let score = 0;
-    const results = questions.map(q => {
-        const studentAnswer = answers?.[q.id] || '';
-        const correct = studentAnswer === q.correctOption;
-        if (correct) score++;
-        return { questionId: q.id, studentAnswer, correctOption: q.correctOption, correct };
-    });
-    const percent = Math.round((score / questions.length) * 100);
-    const passed = percent >= quiz.passingPercent ? 1 : 0;
-    db.prepare('INSERT INTO quiz_attempts (studentId,quizId,score,totalQuestions,passed,answers) VALUES (?,?,?,?,?,?)').run(req.session.studentId, quiz.id, score, questions.length, passed, JSON.stringify(answers));
-    if (passed) { try { db.prepare('INSERT OR IGNORE INTO student_progress (studentId,itemId) VALUES (?,?)').run(req.session.studentId, parseInt(req.params.itemId)); } catch (e) { } }
-    res.json({ success: true, score, total: questions.length, percent, passed: !!passed, results });
+    try {
+        const quizRes = await pool.query('SELECT * FROM quizzes WHERE itemId=$1', [req.params.itemId]);
+        const quiz = quizRes.rows[0];
+        if (!quiz) return res.status(404).json({ error: 'Quiz not found.' });
+
+        const attemptsRes = await pool.query('SELECT COUNT(*) as c FROM quiz_attempts WHERE studentId=$1 AND quizId=$2', [req.session.studentId, quiz.id]);
+        if (parseInt(attemptsRes.rows[0].c, 10) >= (quiz.maxattempts || quiz.maxAttempts)) {
+            return res.status(400).json({ error: `Max ${quiz.maxattempts || quiz.maxAttempts} attempts reached.` });
+        }
+
+        const questionsRes = await pool.query('SELECT * FROM quiz_questions WHERE quizId=$1 ORDER BY sortOrder', [quiz.id]);
+        const questions = questionsRes.rows;
+
+        const { answers } = req.body;
+        let score = 0;
+        const results = questions.map(q => {
+            const studentAnswer = answers?.[q.id] || '';
+            const correct = studentAnswer === (q.correctoption || q.correctOption);
+            if (correct) score++;
+            return { questionId: q.id, studentAnswer, correctOption: q.correctoption || q.correctOption, correct };
+        });
+
+        const percent = Math.round((score / questions.length) * 100);
+        const passed = percent >= (quiz.passingpercent || quiz.passingPercent) ? 1 : 0;
+
+        await pool.query('INSERT INTO quiz_attempts (studentId,quizId,score,totalQuestions,passed,answers) VALUES ($1,$2,$3,$4,$5,$6)', [req.session.studentId, quiz.id, score, questions.length, passed, JSON.stringify(answers || {})]);
+
+        if (passed) {
+            await pool.query('INSERT INTO student_progress (studentId,itemId) VALUES ($1,$2) ON CONFLICT DO NOTHING', [req.session.studentId, parseInt(req.params.itemId)]);
+        }
+        res.json({ success: true, score, total: questions.length, percent, passed: !!passed, results });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Server error' });
+    }
 });
 
 // ═══════════════════════════════════════
 //  ASSIGNMENT — STUDENT
 // ═══════════════════════════════════════
-app.post('/api/student/assignment/:itemId/submit', requireStudent, upload.single('file'), (req, res) => {
+app.post('/api/student/assignment/:itemId/submit', requireStudent, upload.single('file'), async (req, res) => {
     if (!req.file) return res.status(400).json({ error: 'File required. Allowed: PDF, ZIP, images (max 10MB).' });
-    const existing = db.prepare('SELECT id FROM assignment_submissions WHERE studentId=? AND itemId=?').get(req.session.studentId, req.params.itemId);
-    if (existing) {
-        db.prepare('UPDATE assignment_submissions SET filePath=?,fileName=?,submittedAt=datetime(\'now\'),grade=NULL,feedback=\'\',gradedAt=NULL WHERE id=?').run(req.file.path, req.file.originalname, existing.id);
-    } else {
-        db.prepare('INSERT INTO assignment_submissions (studentId,itemId,filePath,fileName) VALUES (?,?,?,?)').run(req.session.studentId, req.params.itemId, req.file.path, req.file.originalname);
-    }
-    res.json({ success: true, fileName: req.file.originalname });
+    try {
+        const existingRes = await pool.query('SELECT id FROM assignment_submissions WHERE studentId=$1 AND itemId=$2', [req.session.studentId, req.params.itemId]);
+        const existing = existingRes.rows[0];
+
+        if (existing) {
+            await pool.query('UPDATE assignment_submissions SET filePath=$1, fileName=$2, submittedAt=CURRENT_TIMESTAMP, grade=NULL, feedback=$3, gradedAt=NULL WHERE id=$4', [req.file.path, req.file.originalname, '', existing.id]);
+        } else {
+            await pool.query('INSERT INTO assignment_submissions (studentId,itemId,filePath,fileName) VALUES ($1,$2,$3,$4)', [req.session.studentId, req.params.itemId, req.file.path, req.file.originalname]);
+        }
+        res.json({ success: true, fileName: req.file.originalname });
+    } catch (e) { res.status(500).json({ error: 'Server error' }); }
 });
 
-app.get('/api/student/assignment/:itemId/status', requireStudent, (req, res) => {
-    const sub = db.prepare('SELECT id,fileName,grade,feedback,submittedAt,gradedAt FROM assignment_submissions WHERE studentId=? AND itemId=?').get(req.session.studentId, req.params.itemId);
-    res.json({ submission: sub || null });
+app.get('/api/student/assignment/:itemId/status', requireStudent, async (req, res) => {
+    try {
+        const subRes = await pool.query('SELECT id,fileName,grade,feedback,submittedAt,gradedAt FROM assignment_submissions WHERE studentId=$1 AND itemId=$2', [req.session.studentId, req.params.itemId]);
+        res.json({ submission: subRes.rows[0] || null });
+    } catch (e) { res.status(500).json({ error: 'Server error' }); }
 });
 
 // ═══════════════════════════════════════
 //  ASSIGNMENT — ADMIN
 // ═══════════════════════════════════════
-app.get('/api/admin/assignments/:itemId', requireAdmin, (req, res) => {
-    res.json(db.prepare('SELECT asub.*, s.name, s.email FROM assignment_submissions asub JOIN students s ON s.id=asub.studentId WHERE asub.itemId=? ORDER BY asub.submittedAt DESC').all(req.params.itemId));
+app.get('/api/admin/assignments/:itemId', requireAdmin, async (req, res) => {
+    try {
+        const r = await pool.query('SELECT asub.*, s.name, s.email FROM assignment_submissions asub JOIN students s ON s.id=asub.studentId WHERE asub.itemId=$1 ORDER BY asub.submittedAt DESC', [req.params.itemId]);
+        res.json(r.rows);
+    } catch (e) { res.status(500).json({ error: 'Server error' }); }
 });
 
-app.get('/api/admin/assignments/download/:id', requireAdmin, (req, res) => {
-    const sub = db.prepare('SELECT filePath,fileName FROM assignment_submissions WHERE id=?').get(req.params.id);
-    if (!sub || !fs.existsSync(sub.filePath)) return res.status(404).json({ error: 'File not found.' });
-    res.download(sub.filePath, sub.fileName);
+app.get('/api/admin/assignments/download/:id', requireAdmin, async (req, res) => {
+    try {
+        const subRes = await pool.query('SELECT filePath,fileName FROM assignment_submissions WHERE id=$1', [req.params.id]);
+        const sub = subRes.rows[0];
+        if (!sub || !fs.existsSync(sub.filepath || sub.filePath)) return res.status(404).json({ error: 'File not found.' });
+        res.download(sub.filepath || sub.filePath, sub.filename || sub.fileName);
+    } catch (e) { res.status(500).json({ error: 'Server error' }); }
 });
 
 app.put('/api/admin/assignments/:id/grade', requireAdmin, async (req, res) => {
