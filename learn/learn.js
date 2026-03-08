@@ -328,6 +328,8 @@ async function openCourse(courseId) {
 
 function renderCourseViewer() {
   document.getElementById('dashboardHome').style.display = 'none';
+  document.getElementById('sidebar').style.display = 'none';
+  document.getElementById('mainContent').style.marginLeft = '0';
   document.getElementById('courseViewer').style.display = 'block';
   document.getElementById('viewerCourseTitle').textContent = currentCourse.title;
   document.getElementById('viewerCourseMeta').innerHTML =
@@ -543,6 +545,8 @@ async function submitQuiz(itemId, questionIds) {
 function showDashboardHome() {
   document.getElementById('courseViewer').style.display = 'none';
   document.getElementById('dashboardHome').style.display = 'block';
+  document.getElementById('sidebar').style.display = 'flex';
+  document.getElementById('mainContent').style.marginLeft = '260px';
   currentCourse = null;
   renderSidebar();
 }
