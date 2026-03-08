@@ -5,10 +5,12 @@ function requireAuth(req, res, next) {
     }
 
     // If not admin, appropriately handle API vs Browser requests
-    if (req.path.startsWith('/api/') || req.accepts('json') || req.get('Accept')?.includes('application/json')) {
+    // Browser Accept headers contain '*/*' which req.accepts('json') considers a match.
+    // Use req.originalUrl or explicit accept strings to differentiate.
+    if (req.originalUrl.startsWith('/api/') || req.xhr || req.get('Accept')?.includes('application/json')) {
         return res.status(401).json({ error: 'Admin login required.' });
     } else {
-        return res.redirect('/admin/index.html');
+        return res.redirect('/admin/login.html');
     }
 }
 
