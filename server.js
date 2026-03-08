@@ -24,7 +24,20 @@ if (fs.existsSync(envPath)) {
 const PORT = process.env.PORT || 3000;
 const ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'admin';
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'NinjaHack3r$2025';
-const SESSION_SECRET = process.env.SESSION_SECRET || 'change-me-in-production';
+
+if (!process.env.SESSION_SECRET) {
+    console.error('FATAL: SESSION_SECRET must be set in environment.');
+    process.exit(1);
+}
+const SESSION_SECRET = process.env.SESSION_SECRET;
+
+const DOMPurify = require('isomorphic-dompurify');
+
+const safeEqual = (a, b) => {
+    const ba = Buffer.from(String(a));
+    const bb = Buffer.from(String(b));
+    return ba.length === bb.length && require('crypto').timingSafeEqual(ba, bb);
+};
 
 // ─── Allowed email domains ───
 const ALLOWED_DOMAINS = new Set([
@@ -573,8 +586,29 @@ app.use((req, res, next) => {
 });
 
 // Static files
-app.use('/uploads', express.static(uploadsDir));
-app.use('/admin', express.static(path.join(__dirname, 'admin')));
+app.use(helmet({
+    contentSecurityPolicy: {
+        directives: {
+            defaultSrc: ["'self'"],
+            scriptSrc: ["'self'", "https://checkout.razorpay.com"],
+            frameSrc: ["https://drive.google.com"],
+            imgSrc: ["'self'", "data:", "https:"],
+        }
+    }
+}));
+
+app.use('/uploads', (req, res, next) => {
+    res.setHeader('Content-Disposition', 'attachment');
+    next();
+}, express.static(uploadsDir));
+
+const requireAuth = require('./middleware/requireAuth');
+// Allow the login page publicly, protect everything else
+app.get('/admin/login.html', (req, res) =>
+    res.sendFile(path.join(__dirname, 'admin/login.html')));
+app.use('/admin', requireAuth, express.static(path.join(__dirname, 'admin')));
+
+// Allow the learn login page publicly, protect everything else
 app.use('/learn', express.static(path.join(__dirname, 'learn')));
 app.use(express.static(__dirname, { index: 'index.html', extensions: ['html'] }));
 
@@ -732,7 +766,7 @@ app.post('/api/student/verify-otp', async (req, res) => {
         }
 
         const otpCode = student.otpcode || student.otpCode;
-        if (!otpCode || otpCode !== otp.trim()) {
+        if (!otpCode || !safeEqual(otpCode, otp.trim())) {
             logSecurity('OTP_FAIL', ip, email);
             return res.status(400).json({ error: 'Invalid verification code.' });
         }
@@ -886,7 +920,9 @@ app.post('/api/student/forgot-password', async (req, res) => {
                 });
             } catch (err) { console.error('Email error:', err.message); }
         } else {
-            console.log(`🔑 PASSWORD RESET OTP for ${student.email}: ${otp}`);
+            if (process.env.NODE_ENV !== 'production') {
+                console.log(`🔑 PASSWORD RESET OTP for ${student.email}: ${otp}`);
+            }
         }
 
         logSecurity('PASSWORD_RESET_REQUEST', ip, email);
@@ -1211,11 +1247,18 @@ app.post('/api/contact', async (req, res) => {
 
         if (transporter) {
             try {
+                function escapeHtml(s) {
+                    return (s || '')
+                        .replace(/&/g, '&amp;')
+                        .replace(/</g, '&lt;')
+                        .replace(/>/g, '&gt;')
+                        .replace(/"/g, '&quot;');
+                }
                 await transporter.sendMail({
                     from: process.env.SMTP_FROM || process.env.SMTP_USER,
                     to: process.env.CONTACT_TO || process.env.SMTP_USER,
-                    subject: `[NinjaHackers] Contact: ${subject || 'New Message'}`,
-                    html: `<h3>New Contact</h3><p><b>From:</b> ${name} (${email})</p><p><b>Subject:</b> ${subject || 'N/A'}</p><p>${message.replace(/\n/g, '<br>')}</p>`
+                    subject: `[NinjaHackers] Contact: ${escapeHtml(subject) || 'New Message'}`,
+                    html: `<h3>New Contact</h3><p><b>From:</b> ${escapeHtml(name)} (${escapeHtml(email)})</p><p><b>Subject:</b> ${escapeHtml(subject) || 'N/A'}</p><p>${escapeHtml(message).replace(/\n/g, '<br>')}</p>`
                 });
             } catch (err) {
                 console.error('Email error:', err);
@@ -1268,7 +1311,7 @@ app.post('/api/admin/blogs', requireAdmin, async (req, res) => {
     try {
         const r = await pool.query(
             'INSERT INTO blogs (title, author, excerpt, tags, date, readTime, content, contentHtml, coverImage, published, createdAt, updatedAt) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING id',
-            [title, author || 'NinjaHacker', excerpt || '', JSON.stringify(tags || []), date || new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' }), readTime || '5 min read', content, marked(content), coverImage || '', published !== undefined ? (published ? 1 : 0) : 1, now, now]
+            [title, author || 'NinjaHacker', excerpt || '', JSON.stringify(tags || []), date || new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' }), readTime || '5 min read', content, DOMPurify.sanitize(marked(content)), coverImage || '', published !== undefined ? (published ? 1 : 0) : 1, now, now]
         );
         res.json({ success: true, id: r.rows[0].id });
     } catch (err) {
@@ -1284,7 +1327,7 @@ app.put('/api/admin/blogs/:id', requireAdmin, async (req, res) => {
 
         await pool.query(
             `UPDATE blogs SET title=$1, author=$2, excerpt=$3, tags=$4, date=$5, readTime=$6, content=$7, contentHtml=$8, coverImage=$9, published=$10, updatedAt=CURRENT_TIMESTAMP WHERE id=$11`,
-            [title, author || 'NinjaHacker', excerpt || '', JSON.stringify(tags || []), date || '', readTime || '5 min read', content || '', marked(content || ''), coverImage || '', published !== undefined ? (published ? 1 : 0) : 1, req.params.id]
+            [title, author || 'NinjaHacker', excerpt || '', JSON.stringify(tags || []), date || '', readTime || '5 min read', content || '', DOMPurify.sanitize(marked(content || '')), coverImage || '', published !== undefined ? (published ? 1 : 0) : 1, req.params.id]
         );
         res.json({ success: true });
     } catch (err) {
@@ -1844,6 +1887,11 @@ app.put('/api/student/change-password', requireStudent, async (req, res) => {
         const match = await bcrypt.compare(currentPassword, student.passwordhash || student.passwordHash);
         if (!match) return res.status(400).json({ error: 'Current password is wrong.' });
         if (newPassword.length < 8) return res.status(400).json({ error: 'New password must be at least 8 characters.' });
+        if (!/[A-Z]/.test(newPassword) || !/[a-z]/.test(newPassword) || !/[0-9]/.test(newPassword)) {
+            return res.status(400).json({
+                error: 'Password must contain at least one uppercase letter, one lowercase letter, and one number.'
+            });
+        }
 
         const hash = await bcrypt.hash(newPassword, 12);
         await pool.query('UPDATE students SET passwordHash=$1 WHERE id=$2', [hash, req.session.studentId]);
@@ -1896,7 +1944,10 @@ app.post('/api/student/validate-coupon', requireStudent, async (req, res) => {
         if (couponRes.rows.length === 0) return res.status(404).json({ error: 'Invalid coupon code.' });
         const coupon = couponRes.rows[0];
 
-        if (coupon.expiresat || coupon.expiresAt && new Date(coupon.expiresat || coupon.expiresAt) < new Date()) return res.status(400).json({ error: 'Coupon expired.' });
+        const expiry = coupon.expiresat || coupon.expiresAt;
+        if (expiry && new Date(expiry) < new Date()) {
+            return res.status(400).json({ error: 'Coupon expired.' });
+        }
         if ((coupon.usedcount || coupon.usedCount) >= (coupon.maxuses || coupon.maxUses)) return res.status(400).json({ error: 'Coupon fully used.' });
         if ((coupon.courseid || coupon.courseId) && (coupon.courseid || coupon.courseId) !== parseInt(courseId, 10)) return res.status(400).json({ error: 'Coupon is not valid for this course.' });
         if ((coupon.studentemail || coupon.studentEmail) && (coupon.studentemail || coupon.studentEmail).toLowerCase() !== req.session.studentEmail.toLowerCase()) return res.status(400).json({ error: 'Coupon is not valid for your account.' });

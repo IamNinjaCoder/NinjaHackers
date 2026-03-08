@@ -8,6 +8,14 @@ let currentCourse = null;
 let isSignupMode = false;
 let pendingVerifyEmail = '';
 
+function safeHref(url) {
+  if (!url) return '#';
+  try {
+    const u = new URL(url);
+    return ['https:', 'http:'].includes(u.protocol) ? url : '#';
+  } catch { return '#'; }
+}
+
 // ─── INIT ───
 document.addEventListener('DOMContentLoaded', async () => {
   try {
@@ -390,7 +398,7 @@ function openItem(itemId) {
         html = `<div class="content-header"><div class="content-title">${esc(item.title)}</div><div class="content-type-badge type-live_class"><i class="fas fa-broadcast-tower"></i> LIVE CLASS</div></div>
           ${item.description ? `<div class="content-description">${esc(item.description)}</div>` : ''}
           <div style="text-align:center;padding:1rem;"><span style="display:inline-block;background:rgba(0,255,136,.1);border:1px solid var(--green);border-radius:20px;padding:.3rem 1rem;font-size:.75rem;color:var(--green);margin-bottom:1rem;"><i class="fas fa-circle" style="font-size:.5rem;"></i> Class is live now!</span></div>
-          <a href="${item.link}" target="_blank" rel="noopener" class="content-action action-live"><i class="fas fa-video"></i> Join Live Session</a>
+          <a href="${safeHref(item.link)}" target="_blank" rel="noopener" class="content-action action-live"><i class="fas fa-video"></i> Join Live Session</a>
           <p style="margin-top:1rem;font-size:.78rem;color:var(--muted);font-family:'Share Tech Mono',monospace;"><i class="fas fa-info-circle"></i> Opens TeamViewer / meeting link in a new tab</p>`;
       }
       break;
@@ -402,20 +410,20 @@ function openItem(itemId) {
           <iframe src="${driveEmbed}" allowfullscreen allow="autoplay" style="pointer-events:auto;"></iframe>
           <div style="position:absolute;top:8px;right:8px;font-size:.55rem;color:rgba(255,255,255,.3);font-family:'Share Tech Mono',monospace;pointer-events:none;z-index:10;">NinjaHackers</div>
         </div>` : ''}
-        <a href="${item.link}" target="_blank" rel="noopener" class="content-action action-video"><i class="fas fa-external-link-alt"></i> Open in Drive</a>`;
+        <a href="${safeHref(item.link)}" target="_blank" rel="noopener" class="content-action action-video"><i class="fas fa-external-link-alt"></i> Open in Drive</a>`;
       // Track progress
       fetch(`/api/student/progress/${item.id}`, { method: 'POST' });
       break;
     case 'notes':
       html = `<div class="content-header"><div class="content-title">${esc(item.title)}</div><div class="content-type-badge type-notes"><i class="fas fa-file-alt"></i> NOTES</div></div>
         ${item.description ? `<div class="content-description" style="background:var(--surface);padding:1rem;border-radius:8px;border:1px solid rgba(0,212,255,.1);line-height:1.6;">${item.description}</div>` : ''}
-        ${item.link ? `<a href="${item.link}" target="_blank" rel="noopener" class="content-action action-notes"><i class="fas fa-external-link-alt"></i> View / Download Notes</a>` : ''}`;
+        ${item.link ? `<a href="${safeHref(item.link)}" target="_blank" rel="noopener" class="content-action action-notes"><i class="fas fa-external-link-alt"></i> View / Download Notes</a>` : ''}`;
       fetch(`/api/student/progress/${item.id}`, { method: 'POST' });
       break;
     case 'assignment':
       html = `<div class="content-header"><div class="content-title">${esc(item.title)}</div><div class="content-type-badge type-assignment"><i class="fas fa-tasks"></i> ASSIGNMENT</div></div>
         ${item.description ? `<div class="content-description">${esc(item.description)}</div>` : ''}
-        ${item.link ? `<a href="${item.link}" target="_blank" rel="noopener" class="content-action action-assignment" style="margin-bottom:1rem;"><i class="fas fa-external-link-alt"></i> View Assignment Brief</a>` : ''}
+        ${item.link ? `<a href="${safeHref(item.link)}" target="_blank" rel="noopener" class="content-action action-assignment" style="margin-bottom:1rem;"><i class="fas fa-external-link-alt"></i> View Assignment Brief</a>` : ''}
         <div style="background:var(--surface);border:1px solid rgba(255,160,0,.15);border-radius:8px;padding:1rem;margin-top:.5rem;">
           <h4 style="color:var(--orange);font-size:.85rem;margin:0 0 .5rem;"><i class="fas fa-upload"></i> Submit Your Work</h4>
           <div id="assignmentStatus-${item.id}" style="margin-bottom:.5rem;font-size:.75rem;color:var(--muted);"></div>
@@ -434,7 +442,7 @@ function openItem(itemId) {
       break;
     default:
       html = `<div class="content-header"><div class="content-title">${esc(item.title)}</div></div>
-        ${item.link ? `<a href="${item.link}" target="_blank" class="content-action action-notes"><i class="fas fa-external-link-alt"></i> Open</a>` : ''}`;
+        ${item.link ? `<a href="${safeHref(item.link)}" target="_blank" class="content-action action-notes"><i class="fas fa-external-link-alt"></i> Open</a>` : ''}`;
   }
   area.innerHTML = html;
 }
