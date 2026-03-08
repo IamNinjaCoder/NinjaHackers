@@ -80,10 +80,11 @@ let transporter;
 try {
     const nodemailer = require('nodemailer');
     if (process.env.SMTP_USER && !process.env.SMTP_USER.startsWith('your-')) {
+        const smtpPort = parseInt(process.env.SMTP_PORT || '587');
         transporter = nodemailer.createTransport({
             host: process.env.SMTP_HOST || 'smtp.gmail.com',
-            port: parseInt(process.env.SMTP_PORT || '587'),
-            secure: false,
+            port: smtpPort,
+            secure: smtpPort === 465,
             auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
         });
         console.log('✅ Email configured.');
@@ -887,7 +888,7 @@ app.post('/api/student/forgot-password', async (req, res) => {
     const { email } = req.body;
     const ip = getClientIP(req);
     if (!email) return res.status(400).json({ error: 'Email required.' });
-    if (!rateLimit(`forgot:${ip}`, 3, 60 * 60 * 1000)) {
+    if (!rateLimit(`forgot:${ip}`, 10, 60 * 60 * 1000)) {
         return res.status(429).json({ error: 'Too many requests. Try again later.' });
     }
 
