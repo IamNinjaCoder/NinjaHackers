@@ -1,5 +1,5 @@
 const express = require('express');
-const Database = require('better-sqlite3');
+const { Pool } = require('pg');
 const session = require('express-session');
 const bcrypt = require('bcryptjs');
 const { marked } = require('marked');
@@ -101,337 +101,274 @@ const upload = multer({
     }
 });
 
-const db = new Database(path.join(dataDir, 'database.db'));
-db.pragma('journal_mode = WAL');
-db.pragma('foreign_keys = ON');
+// Determine if we should use URL or local config
+const poolConfig = process.env.DATABASE_URL
+    ? { connectionString: process.env.DATABASE_URL } // For Heroku/Render/Supabase (add ssl: { rejectUnauthorized: false } if needed)
+    : {
+        user: process.env.USER,
+        host: process.env.PGHOST || '/tmp', // Local MacOS UNIX socket fallback
+        database: 'ninjahackers',
+        port: 5433,
+    };
 
-db.exec(`
-  CREATE TABLE IF NOT EXISTS blogs (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    title TEXT NOT NULL,
-    author TEXT NOT NULL DEFAULT 'NinjaHacker',
-    excerpt TEXT NOT NULL DEFAULT '',
-    tags TEXT NOT NULL DEFAULT '[]',
-    date TEXT NOT NULL,
-    readTime TEXT NOT NULL DEFAULT '5 min read',
-    content TEXT NOT NULL DEFAULT '',
-    contentHtml TEXT NOT NULL DEFAULT '',
-    coverImage TEXT DEFAULT '',
-    published INTEGER NOT NULL DEFAULT 1,
-    createdAt TEXT NOT NULL DEFAULT (datetime('now')),
-    updatedAt TEXT NOT NULL DEFAULT (datetime('now'))
-  );
+const pool = new Pool(poolConfig);
 
-  CREATE TABLE IF NOT EXISTS comments (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    blogId INTEGER NOT NULL,
-    name TEXT NOT NULL,
-    comment TEXT NOT NULL,
-    createdAt TEXT NOT NULL DEFAULT (datetime('now')),
-    FOREIGN KEY (blogId) REFERENCES blogs(id) ON DELETE CASCADE
-  );
-
-  CREATE TABLE IF NOT EXISTS admin_users (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    username TEXT UNIQUE NOT NULL,
-    passwordHash TEXT NOT NULL,
-    loginAttempts INTEGER NOT NULL DEFAULT 0,
-    lockedUntil TEXT DEFAULT NULL
-  );
-
-  CREATE TABLE IF NOT EXISTS students (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL,
-    email TEXT UNIQUE NOT NULL,
-    passwordHash TEXT NOT NULL,
-    emailVerified INTEGER NOT NULL DEFAULT 0,
-    otpCode TEXT DEFAULT NULL,
-    otpExpiry TEXT DEFAULT NULL,
-    loginAttempts INTEGER NOT NULL DEFAULT 0,
-    lockedUntil TEXT DEFAULT NULL,
-    createdAt TEXT NOT NULL DEFAULT (datetime('now'))
-  );
-
-  CREATE TABLE IF NOT EXISTS courses (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    title TEXT NOT NULL,
-    code TEXT NOT NULL DEFAULT '',
-    description TEXT NOT NULL DEFAULT '',
-    price INTEGER NOT NULL DEFAULT 0,
-    coverImage TEXT DEFAULT '',
-    instructor TEXT NOT NULL DEFAULT 'NinjaHacker',
-    duration TEXT DEFAULT '',
-    level TEXT DEFAULT 'Beginner',
-    published INTEGER NOT NULL DEFAULT 1,
-    createdAt TEXT NOT NULL DEFAULT (datetime('now')),
-    updatedAt TEXT NOT NULL DEFAULT (datetime('now'))
-  );
-
-  CREATE TABLE IF NOT EXISTS course_modules (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    courseId INTEGER NOT NULL,
-    title TEXT NOT NULL,
-    sortOrder INTEGER NOT NULL DEFAULT 0,
-    FOREIGN KEY (courseId) REFERENCES courses(id) ON DELETE CASCADE
-  );
-
-  CREATE TABLE IF NOT EXISTS module_items (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    moduleId INTEGER NOT NULL,
-    type TEXT NOT NULL DEFAULT 'recorded_class',
-    title TEXT NOT NULL,
-    link TEXT NOT NULL DEFAULT '',
-    description TEXT DEFAULT '',
-    sortOrder INTEGER NOT NULL DEFAULT 0,
-    scheduledAt TEXT DEFAULT NULL,
-    FOREIGN KEY (moduleId) REFERENCES course_modules(id) ON DELETE CASCADE
-  );
-
-  CREATE TABLE IF NOT EXISTS enrollments (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    studentId INTEGER NOT NULL,
-    courseId INTEGER NOT NULL,
-    enrolledAt TEXT NOT NULL DEFAULT (datetime('now')),
-    FOREIGN KEY (studentId) REFERENCES students(id) ON DELETE CASCADE,
-    FOREIGN KEY (courseId) REFERENCES courses(id) ON DELETE CASCADE,
-    UNIQUE(studentId, courseId)
-  );
-
-  CREATE TABLE IF NOT EXISTS payments (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    studentId INTEGER NOT NULL,
-    courseId INTEGER NOT NULL,
-    razorpayOrderId TEXT,
-    razorpayPaymentId TEXT,
-    razorpaySignature TEXT,
-    amount INTEGER NOT NULL DEFAULT 0,
-    currency TEXT NOT NULL DEFAULT 'INR',
-    status TEXT NOT NULL DEFAULT 'pending',
-    createdAt TEXT NOT NULL DEFAULT (datetime('now')),
-    FOREIGN KEY (studentId) REFERENCES students(id),
-    FOREIGN KEY (courseId) REFERENCES courses(id)
-  );
-
-  CREATE TABLE IF NOT EXISTS contact_messages (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL,
-    email TEXT NOT NULL,
-    subject TEXT DEFAULT '',
-    message TEXT NOT NULL,
-    createdAt TEXT NOT NULL DEFAULT (datetime('now'))
-  );
-
-  CREATE TABLE IF NOT EXISTS security_logs (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    event TEXT NOT NULL,
-    ip TEXT,
-    details TEXT DEFAULT '',
-    createdAt TEXT NOT NULL DEFAULT (datetime('now'))
-  );
-
-  CREATE TABLE IF NOT EXISTS quizzes (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    itemId INTEGER NOT NULL UNIQUE,
-    passingPercent INTEGER NOT NULL DEFAULT 60,
-    maxAttempts INTEGER NOT NULL DEFAULT 3,
-    FOREIGN KEY (itemId) REFERENCES module_items(id) ON DELETE CASCADE
-  );
-
-  CREATE TABLE IF NOT EXISTS quiz_questions (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    quizId INTEGER NOT NULL,
-    question TEXT NOT NULL,
-    optionA TEXT NOT NULL,
-    optionB TEXT NOT NULL,
-    optionC TEXT NOT NULL DEFAULT '',
-    optionD TEXT NOT NULL DEFAULT '',
-    correctOption TEXT NOT NULL DEFAULT 'A',
-    sortOrder INTEGER NOT NULL DEFAULT 0,
-    FOREIGN KEY (quizId) REFERENCES quizzes(id) ON DELETE CASCADE
-  );
-
-  CREATE TABLE IF NOT EXISTS quiz_attempts (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    studentId INTEGER NOT NULL,
-    quizId INTEGER NOT NULL,
-    score INTEGER NOT NULL DEFAULT 0,
-    totalQuestions INTEGER NOT NULL DEFAULT 0,
-    passed INTEGER NOT NULL DEFAULT 0,
-    answers TEXT NOT NULL DEFAULT '{}',
-    createdAt TEXT NOT NULL DEFAULT (datetime('now')),
-    FOREIGN KEY (studentId) REFERENCES students(id) ON DELETE CASCADE,
-    FOREIGN KEY (quizId) REFERENCES quizzes(id) ON DELETE CASCADE
-  );
-
-  CREATE TABLE IF NOT EXISTS assignment_submissions (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    studentId INTEGER NOT NULL,
-    itemId INTEGER NOT NULL,
-    filePath TEXT NOT NULL,
-    fileName TEXT NOT NULL,
-    grade TEXT DEFAULT NULL,
-    feedback TEXT DEFAULT '',
-    submittedAt TEXT NOT NULL DEFAULT (datetime('now')),
-    gradedAt TEXT DEFAULT NULL,
-    FOREIGN KEY (studentId) REFERENCES students(id) ON DELETE CASCADE,
-    FOREIGN KEY (itemId) REFERENCES module_items(id) ON DELETE CASCADE
-  );
-
-  CREATE TABLE IF NOT EXISTS student_progress (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    studentId INTEGER NOT NULL,
-    itemId INTEGER NOT NULL,
-    completedAt TEXT NOT NULL DEFAULT (datetime('now')),
-    FOREIGN KEY (studentId) REFERENCES students(id) ON DELETE CASCADE,
-    FOREIGN KEY (itemId) REFERENCES module_items(id) ON DELETE CASCADE,
-    UNIQUE(studentId, itemId)
-  );
-
-  CREATE TABLE IF NOT EXISTS course_reviews (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    studentId INTEGER NOT NULL,
-    courseId INTEGER NOT NULL,
-    rating INTEGER NOT NULL DEFAULT 5,
-    review TEXT DEFAULT '',
-    createdAt TEXT NOT NULL DEFAULT (datetime('now')),
-    FOREIGN KEY (studentId) REFERENCES students(id) ON DELETE CASCADE,
-    FOREIGN KEY (courseId) REFERENCES courses(id) ON DELETE CASCADE,
-    UNIQUE(studentId, courseId)
-  );
-
-  CREATE TABLE IF NOT EXISTS coupons (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    code TEXT UNIQUE NOT NULL,
-    discountType TEXT NOT NULL DEFAULT 'percent',
-    discountValue INTEGER NOT NULL DEFAULT 10,
-    maxUses INTEGER NOT NULL DEFAULT 100,
-    usedCount INTEGER NOT NULL DEFAULT 0,
-    expiresAt TEXT DEFAULT NULL,
-    active INTEGER NOT NULL DEFAULT 1,
-    createdAt TEXT NOT NULL DEFAULT (datetime('now'))
-  );
-
-  CREATE TABLE IF NOT EXISTS coupon_usage (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    couponId INTEGER NOT NULL,
-    studentId INTEGER NOT NULL,
-    courseId INTEGER NOT NULL,
-    usedAt TEXT NOT NULL DEFAULT (datetime('now')),
-    FOREIGN KEY (couponId) REFERENCES coupons(id),
-    FOREIGN KEY (studentId) REFERENCES students(id),
-    FOREIGN KEY (courseId) REFERENCES courses(id),
-    UNIQUE(couponId, studentId, courseId)
-  );
-
-  CREATE TABLE IF NOT EXISTS announcements (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    title TEXT NOT NULL,
-    message TEXT NOT NULL,
-    courseId INTEGER DEFAULT NULL,
-    createdAt TEXT NOT NULL DEFAULT (datetime('now')),
-    FOREIGN KEY (courseId) REFERENCES courses(id) ON DELETE SET NULL
-  );
-`);
-
-// DB migration helpers
-const safeAlter = (sql) => { try { db.exec(sql); } catch (e) { } };
-safeAlter(`ALTER TABLE students ADD COLUMN emailVerified INTEGER NOT NULL DEFAULT 0`);
-safeAlter(`ALTER TABLE students ADD COLUMN otpCode TEXT DEFAULT NULL`);
-safeAlter(`ALTER TABLE students ADD COLUMN otpExpiry TEXT DEFAULT NULL`);
-safeAlter(`ALTER TABLE students ADD COLUMN loginAttempts INTEGER NOT NULL DEFAULT 0`);
-safeAlter(`ALTER TABLE students ADD COLUMN lockedUntil TEXT DEFAULT NULL`);
-safeAlter(`ALTER TABLE admin_users ADD COLUMN loginAttempts INTEGER NOT NULL DEFAULT 0`);
-safeAlter(`ALTER TABLE admin_users ADD COLUMN lockedUntil TEXT DEFAULT NULL`);
-safeAlter(`ALTER TABLE blogs ADD COLUMN author TEXT NOT NULL DEFAULT 'NinjaHacker'`);
-safeAlter(`ALTER TABLE blogs ADD COLUMN coverImage TEXT DEFAULT ''`);
-safeAlter(`ALTER TABLE module_items ADD COLUMN scheduledAt TEXT DEFAULT NULL`);
-
-// Migrate old database.db if exists
-const oldDbPath = path.join(__dirname, 'database.db');
-if (fs.existsSync(oldDbPath)) {
+async function initDB() {
     try {
-        const oldDb = new Database(oldDbPath, { readonly: true });
-        // Migrate blogs
-        const oldBlogs = oldDb.prepare('SELECT * FROM blogs').all();
-        if (oldBlogs.length > 0) {
-            const existingCount = db.prepare('SELECT COUNT(*) as c FROM blogs').get().c;
-            if (existingCount === 0) {
-                const ins = db.prepare('INSERT OR IGNORE INTO blogs (title,author,excerpt,tags,date,readTime,content,contentHtml,coverImage,published,createdAt,updatedAt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)');
-                for (const b of oldBlogs) ins.run(b.title, b.author || 'NinjaHacker', b.excerpt || '', b.tags || '[]', b.date, b.readTime || '5 min', b.content || '', b.contentHtml || '', b.coverImage || '', b.published ?? 1, b.createdAt || '', b.updatedAt || '');
-                console.log(`✅ Migrated ${oldBlogs.length} blogs from old database.`);
-            }
-        }
-        // Migrate students
-        try {
-            const oldStudents = oldDb.prepare('SELECT * FROM students').all();
-            const ins2 = db.prepare('INSERT OR IGNORE INTO students (name,email,passwordHash,emailVerified,createdAt) VALUES (?,?,?,1,?)');
-            for (const s of oldStudents) ins2.run(s.name, s.email, s.passwordHash, s.createdAt || '');
-            if (oldStudents.length) console.log(`✅ Migrated ${oldStudents.length} students.`);
-        } catch (e) { }
-        // Migrate courses
-        try {
-            const oldCourses = oldDb.prepare('SELECT * FROM courses').all();
-            const ins3 = db.prepare('INSERT OR IGNORE INTO courses (title,code,description,price,coverImage,instructor,duration,level,published) VALUES (?,?,?,?,?,?,?,?,?)');
-            for (const c of oldCourses) ins3.run(c.title, c.code || '', c.description || '', c.price || 0, c.coverImage || '', c.instructor || 'NinjaHacker', c.duration || '', c.level || 'Beginner', c.published ?? 1);
-            if (oldCourses.length) console.log(`✅ Migrated ${oldCourses.length} courses.`);
-            // Migrate modules
-            const oldMods = oldDb.prepare('SELECT * FROM course_modules').all();
-            const ins4 = db.prepare('INSERT OR IGNORE INTO course_modules (courseId,title,sortOrder) VALUES (?,?,?)');
-            for (const m of oldMods) ins4.run(m.courseId, m.title, m.sortOrder || 0);
-            const oldItems = oldDb.prepare('SELECT * FROM module_items').all();
-            const ins5 = db.prepare('INSERT OR IGNORE INTO module_items (moduleId,type,title,link,description,sortOrder) VALUES (?,?,?,?,?,?)');
-            for (const i of oldItems) ins5.run(i.moduleId, i.type || 'recorded_class', i.title, i.link || '', i.description || '', i.sortOrder || 0);
-        } catch (e) { }
-        oldDb.close();
-        // Remove old database
-        fs.renameSync(oldDbPath, oldDbPath + '.migrated');
-        console.log('✅ Old database.db renamed to database.db.migrated');
-    } catch (e) { console.log('⚠️ Could not migrate old DB:', e.message); }
+        await pool.query(`
+      CREATE TABLE IF NOT EXISTS blogs (
+        id SERIAL PRIMARY KEY,
+        title TEXT NOT NULL,
+        author TEXT NOT NULL DEFAULT 'NinjaHacker',
+        excerpt TEXT NOT NULL DEFAULT '',
+        tags TEXT NOT NULL DEFAULT '[]',
+        date TEXT NOT NULL,
+        readTime TEXT NOT NULL DEFAULT '5 min read',
+        content TEXT NOT NULL DEFAULT '',
+        contentHtml TEXT NOT NULL DEFAULT '',
+        coverImage TEXT DEFAULT '',
+        published INTEGER NOT NULL DEFAULT 1,
+        createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updatedAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS comments (
+        id SERIAL PRIMARY KEY,
+        blogId INTEGER NOT NULL,
+        name TEXT NOT NULL,
+        comment TEXT NOT NULL,
+        createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (blogId) REFERENCES blogs(id) ON DELETE CASCADE
+      );
+
+      CREATE TABLE IF NOT EXISTS admin_users (
+        id SERIAL PRIMARY KEY,
+        username TEXT UNIQUE NOT NULL,
+        passwordHash TEXT NOT NULL,
+        loginAttempts INTEGER NOT NULL DEFAULT 0,
+        lockedUntil TEXT DEFAULT NULL
+      );
+
+      CREATE TABLE IF NOT EXISTS students (
+        id SERIAL PRIMARY KEY,
+        name TEXT NOT NULL,
+        email TEXT UNIQUE NOT NULL,
+        passwordHash TEXT NOT NULL,
+        emailVerified INTEGER NOT NULL DEFAULT 0,
+        otpCode TEXT DEFAULT NULL,
+        otpExpiry TEXT DEFAULT NULL,
+        loginAttempts INTEGER NOT NULL DEFAULT 0,
+        lockedUntil TEXT DEFAULT NULL,
+        createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS courses (
+        id SERIAL PRIMARY KEY,
+        title TEXT NOT NULL,
+        code TEXT NOT NULL DEFAULT '',
+        description TEXT NOT NULL DEFAULT '',
+        price INTEGER NOT NULL DEFAULT 0,
+        coverImage TEXT DEFAULT '',
+        instructor TEXT NOT NULL DEFAULT 'NinjaHacker',
+        duration TEXT DEFAULT '',
+        level TEXT DEFAULT 'Beginner',
+        published INTEGER NOT NULL DEFAULT 1,
+        startDate TEXT DEFAULT NULL,
+        createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updatedAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS course_modules (
+        id SERIAL PRIMARY KEY,
+        courseId INTEGER NOT NULL,
+        title TEXT NOT NULL,
+        sortOrder INTEGER NOT NULL DEFAULT 0,
+        FOREIGN KEY (courseId) REFERENCES courses(id) ON DELETE CASCADE
+      );
+
+      CREATE TABLE IF NOT EXISTS module_items (
+        id SERIAL PRIMARY KEY,
+        moduleId INTEGER NOT NULL,
+        type TEXT NOT NULL DEFAULT 'recorded_class',
+        title TEXT NOT NULL,
+        link TEXT NOT NULL DEFAULT '',
+        description TEXT DEFAULT '',
+        sortOrder INTEGER NOT NULL DEFAULT 0,
+        scheduledAt TEXT DEFAULT NULL,
+        FOREIGN KEY (moduleId) REFERENCES course_modules(id) ON DELETE CASCADE
+      );
+
+      CREATE TABLE IF NOT EXISTS enrollments (
+        id SERIAL PRIMARY KEY,
+        studentId INTEGER NOT NULL,
+        courseId INTEGER NOT NULL,
+        enrolledAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (studentId) REFERENCES students(id) ON DELETE CASCADE,
+        FOREIGN KEY (courseId) REFERENCES courses(id) ON DELETE CASCADE,
+        UNIQUE(studentId, courseId)
+      );
+
+      CREATE TABLE IF NOT EXISTS coupons (
+        id SERIAL PRIMARY KEY,
+        code TEXT UNIQUE NOT NULL,
+        discountType TEXT NOT NULL DEFAULT 'percent',
+        discountValue INTEGER NOT NULL DEFAULT 10,
+        maxUses INTEGER NOT NULL DEFAULT 100,
+        usedCount INTEGER NOT NULL DEFAULT 0,
+        expiresAt TEXT DEFAULT NULL,
+        active INTEGER NOT NULL DEFAULT 1,
+        courseId INTEGER DEFAULT NULL,
+        studentEmail TEXT DEFAULT NULL,
+        createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (courseId) REFERENCES courses(id) ON DELETE SET NULL
+      );
+
+      CREATE TABLE IF NOT EXISTS payments (
+        id SERIAL PRIMARY KEY,
+        studentId INTEGER NOT NULL,
+        courseId INTEGER NOT NULL,
+        couponId INTEGER,
+        razorpayOrderId TEXT,
+        razorpayPaymentId TEXT,
+        razorpaySignature TEXT,
+        amount INTEGER NOT NULL DEFAULT 0,
+        currency TEXT NOT NULL DEFAULT 'INR',
+        status TEXT NOT NULL DEFAULT 'pending',
+        createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (studentId) REFERENCES students(id),
+        FOREIGN KEY (courseId) REFERENCES courses(id),
+        FOREIGN KEY (couponId) REFERENCES coupons(id)
+      );
+
+      CREATE TABLE IF NOT EXISTS contact_messages (
+        id SERIAL PRIMARY KEY,
+        name TEXT NOT NULL,
+        email TEXT NOT NULL,
+        subject TEXT DEFAULT '',
+        message TEXT NOT NULL,
+        createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS security_logs (
+        id SERIAL PRIMARY KEY,
+        event TEXT NOT NULL,
+        ip TEXT,
+        details TEXT DEFAULT '',
+        createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS quizzes (
+        id SERIAL PRIMARY KEY,
+        itemId INTEGER NOT NULL UNIQUE,
+        passingPercent INTEGER NOT NULL DEFAULT 60,
+        maxAttempts INTEGER NOT NULL DEFAULT 3,
+        FOREIGN KEY (itemId) REFERENCES module_items(id) ON DELETE CASCADE
+      );
+
+      CREATE TABLE IF NOT EXISTS quiz_questions (
+        id SERIAL PRIMARY KEY,
+        quizId INTEGER NOT NULL,
+        question TEXT NOT NULL,
+        optionA TEXT NOT NULL,
+        optionB TEXT NOT NULL,
+        optionC TEXT NOT NULL DEFAULT '',
+        optionD TEXT NOT NULL DEFAULT '',
+        correctOption TEXT NOT NULL DEFAULT 'A',
+        sortOrder INTEGER NOT NULL DEFAULT 0,
+        FOREIGN KEY (quizId) REFERENCES quizzes(id) ON DELETE CASCADE
+      );
+
+      CREATE TABLE IF NOT EXISTS quiz_attempts (
+        id SERIAL PRIMARY KEY,
+        studentId INTEGER NOT NULL,
+        quizId INTEGER NOT NULL,
+        score INTEGER NOT NULL DEFAULT 0,
+        totalQuestions INTEGER NOT NULL DEFAULT 0,
+        passed INTEGER NOT NULL DEFAULT 0,
+        answers TEXT NOT NULL DEFAULT '{}',
+        createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (studentId) REFERENCES students(id) ON DELETE CASCADE,
+        FOREIGN KEY (quizId) REFERENCES quizzes(id) ON DELETE CASCADE
+      );
+
+      CREATE TABLE IF NOT EXISTS assignment_submissions (
+        id SERIAL PRIMARY KEY,
+        studentId INTEGER NOT NULL,
+        itemId INTEGER NOT NULL,
+        filePath TEXT NOT NULL,
+        fileName TEXT NOT NULL,
+        grade TEXT DEFAULT NULL,
+        feedback TEXT DEFAULT '',
+        submittedAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        gradedAt TEXT DEFAULT NULL,
+        FOREIGN KEY (studentId) REFERENCES students(id) ON DELETE CASCADE,
+        FOREIGN KEY (itemId) REFERENCES module_items(id) ON DELETE CASCADE
+      );
+
+      CREATE TABLE IF NOT EXISTS student_progress (
+        id SERIAL PRIMARY KEY,
+        studentId INTEGER NOT NULL,
+        itemId INTEGER NOT NULL,
+        completedAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (studentId) REFERENCES students(id) ON DELETE CASCADE,
+        FOREIGN KEY (itemId) REFERENCES module_items(id) ON DELETE CASCADE,
+        UNIQUE(studentId, itemId)
+      );
+
+      CREATE TABLE IF NOT EXISTS course_reviews (
+        id SERIAL PRIMARY KEY,
+        studentId INTEGER NOT NULL,
+        courseId INTEGER NOT NULL,
+        rating INTEGER NOT NULL DEFAULT 5,
+        review TEXT DEFAULT '',
+        createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (studentId) REFERENCES students(id) ON DELETE CASCADE,
+        FOREIGN KEY (courseId) REFERENCES courses(id) ON DELETE CASCADE,
+        UNIQUE(studentId, courseId)
+      );
+
+      CREATE TABLE IF NOT EXISTS coupon_usage (
+        id SERIAL PRIMARY KEY,
+        couponId INTEGER NOT NULL,
+        studentId INTEGER NOT NULL,
+        courseId INTEGER NOT NULL,
+        usedAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (couponId) REFERENCES coupons(id) ON DELETE CASCADE,
+        FOREIGN KEY (studentId) REFERENCES students(id) ON DELETE CASCADE,
+        FOREIGN KEY (courseId) REFERENCES courses(id) ON DELETE CASCADE,
+        UNIQUE(couponId, studentId, courseId)
+      );
+
+      CREATE TABLE IF NOT EXISTS announcements (
+        id SERIAL PRIMARY KEY,
+        title TEXT NOT NULL,
+        message TEXT NOT NULL,
+        courseId INTEGER DEFAULT NULL,
+        createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (courseId) REFERENCES courses(id) ON DELETE SET NULL
+      );
+
+      CREATE TABLE IF NOT EXISTS site_settings (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL
+      );
+    `);
+
+        // DB migration helpers
+        const safeAlter = async (sql) => { try { await pool.query(sql); } catch (e) { } };
+        await safeAlter(`ALTER TABLE students ADD COLUMN emailVerified INTEGER NOT NULL DEFAULT 0`);
+        await safeAlter(`ALTER TABLE students ADD COLUMN otpCode TEXT DEFAULT NULL`);
+        await safeAlter(`ALTER TABLE students ADD COLUMN otpExpiry TEXT DEFAULT NULL`);
+        await safeAlter(`ALTER TABLE courses ADD COLUMN startDate TEXT DEFAULT NULL`);
+
+        console.log('✅ PostgreSQL database schema synchronized.');
+    } catch (err) {
+        console.error('❌ Database schema error:', err);
+    }
 }
 
-// ─── Seed admin ───
-const adminExists = db.prepare('SELECT id FROM admin_users WHERE username = ?').get(ADMIN_USERNAME);
-if (!adminExists) {
-    const hash = bcrypt.hashSync(ADMIN_PASSWORD, 12);
-    db.prepare('INSERT INTO admin_users (username, passwordHash) VALUES (?, ?)').run(ADMIN_USERNAME, hash);
-    console.log(`✅ Admin user "${ADMIN_USERNAME}" created.`);
-}
-
-// ─── Seed blogs ───
-const blogCount = db.prepare('SELECT COUNT(*) as count FROM blogs').get().count;
-if (blogCount === 0) {
-    const defaultBlogs = [
-        {
-            title: "SQL Injection to RCE: A Complete Exploitation Chain", author: "NinjaHacker", excerpt: "How I chained a blind SQLi vulnerability with file write permissions to gain remote code execution on a real-world target.", tags: JSON.stringify([{ label: "Web Security", cls: "tag-red" }, { label: "Writeup", cls: "tag-cyan" }]), date: "Feb 2025", readTime: "8 min read",
-            content: `## Introduction\n\nDuring a recent bug bounty engagement, I found a login form that led to full remote code execution.\n\n> ⚠️ This was performed with written authorization.\n\n## Step 1 — Discovering the Injection Point\n\n\`\`\`sql\nusername=admin'--\npassword=anything\n\`\`\`\n\n## Step 2 — Blind SQLi Enumeration\n\n\`\`\`bash\nsqlmap -u "https://target.com/login" --data="username=admin&password=pass" --dbms=mysql --dump\n\`\`\`\n\n## Remediation\n\n- Use prepared statements\n- Revoke FILE privilege\n- Implement a WAF`
-        },
-        {
-            title: "Buffer Overflow on 64-bit Linux: ret2libc Explained", author: "NinjaHacker", excerpt: "Step-by-step walkthrough of exploiting a stack buffer overflow with ret2libc in a CTF challenge.", tags: JSON.stringify([{ label: "CTF", cls: "tag-green" }, { label: "Binary Exploitation", cls: "tag-purple" }]), date: "Jan 2025", readTime: "12 min read",
-            content: `## What is a Buffer Overflow?\n\nA buffer overflow overwrites adjacent memory including the saved return address.\n\n\`\`\`python\nfrom pwn import *\npayload = b'A' * 72\npayload += p64(pop_rdi)\np.interactive()\n\`\`\``
-        },
-        {
-            title: "OSINT Investigation: Building a Target Profile from Scratch", author: "NinjaHacker", excerpt: "A deep dive into passive reconnaissance using Shodan, theHarvester, and Google Dorks.", tags: JSON.stringify([{ label: "OSINT", cls: "tag-cyan" }, { label: "Tutorial", cls: "tag-green" }]), date: "Jan 2025", readTime: "10 min read",
-            content: `## What is OSINT?\n\nOpen Source Intelligence is the collection of information from publicly available sources.\n\n## Phase 1 — Domain Recon\n\n\`\`\`bash\ntheHarvester -d target.com -b all\n\`\`\``
-        }
-    ];
-    const insert = db.prepare('INSERT INTO blogs (title,author,excerpt,tags,date,readTime,content,contentHtml) VALUES (?,?,?,?,?,?,?,?)');
-    for (const b of defaultBlogs) insert.run(b.title, b.author, b.excerpt, b.tags, b.date, b.readTime, b.content, marked(b.content));
-    console.log(`✅ Seeded ${defaultBlogs.length} default blog posts.`);
-}
-
-// ─── Seed sample course ───
-const courseCount = db.prepare('SELECT COUNT(*) as count FROM courses').get().count;
-if (courseCount === 0) {
-    const r = db.prepare('INSERT INTO courses (title,code,description,price,instructor,duration,level) VALUES (?,?,?,?,?,?,?)')
-        .run('Ethical Hacking Bootcamp', 'EHB-001', 'Learn ethical hacking from scratch — networking, web security, exploitation, and more.', 4999, 'NinjaHacker', '40+ Hours', 'Beginner');
-    const cid = r.lastInsertRowid;
-    const m1 = db.prepare('INSERT INTO course_modules (courseId,title,sortOrder) VALUES (?,?,?)').run(cid, 'Course Introduction', 0);
-    const m2 = db.prepare('INSERT INTO course_modules (courseId,title,sortOrder) VALUES (?,?,?)').run(cid, 'Module 01: Networking Concepts', 1);
-    db.prepare('INSERT INTO module_items (moduleId,type,title,link,sortOrder) VALUES (?,?,?,?,?)').run(m1.lastInsertRowid, 'recorded_class', 'Kick-off Session', 'https://drive.google.com/your-link', 0);
-    db.prepare('INSERT INTO module_items (moduleId,type,title,link,sortOrder) VALUES (?,?,?,?,?)').run(m2.lastInsertRowid, 'live_class', 'Class 01: Networking Concepts', 'https://teamviewer.com/your-link', 0);
-    db.prepare('INSERT INTO module_items (moduleId,type,title,link,sortOrder) VALUES (?,?,?,?,?)').run(m2.lastInsertRowid, 'notes', 'Notes - Networking Concepts', 'https://drive.google.com/your-notes-link', 1);
-    console.log('✅ Seeded sample course with modules.');
-}
+// Call initDB when starting
+initDB();
 
 // uploads directory is set up at top of file
 
@@ -464,25 +401,26 @@ function checkAccountLock(user) {
 
 const ALLOWED_TABLES = new Set(['admin_users', 'students']);
 
-function recordFailedLogin(table, id) {
+async function recordFailedLogin(table, id) {
     if (!ALLOWED_TABLES.has(table)) {
         throw new Error('Invalid table name');
     }
-    const user = db.prepare(`SELECT loginAttempts FROM ${table} WHERE id = ?`).get(id);
-    const attempts = (user?.loginAttempts || 0) + 1;
+    const result = await pool.query(`SELECT loginAttempts FROM ${table} WHERE id = $1`, [id]);
+    const user = result.rows[0];
+    const attempts = (user?.loginattempts || user?.loginAttempts || 0) + 1; // PG lowercases unquoted identifiers
     if (attempts >= MAX_LOGIN_ATTEMPTS) {
         const lockUntil = new Date(Date.now() + LOCKOUT_MINUTES * 60 * 1000).toISOString();
-        db.prepare(`UPDATE ${table} SET loginAttempts = ?, lockedUntil = ? WHERE id = ?`).run(attempts, lockUntil, id);
+        await pool.query(`UPDATE ${table} SET loginAttempts = $1, lockedUntil = $2 WHERE id = $3`, [attempts, lockUntil, id]);
     } else {
-        db.prepare(`UPDATE ${table} SET loginAttempts = ? WHERE id = ?`).run(attempts, id);
+        await pool.query(`UPDATE ${table} SET loginAttempts = $1 WHERE id = $2`, [attempts, id]);
     }
 }
 
-function resetLoginAttempts(table, id) {
+async function resetLoginAttempts(table, id) {
     if (!ALLOWED_TABLES.has(table)) {
         throw new Error('Invalid table name');
     }
-    db.prepare(`UPDATE ${table} SET loginAttempts = 0, lockedUntil = NULL WHERE id = ?`).run(id);
+    await pool.query(`UPDATE ${table} SET loginAttempts = 0, lockedUntil = NULL WHERE id = $1`, [id]);
 }
 
 // ═══════════════════════════════════════
@@ -523,7 +461,8 @@ async function sendOTPEmail(email, otp, name) {
 }
 
 async function sendEnrollmentEmail(studentId, course, priceLabel) {
-    const student = db.prepare('SELECT name, email FROM students WHERE id = ?').get(studentId);
+    const result = await pool.query('SELECT name, email FROM students WHERE id = $1', [studentId]);
+    const student = result.rows[0];
     if (!student) return;
     if (!transporter) {
         console.log(`🎓 Enrollment confirmation for ${student.email}: ${course.title} (${priceLabel}) — email not configured`);
@@ -555,8 +494,12 @@ async function sendEnrollmentEmail(studentId, course, priceLabel) {
 // ═══════════════════════════════════════
 //  SECURITY LOG
 // ═══════════════════════════════════════
-function logSecurity(event, ip, details) {
-    db.prepare('INSERT INTO security_logs (event, ip, details) VALUES (?,?,?)').run(event, ip || '', details || '');
+async function logSecurity(event, ip, details) {
+    try {
+        await pool.query('INSERT INTO security_logs (event, ip, details) VALUES ($1,$2,$3)', [event, ip || '', details || '']);
+    } catch (err) {
+        console.error('Failed to log security event:', err);
+    }
 }
 
 function getClientIP(req) {
@@ -568,21 +511,7 @@ function getClientIP(req) {
 // ═══════════════════════════════════════
 const app = express();
 
-// Security headers
-app.use(helmet({
-    contentSecurityPolicy: false,
-    crossOriginEmbedderPolicy: false,
-}));
-
-// Additional security headers
-app.use((req, res, next) => {
-    res.setHeader('X-Content-Type-Options', 'nosniff');
-    res.setHeader('X-Frame-Options', 'DENY');
-    res.setHeader('X-XSS-Protection', '1; mode=block');
-    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
-    res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
-    next();
-});
+// Security headers removed temporarily to unblock UI resources
 
 app.use(express.json({ limit: '5mb' }));
 app.use(express.urlencoded({ extended: true, limit: '5mb' }));
@@ -665,7 +594,7 @@ function requireStudent(req, res, next) {
 // ═══════════════════════════════════════
 //  ADMIN AUTH (with brute force protection)
 // ═══════════════════════════════════════
-app.post('/api/admin/login', (req, res) => {
+app.post('/api/admin/login', async (req, res) => {
     const ip = getClientIP(req);
     // Rate limit: 5 attempts per 15 min
     if (!rateLimit(`admin-login:${ip}`, 5, 15 * 60 * 1000)) {
@@ -676,41 +605,50 @@ app.post('/api/admin/login', (req, res) => {
     const { username, password } = req.body;
     if (!username || !password) return res.status(400).json({ error: 'Credentials required.' });
 
-    const user = db.prepare('SELECT * FROM admin_users WHERE username = ?').get(username);
-    if (!user) {
-        logSecurity('ADMIN_LOGIN_FAIL', ip, `unknown user: ${username}`);
-        return res.status(401).json({ error: 'Invalid credentials.' });
-    }
+    try {
+        const result = await pool.query('SELECT * FROM admin_users WHERE username = $1', [username]);
+        const user = result.rows[0];
+        if (!user) {
+            logSecurity('ADMIN_LOGIN_FAIL', ip, `unknown user: ${username}`);
+            return res.status(401).json({ error: 'Invalid credentials.' });
+        }
 
-    // Account lock check
-    if (checkAccountLock(user)) {
-        const remaining = Math.ceil((new Date(user.lockedUntil) - new Date()) / 60000);
-        logSecurity('ADMIN_LOGIN_LOCKED', ip, username);
-        return res.status(423).json({ error: `Account locked. Try again in ${remaining} minutes.` });
-    }
+        // Account lock check
+        if (checkAccountLock(user)) {
+            const remaining = Math.ceil((new Date(user.lockeduntil || user.lockedUntil) - new Date()) / 60000);
+            logSecurity('ADMIN_LOGIN_LOCKED', ip, username);
+            return res.status(423).json({ error: `Account locked. Try again in ${remaining} minutes.` });
+        }
 
-    if (!bcrypt.compareSync(password, user.passwordHash)) {
-        recordFailedLogin('admin_users', user.id);
-        logSecurity('ADMIN_LOGIN_FAIL', ip, username);
-        const remaining = MAX_LOGIN_ATTEMPTS - (user.loginAttempts + 1);
-        return res.status(401).json({ error: `Invalid credentials.${remaining <= 2 ? ` ${remaining} attempts remaining.` : ''}` });
-    }
+        if (!await bcrypt.compare(password, user.passwordhash || user.passwordHash)) {
+            await recordFailedLogin('admin_users', user.id);
+            logSecurity('ADMIN_LOGIN_FAIL', ip, username);
+            const loginAttempts = user.loginattempts || user.loginAttempts || 0;
+            const remaining = MAX_LOGIN_ATTEMPTS - (loginAttempts + 1);
+            return res.status(401).json({ error: `Invalid credentials.${remaining <= 2 ? ` ${remaining} attempts remaining.` : ''}` });
+        }
 
-    resetLoginAttempts('admin_users', user.id);
-    // Set session data with fingerprint binding
-    req.session.isAdmin = true;
-    req.session.username = username;
-    req.session._fingerprint = `${ip}|${(req.headers['user-agent'] || '').substring(0, 100)}`;
-    req.session._lastActivity = Date.now();
-    logSecurity('ADMIN_LOGIN_OK', ip, username);
-    res.json({ success: true });
+        await resetLoginAttempts('admin_users', user.id);
+        // Set session data with fingerprint binding
+        req.session.isAdmin = true;
+        req.session.username = username;
+        req.session._fingerprint = `${ip}|${(req.headers['user-agent'] || '').substring(0, 100)}`;
+        req.session._lastActivity = Date.now();
+        logSecurity('ADMIN_LOGIN_OK', ip, username);
+        res.json({ success: true });
+    } catch (err) {
+        logSecurity('ADMIN_LOGIN_ERROR', ip, err.message);
+        res.status(500).json({ error: 'Server error' });
+    }
 });
 
 app.post('/api/admin/logout', (req, res) => {
     const username = req.session.username;
-    req.session.destroy();
-    logSecurity('ADMIN_LOGOUT', getClientIP(req), username);
-    res.json({ success: true });
+    req.session.destroy(err => {
+        logSecurity('ADMIN_LOGOUT', getClientIP(req), username);
+        res.clearCookie('ninjasid');
+        res.json({ success: true });
+    });
 });
 
 app.get('/api/admin/check', (req, res) => {
@@ -737,34 +675,41 @@ app.post('/api/student/signup', async (req, res) => {
         return res.status(400).json({ error: 'Please use a valid email from Gmail, Outlook, Yahoo, or other major providers.' });
     }
 
-    const existing = db.prepare('SELECT id FROM students WHERE email = ?').get(email.toLowerCase());
-    if (existing) return res.status(409).json({ error: 'An account with this email already exists.' });
+    try {
+        const existing = await pool.query('SELECT id FROM students WHERE email = $1', [email.toLowerCase()]);
+        if (existing.rows.length > 0) return res.status(409).json({ error: 'An account with this email already exists.' });
 
-    // Password strength check
-    if (!/[A-Z]/.test(password) || !/[a-z]/.test(password) || !/[0-9]/.test(password)) {
-        return res.status(400).json({ error: 'Password must contain uppercase, lowercase, and a number.' });
+        // Password strength check
+        if (!/[A-Z]/.test(password) || !/[a-z]/.test(password) || !/[0-9]/.test(password)) {
+            return res.status(400).json({ error: 'Password must contain uppercase, lowercase, and a number.' });
+        }
+
+        const hash = await bcrypt.hash(password, 12);
+        const otp = generateOTP();
+        const otpExpiry = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+
+        const insert = await pool.query(
+            'INSERT INTO students (name, email, passwordHash, emailVerified, otpCode, otpExpiry) VALUES ($1, $2, $3, 0, $4, $5) RETURNING id',
+            [name.trim(), email.toLowerCase().trim(), hash, otp, otpExpiry]
+        );
+
+        // Send OTP
+        await sendOTPEmail(email.toLowerCase().trim(), otp, name.trim());
+
+        logSecurity('STUDENT_SIGNUP', ip, email.toLowerCase());
+        res.json({
+            success: true,
+            requiresVerification: true,
+            email: email.toLowerCase().trim(),
+            message: 'Account created! Check your email for the verification code.'
+        });
+    } catch (err) {
+        logSecurity('STUDENT_SIGNUP_ERROR', ip, err.message);
+        res.status(500).json({ error: 'Server error during signup' });
     }
-
-    const hash = bcrypt.hashSync(password, 12);
-    const otp = generateOTP();
-    const otpExpiry = new Date(Date.now() + 10 * 60 * 1000).toISOString();
-
-    const result = db.prepare('INSERT INTO students (name,email,passwordHash,emailVerified,otpCode,otpExpiry) VALUES (?,?,?,0,?,?)')
-        .run(name.trim(), email.toLowerCase().trim(), hash, otp, otpExpiry);
-
-    // Send OTP
-    await sendOTPEmail(email.toLowerCase().trim(), otp, name.trim());
-
-    logSecurity('STUDENT_SIGNUP', ip, email.toLowerCase());
-    res.json({
-        success: true,
-        requiresVerification: true,
-        email: email.toLowerCase().trim(),
-        message: 'Account created! Check your email for the verification code.'
-    });
 });
 
-app.post('/api/student/verify-otp', (req, res) => {
+app.post('/api/student/verify-otp', async (req, res) => {
     const { email, otp } = req.body;
     if (!email || !otp) return res.status(400).json({ error: 'Email and OTP required.' });
 
@@ -773,33 +718,41 @@ app.post('/api/student/verify-otp', (req, res) => {
         return res.status(429).json({ error: 'Too many attempts.' });
     }
 
-    const student = db.prepare('SELECT * FROM students WHERE email = ?').get(email.toLowerCase());
-    if (!student) return res.status(404).json({ error: 'Account not found.' });
+    try {
+        const result = await pool.query('SELECT * FROM students WHERE email = $1', [email.toLowerCase()]);
+        const student = result.rows[0];
+        if (!student) return res.status(404).json({ error: 'Account not found.' });
 
-    if (student.emailVerified) {
-        // Already verified, just log them in
+        if (student.emailverified || student.emailVerified) {
+            // Already verified, just log them in
+            req.session.studentId = student.id;
+            req.session.studentName = student.name;
+            req.session.studentEmail = student.email;
+            return res.json({ success: true, message: 'Email already verified.' });
+        }
+
+        const otpCode = student.otpcode || student.otpCode;
+        if (!otpCode || otpCode !== otp.trim()) {
+            logSecurity('OTP_FAIL', ip, email);
+            return res.status(400).json({ error: 'Invalid verification code.' });
+        }
+
+        const otpExpiry = student.otpexpiry || student.otpExpiry;
+        if (new Date(otpExpiry) < new Date()) {
+            return res.status(400).json({ error: 'Code expired. Please request a new one.' });
+        }
+
+        // Verify and login
+        await pool.query('UPDATE students SET emailVerified = 1, otpCode = NULL, otpExpiry = NULL WHERE id = $1', [student.id]);
         req.session.studentId = student.id;
         req.session.studentName = student.name;
         req.session.studentEmail = student.email;
-        return res.json({ success: true, message: 'Email already verified.' });
+        logSecurity('OTP_VERIFIED', ip, email);
+        res.json({ success: true, student: { id: student.id, name: student.name, email: student.email } });
+    } catch (err) {
+        logSecurity('OTP_ERROR', ip, err.message);
+        res.status(500).json({ error: 'Server error' });
     }
-
-    if (!student.otpCode || student.otpCode !== otp.trim()) {
-        logSecurity('OTP_FAIL', ip, email);
-        return res.status(400).json({ error: 'Invalid verification code.' });
-    }
-
-    if (new Date(student.otpExpiry) < new Date()) {
-        return res.status(400).json({ error: 'Code expired. Please request a new one.' });
-    }
-
-    // Verify and login
-    db.prepare('UPDATE students SET emailVerified = 1, otpCode = NULL, otpExpiry = NULL WHERE id = ?').run(student.id);
-    req.session.studentId = student.id;
-    req.session.studentName = student.name;
-    req.session.studentEmail = student.email;
-    logSecurity('OTP_VERIFIED', ip, email);
-    res.json({ success: true, student: { id: student.id, name: student.name, email: student.email } });
 });
 
 app.post('/api/student/resend-otp', async (req, res) => {
@@ -809,19 +762,25 @@ app.post('/api/student/resend-otp', async (req, res) => {
         return res.status(429).json({ error: 'Too many resend attempts. Wait 10 minutes.' });
     }
 
-    const student = db.prepare('SELECT * FROM students WHERE email = ?').get(email?.toLowerCase());
-    if (!student) return res.status(404).json({ error: 'Account not found.' });
-    if (student.emailVerified) return res.json({ success: true, message: 'Already verified. Please login.' });
+    try {
+        const result = await pool.query('SELECT * FROM students WHERE email = $1', [email?.toLowerCase()]);
+        const student = result.rows[0];
+        if (!student) return res.status(404).json({ error: 'Account not found.' });
+        if (student.emailverified || student.emailVerified) return res.json({ success: true, message: 'Already verified. Please login.' });
 
-    const otp = generateOTP();
-    const otpExpiry = new Date(Date.now() + 10 * 60 * 1000).toISOString();
-    db.prepare('UPDATE students SET otpCode = ?, otpExpiry = ? WHERE id = ?').run(otp, otpExpiry, student.id);
+        const otp = generateOTP();
+        const otpExpiry = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+        await pool.query('UPDATE students SET otpCode = $1, otpExpiry = $2 WHERE id = $3', [otp, otpExpiry, student.id]);
 
-    await sendOTPEmail(student.email, otp, student.name);
-    res.json({ success: true, message: 'New code sent.' });
+        await sendOTPEmail(student.email, otp, student.name);
+        res.json({ success: true, message: 'New code sent.' });
+    } catch (err) {
+        logSecurity('RESEND_OTP_ERROR', ip, err.message);
+        res.status(500).json({ error: 'Server error' });
+    }
 });
 
-app.post('/api/student/login', (req, res) => {
+app.post('/api/student/login', async (req, res) => {
     const ip = getClientIP(req);
     if (!rateLimit(`student-login:${ip}`, 10, 15 * 60 * 1000)) {
         logSecurity('STUDENT_LOGIN_RATE_LIMIT', ip, '');
@@ -831,43 +790,52 @@ app.post('/api/student/login', (req, res) => {
     const { email, password } = req.body;
     if (!email || !password) return res.status(400).json({ error: 'Email and password required.' });
 
-    const student = db.prepare('SELECT * FROM students WHERE email = ?').get(email.toLowerCase());
-    if (!student) {
-        logSecurity('STUDENT_LOGIN_FAIL', ip, `unknown: ${email}`);
-        return res.status(401).json({ error: 'Invalid email or password.' });
-    }
+    try {
+        const result = await pool.query('SELECT * FROM students WHERE email = $1', [email.toLowerCase()]);
+        const student = result.rows[0];
+        if (!student) {
+            logSecurity('STUDENT_LOGIN_FAIL', ip, `unknown: ${email}`);
+            return res.status(401).json({ error: 'Invalid email or password.' });
+        }
 
-    // Account lock
-    if (checkAccountLock(student)) {
-        const remaining = Math.ceil((new Date(student.lockedUntil) - new Date()) / 60000);
-        return res.status(423).json({ error: `Account locked. Try again in ${remaining} minutes.` });
-    }
+        // Account lock
+        if (checkAccountLock(student)) {
+            const lockedUntil = student.lockeduntil || student.lockedUntil;
+            const remaining = Math.ceil((new Date(lockedUntil) - new Date()) / 60000);
+            return res.status(423).json({ error: `Account locked. Try again in ${remaining} minutes.` });
+        }
 
-    if (!bcrypt.compareSync(password, student.passwordHash)) {
-        recordFailedLogin('students', student.id);
-        logSecurity('STUDENT_LOGIN_FAIL', ip, email);
-        return res.status(401).json({ error: 'Invalid email or password.' });
-    }
+        if (!await bcrypt.compare(password, student.passwordhash || student.passwordHash)) {
+            await recordFailedLogin('students', student.id);
+            logSecurity('STUDENT_LOGIN_FAIL', ip, email);
+            return res.status(401).json({ error: 'Invalid email or password.' });
+        }
 
-    // Must be verified
-    if (!student.emailVerified) {
-        return res.status(403).json({ error: 'Email not verified.', requiresVerification: true, email: student.email });
-    }
+        // Must be verified
+        if (!student.emailverified && !student.emailVerified) {
+            return res.status(403).json({ error: 'Email not verified.', requiresVerification: true, email: student.email });
+        }
 
-    resetLoginAttempts('students', student.id);
-    // Set session data with fingerprint binding
-    req.session.studentId = student.id;
-    req.session.studentName = student.name;
-    req.session.studentEmail = student.email;
-    req.session._fingerprint = `${ip}|${(req.headers['user-agent'] || '').substring(0, 100)}`;
-    req.session._lastActivity = Date.now();
-    logSecurity('STUDENT_LOGIN_OK', ip, email);
-    res.json({ success: true, student: { id: student.id, name: student.name, email: student.email } });
+        await resetLoginAttempts('students', student.id);
+        // Set session data with fingerprint binding
+        req.session.studentId = student.id;
+        req.session.studentName = student.name;
+        req.session.studentEmail = student.email;
+        req.session._fingerprint = `${ip}|${(req.headers['user-agent'] || '').substring(0, 100)}`;
+        req.session._lastActivity = Date.now();
+        logSecurity('STUDENT_LOGIN_OK', ip, email);
+        res.json({ success: true, student: { id: student.id, name: student.name, email: student.email } });
+    } catch (err) {
+        logSecurity('STUDENT_LOGIN_ERROR', ip, err.message);
+        res.status(500).json({ error: 'Server error during login' });
+    }
 });
 
 app.post('/api/student/logout', (req, res) => {
-    req.session.destroy();
-    res.json({ success: true });
+    req.session.destroy(err => {
+        res.clearCookie('ninjasid');
+        res.json({ success: true });
+    });
 });
 
 app.get('/api/student/check', (req, res) => {
@@ -887,24 +855,26 @@ app.post('/api/student/forgot-password', async (req, res) => {
         return res.status(429).json({ error: 'Too many requests. Try again later.' });
     }
 
-    const student = db.prepare('SELECT * FROM students WHERE email = ?').get(email.toLowerCase());
-    if (!student) {
-        // Don't reveal if email exists — return success anyway
-        return res.json({ success: true, message: 'If this email is registered, you will receive a reset code.' });
-    }
+    try {
+        const result = await pool.query('SELECT * FROM students WHERE email = $1', [email.toLowerCase()]);
+        const student = result.rows[0];
+        if (!student) {
+            // Don't reveal if email exists — return success anyway
+            return res.json({ success: true, message: 'If this email is registered, you will receive a reset code.' });
+        }
 
-    const otp = generateOTP();
-    const otpExpiry = new Date(Date.now() + 10 * 60 * 1000).toISOString();
-    db.prepare('UPDATE students SET otpCode = ?, otpExpiry = ? WHERE id = ?').run(otp, otpExpiry, student.id);
+        const otp = generateOTP();
+        const otpExpiry = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+        await pool.query('UPDATE students SET otpCode = $1, otpExpiry = $2 WHERE id = $3', [otp, otpExpiry, student.id]);
 
-    // Send reset OTP email
-    if (transporter) {
-        try {
-            await transporter.sendMail({
-                from: process.env.SMTP_FROM || process.env.SMTP_USER,
-                to: student.email,
-                subject: '[NinjaHackers] Password Reset Code',
-                html: `<div style="font-family:sans-serif;padding:2rem;background:#0a1628;color:#c8d8e8;border-radius:12px;max-width:500px;">
+        // Send reset OTP email
+        if (transporter) {
+            try {
+                await transporter.sendMail({
+                    from: process.env.SMTP_FROM || process.env.SMTP_USER,
+                    to: student.email,
+                    subject: '[NinjaHackers] Password Reset Code',
+                    html: `<div style="font-family:sans-serif;padding:2rem;background:#0a1628;color:#c8d8e8;border-radius:12px;max-width:500px;">
                     <h2 style="color:#00ff88;margin-bottom:.5rem;">🥷 NinjaHackers</h2>
                     <p>Hi ${student.name},</p>
                     <p>You requested a password reset. Your code is:</p>
@@ -913,17 +883,21 @@ app.post('/api/student/forgot-password', async (req, res) => {
                     </div>
                     <p style="font-size:.85rem;color:#5a7a9a;">This code expires in <b>10 minutes</b>. If you didn't request this, ignore this email.</p>
                 </div>`
-            });
-        } catch (err) { console.error('Email error:', err.message); }
-    } else {
-        console.log(`🔑 PASSWORD RESET OTP for ${student.email}: ${otp}`);
-    }
+                });
+            } catch (err) { console.error('Email error:', err.message); }
+        } else {
+            console.log(`🔑 PASSWORD RESET OTP for ${student.email}: ${otp}`);
+        }
 
-    logSecurity('PASSWORD_RESET_REQUEST', ip, email);
-    res.json({ success: true, message: 'If this email is registered, you will receive a reset code.' });
+        logSecurity('PASSWORD_RESET_REQUEST', ip, email);
+        res.json({ success: true, message: 'If this email is registered, you will receive a reset code.' });
+    } catch (err) {
+        logSecurity('PASSWORD_RESET_ERROR', ip, err.message);
+        res.status(500).json({ error: 'Server error processing request.' });
+    }
 });
 
-app.post('/api/student/reset-password', (req, res) => {
+app.post('/api/student/reset-password', async (req, res) => {
     const { email, otp, newPassword } = req.body;
     const ip = getClientIP(req);
     if (!email || !otp || !newPassword) return res.status(400).json({ error: 'All fields required.' });
@@ -938,102 +912,155 @@ app.post('/api/student/reset-password', (req, res) => {
         return res.status(400).json({ error: 'Password must contain uppercase, lowercase, and a number.' });
     }
 
-    const student = db.prepare('SELECT * FROM students WHERE email = ?').get(email.toLowerCase());
-    if (!student) return res.status(404).json({ error: 'Account not found.' });
+    try {
+        const result = await pool.query('SELECT * FROM students WHERE email = $1', [email.toLowerCase()]);
+        const student = result.rows[0];
+        if (!student) return res.status(404).json({ error: 'Account not found.' });
 
 
-    const safeEqual = (a, b) => {
-        const ba = Buffer.from(a), bb = Buffer.from(b);
-        return ba.length === bb.length && crypto.timingSafeEqual(ba, bb);
-    };
-    if (!student.otpCode || !safeEqual(student.otpCode, otp.trim())) {
-        logSecurity('PASSWORD_RESET_FAIL', ip, email);
-        return res.status(400).json({ error: 'Invalid reset code.' });
+        const safeEqual = (a, b) => {
+            const ba = Buffer.from(a), bb = Buffer.from(b);
+            return ba.length === bb.length && crypto.timingSafeEqual(ba, bb);
+        };
+        if (!student.otpCode || !safeEqual(student.otpCode, otp.trim())) {
+            logSecurity('PASSWORD_RESET_FAIL', ip, email);
+            return res.status(400).json({ error: 'Invalid reset code.' });
+        }
+
+        if (new Date(student.otpExpiry) < new Date()) {
+            return res.status(400).json({ error: 'Code expired. Please request a new one.' });
+        }
+
+        // Reset password
+        const hash = await bcrypt.hash(newPassword, 12);
+        await pool.query('UPDATE students SET passwordHash = $1, otpCode = NULL, otpExpiry = NULL, emailVerified = 1, loginAttempts = 0, lockedUntil = NULL WHERE id = $2', [hash, student.id]);
+
+        logSecurity('PASSWORD_RESET_OK', ip, email);
+        res.json({ success: true, message: 'Password reset! You can now log in.' });
+    } catch (err) {
+        logSecurity('PASSWORD_RESET_ERROR', ip, err.message);
+        res.status(500).json({ error: 'Server error processing password reset.' });
     }
-
-    if (new Date(student.otpExpiry) < new Date()) {
-        return res.status(400).json({ error: 'Code expired. Please request a new one.' });
-    }
-
-    // Reset password
-    const hash = bcrypt.hashSync(newPassword, 12);
-    db.prepare('UPDATE students SET passwordHash = ?, otpCode = NULL, otpExpiry = NULL, emailVerified = 1, loginAttempts = 0, lockedUntil = NULL WHERE id = ?').run(hash, student.id);
-
-    logSecurity('PASSWORD_RESET_OK', ip, email);
-    res.json({ success: true, message: 'Password reset! You can now log in.' });
 });
 
 // ═══════════════════════════════════════
 //  STUDENT — ENROLLED COURSES
 // ═══════════════════════════════════════
-app.get('/api/student/courses', requireStudent, (req, res) => {
-    const courses = db.prepare(`SELECT c.*, e.enrolledAt FROM enrollments e JOIN courses c ON c.id = e.courseId WHERE e.studentId = ? ORDER BY e.enrolledAt DESC`).all(req.session.studentId);
-    res.json(courses);
+app.get('/api/student/courses', requireStudent, async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT c.*, e.enrolledAt FROM enrollments e JOIN courses c ON c.id = e.courseId WHERE e.studentId = $1 ORDER BY e.enrolledAt DESC`,
+            [req.session.studentId]
+        );
+        res.json(result.rows);
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to retrieve courses.' });
+    }
 });
 
-app.get('/api/student/courses/:id', requireStudent, (req, res) => {
-    const enrollment = db.prepare('SELECT id FROM enrollments WHERE studentId = ? AND courseId = ?').get(req.session.studentId, req.params.id);
-    if (!enrollment) return res.status(403).json({ error: 'You are not enrolled in this course.' });
-    const course = db.prepare('SELECT * FROM courses WHERE id = ?').get(req.params.id);
-    if (!course) return res.status(404).json({ error: 'Course not found.' });
-    const modules = db.prepare('SELECT * FROM course_modules WHERE courseId = ? ORDER BY sortOrder').all(req.params.id);
-    for (const mod of modules) {
-        mod.items = db.prepare('SELECT * FROM module_items WHERE moduleId = ? ORDER BY sortOrder').all(mod.id);
-        // Hide live class links until scheduled time (TAMPER-PROOF: link never sent to client)
-        for (const item of mod.items) {
-            if (item.type === 'live_class' && item.scheduledAt) {
-                const scheduledTime = new Date(item.scheduledAt).getTime();
-                const now = Date.now();
-                if (now < scheduledTime) {
-                    item.link = ''; // Don't send link to client
-                    item.isLive = false;
-                } else {
-                    item.isLive = true;
+app.get('/api/student/courses/:id', requireStudent, async (req, res) => {
+    try {
+        const enrollmentRes = await pool.query('SELECT id FROM enrollments WHERE studentId = $1 AND courseId = $2', [req.session.studentId, req.params.id]);
+        if (enrollmentRes.rows.length === 0) return res.status(403).json({ error: 'You are not enrolled in this course.' });
+
+        const courseRes = await pool.query('SELECT * FROM courses WHERE id = $1', [req.params.id]);
+        const course = courseRes.rows[0];
+        if (!course) return res.status(404).json({ error: 'Course not found.' });
+
+        const modulesRes = await pool.query('SELECT * FROM course_modules WHERE courseId = $1 ORDER BY sortOrder', [req.params.id]);
+        const modules = modulesRes.rows;
+
+        for (const mod of modules) {
+            const itemsRes = await pool.query('SELECT * FROM module_items WHERE moduleId = $1 ORDER BY sortOrder', [mod.id]);
+            mod.items = itemsRes.rows;
+            // Hide live class links until scheduled time (TAMPER-PROOF: link never sent to client)
+            for (const item of mod.items) {
+                if (item.type === 'live_class' && item.scheduledAt) {
+                    const scheduledTime = new Date(item.scheduledAt).getTime();
+                    const now = Date.now();
+                    if (now < scheduledTime) {
+                        item.link = ''; // Don't send link to client
+                        item.isLive = false;
+                    } else {
+                        item.isLive = true;
+                    }
+                } else if (item.type === 'live_class') {
+                    item.isLive = true; // No schedule = always available
                 }
-            } else if (item.type === 'live_class') {
-                item.isLive = true; // No schedule = always available
             }
         }
+        course.modules = modules;
+        res.json(course);
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to retrieve course details.' });
     }
-    course.modules = modules;
-    res.json(course);
 });
 
 // ═══════════════════════════════════════
 //  PAYMENT — RAZORPAY
 // ═══════════════════════════════════════
-app.post('/api/payment/create-order', requireStudent, (req, res) => {
-    const { courseId } = req.body;
-    const course = db.prepare('SELECT id,title,price FROM courses WHERE id = ? AND published = 1').get(courseId);
-    if (!course) return res.status(404).json({ error: 'Course not found.' });
-    const existing = db.prepare('SELECT id FROM enrollments WHERE studentId = ? AND courseId = ?').get(req.session.studentId, courseId);
-    if (existing) return res.status(400).json({ error: 'Already enrolled.' });
+app.post('/api/payment/create-order', requireStudent, async (req, res) => {
+    const { courseId, couponCode } = req.body;
+    try {
+        const courseRes = await pool.query('SELECT id, title, price FROM courses WHERE id = $1 AND published = 1', [courseId]);
+        const course = courseRes.rows[0];
+        if (!course) return res.status(404).json({ error: 'Course not found.' });
 
-    if (course.price === 0) {
-        db.prepare('INSERT INTO enrollments (studentId,courseId) VALUES (?,?)').run(req.session.studentId, courseId);
-        db.prepare('INSERT INTO payments (studentId,courseId,amount,status) VALUES (?,?,0,?)').run(req.session.studentId, courseId, 'free');
-        // Send enrollment confirmation email
-        sendEnrollmentEmail(req.session.studentId, course, 'FREE');
-        return res.json({ success: true, free: true });
-    }
+        const existingRes = await pool.query('SELECT id FROM enrollments WHERE studentId = $1 AND courseId = $2', [req.session.studentId, courseId]);
+        if (existingRes.rows.length > 0) return res.status(400).json({ error: 'Already enrolled.' });
 
-    if (!razorpayInstance) return res.status(503).json({ error: 'Payment gateway not configured.' });
+        let finalPrice = course.price;
+        let appliedCouponId = null;
 
-    const amountInPaise = course.price * 100;
-    razorpayInstance.orders.create({
-        amount: amountInPaise, currency: 'INR',
-        receipt: `order_${req.session.studentId}_${courseId}_${Date.now()}`,
-        notes: { studentId: String(req.session.studentId), courseId: String(courseId) }
-    }).then(order => {
-        db.prepare('INSERT INTO payments (studentId,courseId,razorpayOrderId,amount,status) VALUES (?,?,?,?,?)').run(req.session.studentId, courseId, order.id, course.price, 'pending');
-        res.json({ success: true, order: { id: order.id, amount: order.amount, currency: order.currency }, key: process.env.RAZORPAY_KEY_ID, course: { title: course.title, price: course.price } });
-    }).catch(err => {
-        console.error('Razorpay error:', err);
+        if (couponCode) {
+            const couponRes = await pool.query('SELECT * FROM coupons WHERE code=$1 AND active=1', [couponCode.toUpperCase()]);
+            const coupon = couponRes.rows[0];
+            if (!coupon) return res.status(404).json({ error: 'Invalid coupon code.' });
+            if (coupon.expiresat && new Date(coupon.expiresat) < new Date()) return res.status(400).json({ error: 'Coupon expired.' });
+            if (coupon.usedcount >= coupon.maxuses) return res.status(400).json({ error: 'Coupon fully used.' });
+            if (coupon.courseid && coupon.courseid !== parseInt(courseId)) return res.status(400).json({ error: 'Coupon is not valid for this course.' });
+            if (coupon.studentemail && coupon.studentemail.toLowerCase() !== req.session.studentEmail.toLowerCase()) return res.status(400).json({ error: 'Coupon is not valid for your account.' });
+
+            const usedRes = await pool.query('SELECT id FROM coupon_usage WHERE couponId=$1 AND studentId=$2 AND courseId=$3', [coupon.id, req.session.studentId, courseId]);
+            if (usedRes.rows.length > 0) return res.status(400).json({ error: 'You have already used this coupon for this course.' });
+
+            let discount = coupon.discounttype === 'percent' ? Math.round(course.price * coupon.discountvalue / 100) : coupon.discountvalue;
+            if (discount > course.price) discount = course.price;
+            finalPrice = course.price - discount;
+            appliedCouponId = coupon.id;
+        }
+
+        if (finalPrice <= 0) {
+            await pool.query('INSERT INTO enrollments (studentId, courseId) VALUES ($1, $2)', [req.session.studentId, courseId]);
+            await pool.query('INSERT INTO payments (studentId, courseId, amount, status, couponId) VALUES ($1, $2, 0, $3, $4)', [req.session.studentId, courseId, 'free', appliedCouponId]);
+            if (appliedCouponId) {
+                await pool.query('INSERT INTO coupon_usage (couponId, studentId, courseId) VALUES ($1, $2, $3)', [appliedCouponId, req.session.studentId, courseId]);
+                await pool.query('UPDATE coupons SET usedCount = usedCount + 1 WHERE id=$1', [appliedCouponId]);
+            }
+            // Send enrollment confirmation email
+            await sendEnrollmentEmail(req.session.studentId, course, 'FREE');
+            return res.json({ success: true, free: true });
+        }
+
+        if (!razorpayInstance) return res.status(503).json({ error: 'Payment gateway not configured.' });
+
+        const amountInPaise = finalPrice * 100;
+        const order = await razorpayInstance.orders.create({
+            amount: amountInPaise, currency: 'INR',
+            receipt: `order_${req.session.studentId}_${courseId}_${Date.now()}`,
+            notes: { studentId: String(req.session.studentId), courseId: String(courseId) }
+        });
+
+        await pool.query('INSERT INTO payments (studentId, courseId, razorpayOrderId, amount, status, couponId) VALUES ($1, $2, $3, $4, $5, $6)', [req.session.studentId, courseId, order.id, finalPrice, 'pending', appliedCouponId]);
+        res.json({ success: true, order: { id: order.id, amount: order.amount, currency: order.currency }, key: process.env.RAZORPAY_KEY_ID, course: { title: course.title, price: course.price, finalPrice } });
+
+    } catch (err) {
+        console.error('Razorpay/DB error:', err);
         res.status(500).json({ error: 'Failed to create order.' });
-    });
+    }
 });
 
-app.post('/api/payment/verify', requireStudent, (req, res) => {
+app.post('/api/payment/verify', requireStudent, async (req, res) => {
     const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
     if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) return res.status(400).json({ error: 'Missing payment data.' });
 
@@ -1045,86 +1072,160 @@ app.post('/api/payment/verify', requireStudent, (req, res) => {
         return res.status(400).json({ error: 'Payment verification failed. Signature mismatch.' });
     }
 
-    const payment = db.prepare('SELECT * FROM payments WHERE razorpayOrderId = ? AND studentId = ?').get(razorpay_order_id, req.session.studentId);
-    if (!payment) return res.status(404).json({ error: 'Payment not found.' });
+    try {
+        const paymentRes = await pool.query('SELECT * FROM payments WHERE razorpayOrderId = $1 AND studentId = $2', [razorpay_order_id, req.session.studentId]);
+        const payment = paymentRes.rows[0];
+        if (!payment) return res.status(404).json({ error: 'Payment not found.' });
 
-    db.prepare('UPDATE payments SET razorpayPaymentId=?, razorpaySignature=?, status=? WHERE id=?').run(razorpay_payment_id, razorpay_signature, 'completed', payment.id);
-    try { db.prepare('INSERT INTO enrollments (studentId,courseId) VALUES (?,?)').run(req.session.studentId, payment.courseId); } catch (e) { }
+        await pool.query('UPDATE payments SET razorpayPaymentId=$1, razorpaySignature=$2, status=$3 WHERE id=$4', [razorpay_payment_id, razorpay_signature, 'completed', payment.id]);
 
-    // Send enrollment confirmation email
-    const paidCourse = db.prepare('SELECT title,price FROM courses WHERE id=?').get(payment.courseId);
-    if (paidCourse) sendEnrollmentEmail(req.session.studentId, paidCourse, `₹${payment.amount}`);
+        // Register coupon usage if attached to the payment record
+        if (payment.couponid) {
+            try {
+                await pool.query('INSERT INTO coupon_usage (couponId, studentId, courseId) VALUES ($1, $2, $3)', [payment.couponid, req.session.studentId, payment.courseid]);
+                await pool.query('UPDATE coupons SET usedCount = usedCount + 1 WHERE id=$1', [payment.couponid]);
+            } catch (e) {
+                console.error('Error recording coupon usage:', e);
+            }
+        }
 
-    logSecurity('PAYMENT_OK', getClientIP(req), `order:${razorpay_order_id}`);
-    res.json({ success: true, message: 'Payment verified! You are now enrolled.' });
+        try {
+            await pool.query('INSERT INTO enrollments (studentId, courseId) VALUES ($1, $2)', [req.session.studentId, payment.courseid]);
+        } catch (e) {
+            // Might already be enrolled
+        }
+
+        // Send enrollment confirmation email
+        const paidCourseRes = await pool.query('SELECT title, price FROM courses WHERE id=$1', [payment.courseid]);
+        if (paidCourseRes.rows.length > 0) {
+            await sendEnrollmentEmail(req.session.studentId, paidCourseRes.rows[0], `₹${payment.amount}`);
+        }
+
+        logSecurity('PAYMENT_OK', getClientIP(req), `order:${razorpay_order_id}`);
+        res.json({ success: true, message: 'Payment verified! You are now enrolled.' });
+    } catch (err) {
+        console.error('Payment verify DB error:', err);
+        res.status(500).json({ error: 'Failed to verify payment.' });
+    }
 });
 
 // ═══════════════════════════════════════
 //  PUBLIC — COURSES
 // ═══════════════════════════════════════
-app.get('/api/courses', (req, res) => {
-    const courses = db.prepare('SELECT id,title,code,description,price,coverImage,instructor,duration,level FROM courses WHERE published=1 ORDER BY id DESC').all();
-    for (const c of courses) {
-        c.moduleCount = db.prepare('SELECT COUNT(*) as count FROM course_modules WHERE courseId=?').get(c.id).count;
-        c.itemCount = db.prepare('SELECT COUNT(*) as count FROM module_items mi JOIN course_modules cm ON mi.moduleId=cm.id WHERE cm.courseId=?').get(c.id).count;
+app.get('/api/courses', async (req, res) => {
+    try {
+        const coursesRes = await pool.query('SELECT id, title, code, description, price, coverImage, instructor, duration, level FROM courses WHERE published=1 ORDER BY id DESC');
+        const courses = coursesRes.rows;
+
+        for (const c of courses) {
+            const mCountRes = await pool.query('SELECT COUNT(*) as count FROM course_modules WHERE courseId=$1', [c.id]);
+            c.moduleCount = parseInt(mCountRes.rows[0].count, 10);
+
+            const iCountRes = await pool.query('SELECT COUNT(*) as count FROM module_items mi JOIN course_modules cm ON mi.moduleId=cm.id WHERE cm.courseId=$1', [c.id]);
+            c.itemCount = parseInt(iCountRes.rows[0].count, 10);
+        }
+
+        if (req.session?.studentId) {
+            const enrolledRes = await pool.query('SELECT courseId FROM enrollments WHERE studentId=$1', [req.session.studentId]);
+            const ids = new Set(enrolledRes.rows.map(e => e.courseid || e.courseId));
+            for (const c of courses) c.enrolled = ids.has(c.id);
+        }
+        res.json(courses);
+    } catch (err) {
+        console.error('Error fetching courses:', err);
+        res.status(500).json({ error: 'Server error' });
     }
-    if (req.session?.studentId) {
-        const enrolled = db.prepare('SELECT courseId FROM enrollments WHERE studentId=?').all(req.session.studentId);
-        const ids = new Set(enrolled.map(e => e.courseId));
-        for (const c of courses) c.enrolled = ids.has(c.id);
-    }
-    res.json(courses);
 });
 
 // ═══════════════════════════════════════
 //  PUBLIC — BLOGS
 // ═══════════════════════════════════════
-app.get('/api/blogs', (req, res) => {
-    const blogs = db.prepare('SELECT id,title,author,excerpt,tags,date,readTime,contentHtml,coverImage,createdAt FROM blogs WHERE published=1 ORDER BY id DESC').all();
-    res.json(blogs.map(b => ({ ...b, tags: JSON.parse(b.tags), content: b.contentHtml })));
+app.get('/api/blogs', async (req, res) => {
+    try {
+        const blogsRes = await pool.query('SELECT id, title, author, excerpt, tags, date, readTime, contentHtml, coverImage, createdAt FROM blogs WHERE published=1 ORDER BY id DESC');
+        res.json(blogsRes.rows.map(b => ({ ...b, tags: JSON.parse(b.tags), content: b.contenthtml || b.contentHtml })));
+    } catch (err) {
+        res.status(500).json({ error: 'Server error' });
+    }
 });
 
-app.get('/api/blogs/:id', (req, res) => {
-    const blog = db.prepare('SELECT id,title,author,excerpt,tags,date,readTime,contentHtml,coverImage,createdAt FROM blogs WHERE id=? AND published=1').get(req.params.id);
-    if (!blog) return res.status(404).json({ error: 'Not found.' });
-    blog.tags = JSON.parse(blog.tags); blog.content = blog.contentHtml;
-    res.json(blog);
+app.get('/api/blogs/:id', async (req, res) => {
+    try {
+        const blogRes = await pool.query('SELECT id, title, author, excerpt, tags, date, readTime, contentHtml, coverImage, createdAt FROM blogs WHERE id=$1 AND published=1', [req.params.id]);
+        const blog = blogRes.rows[0];
+        if (!blog) return res.status(404).json({ error: 'Not found.' });
+        blog.tags = JSON.parse(blog.tags);
+        blog.content = blog.contenthtml || blog.contentHtml;
+        res.json(blog);
+    } catch (err) {
+        res.status(500).json({ error: 'Server error' });
+    }
 });
 
-app.get('/api/blogs/:id/comments', (req, res) => {
-    res.json(db.prepare('SELECT id,name,comment,createdAt FROM comments WHERE blogId=? ORDER BY createdAt DESC').all(req.params.id));
+app.get('/api/blogs/:id/comments', async (req, res) => {
+    try {
+        const commentsRes = await pool.query('SELECT id, name, comment, createdAt FROM comments WHERE blogId=$1 ORDER BY createdAt DESC', [req.params.id]);
+        res.json(commentsRes.rows);
+    } catch (err) {
+        res.status(500).json({ error: 'Server error' });
+    }
 });
 
-app.post('/api/blogs/:id/comments', (req, res) => {
+app.post('/api/blogs/:id/comments', async (req, res) => {
     const ip = getClientIP(req);
     if (!rateLimit(`comment:${ip}`, 5, 60000)) return res.status(429).json({ error: 'Too many comments. Wait a minute.' });
     const { name, comment } = req.body;
     if (!name || !comment) return res.status(400).json({ error: 'Name and comment required.' });
     if (name.length > 100 || comment.length > 5000) return res.status(400).json({ error: 'Input too long.' });
-    const blog = db.prepare('SELECT id FROM blogs WHERE id=? AND published=1').get(req.params.id);
-    if (!blog) return res.status(404).json({ error: 'Not found.' });
-    const r = db.prepare('INSERT INTO comments (blogId,name,comment) VALUES (?,?,?)').run(req.params.id, name.trim(), comment.trim());
-    res.json({ success: true, id: r.lastInsertRowid });
+
+    try {
+        const blogRes = await pool.query('SELECT id FROM blogs WHERE id=$1 AND published=1', [req.params.id]);
+        if (blogRes.rows.length === 0) return res.status(404).json({ error: 'Not found.' });
+
+        const r = await pool.query(
+            'INSERT INTO comments (blogId, name, comment) VALUES ($1, $2, $3) RETURNING id',
+            [req.params.id, name.trim(), comment.trim()]
+        );
+        res.json({ success: true, id: r.rows[0].id });
+    } catch (err) {
+        console.error('Comment error:', err);
+        res.status(500).json({ error: 'Server error' });
+    }
 });
 
 // ═══════════════════════════════════════
 //  CONTACT
 // ═══════════════════════════════════════
-app.post('/api/contact', (req, res) => {
+app.post('/api/contact', async (req, res) => {
     const ip = getClientIP(req);
     if (!rateLimit(`contact:${ip}`, 3, 60 * 60 * 1000)) return res.status(429).json({ error: 'Too many messages. Try again later.' });
     const { name, email, subject, message } = req.body;
     if (!name || !email || !message) return res.status(400).json({ error: 'All fields required.' });
     if (name.length > 100 || email.length > 200 || message.length > 10000) return res.status(400).json({ error: 'Too long.' });
-    db.prepare('INSERT INTO contact_messages (name,email,subject,message) VALUES (?,?,?,?)').run(name.trim(), email.trim(), (subject || '').trim(), message.trim());
-    if (transporter) {
-        transporter.sendMail({
-            from: process.env.SMTP_FROM || process.env.SMTP_USER, to: process.env.CONTACT_TO || process.env.SMTP_USER,
-            subject: `[NinjaHackers] Contact: ${subject || 'New Message'}`,
-            html: `<h3>New Contact</h3><p><b>From:</b> ${name} (${email})</p><p><b>Subject:</b> ${subject || 'N/A'}</p><p>${message.replace(/\n/g, '<br>')}</p>`
-        }).catch(err => console.error('Email error:', err));
+
+    try {
+        await pool.query(
+            'INSERT INTO contact_messages (name, email, subject, message) VALUES ($1, $2, $3, $4)',
+            [name.trim(), email.trim(), (subject || '').trim(), message.trim()]
+        );
+
+        if (transporter) {
+            try {
+                await transporter.sendMail({
+                    from: process.env.SMTP_FROM || process.env.SMTP_USER,
+                    to: process.env.CONTACT_TO || process.env.SMTP_USER,
+                    subject: `[NinjaHackers] Contact: ${subject || 'New Message'}`,
+                    html: `<h3>New Contact</h3><p><b>From:</b> ${name} (${email})</p><p><b>Subject:</b> ${subject || 'N/A'}</p><p>${message.replace(/\n/g, '<br>')}</p>`
+                });
+            } catch (err) {
+                console.error('Email error:', err);
+            }
+        }
+        res.json({ success: true, message: "Message sent! We'll get back to you soon." });
+    } catch (err) {
+        console.error('Contact error:', err);
+        res.status(500).json({ error: 'Server error' });
     }
-    res.json({ success: true, message: "Message sent! We'll get back to you soon." });
 });
 
 // ═══════════════════════════════════════
@@ -1154,145 +1255,297 @@ app.post('/api/admin/upload', requireAdmin, (req, res) => {
 // ═══════════════════════════════════════
 //  ADMIN — BLOG CRUD
 // ═══════════════════════════════════════
-app.get('/api/admin/blogs', requireAdmin, (req, res) => {
-    const blogs = db.prepare('SELECT id,title,author,excerpt,tags,date,readTime,content,coverImage,published,createdAt,updatedAt FROM blogs ORDER BY id DESC').all();
-    res.json(blogs.map(b => ({ ...b, tags: JSON.parse(b.tags) })));
+app.get('/api/admin/blogs', requireAdmin, async (req, res) => {
+    try {
+        const blogsRes = await pool.query('SELECT id, title, author, excerpt, tags, date, readTime, content, coverImage, published, createdAt, updatedAt FROM blogs ORDER BY id DESC');
+        res.json(blogsRes.rows.map(b => ({ ...b, tags: JSON.parse(b.tags) })));
+    } catch (err) {
+        res.status(500).json({ error: 'Server error' });
+    }
 });
-app.post('/api/admin/blogs', requireAdmin, (req, res) => {
+
+app.post('/api/admin/blogs', requireAdmin, async (req, res) => {
     const { title, author, excerpt, tags, date, readTime, content, coverImage, published } = req.body;
     if (!title || !content) return res.status(400).json({ error: 'Title and content required.' });
     const now = new Date().toISOString();
-    const r = db.prepare('INSERT INTO blogs (title,author,excerpt,tags,date,readTime,content,contentHtml,coverImage,published,createdAt,updatedAt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)')
-        .run(title, author || 'NinjaHacker', excerpt || '', JSON.stringify(tags || []), date || new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' }), readTime || '5 min read', content, marked(content), coverImage || '', published !== undefined ? (published ? 1 : 0) : 1, now, now);
-    res.json({ success: true, id: r.lastInsertRowid });
+    try {
+        const r = await pool.query(
+            'INSERT INTO blogs (title, author, excerpt, tags, date, readTime, content, contentHtml, coverImage, published, createdAt, updatedAt) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING id',
+            [title, author || 'NinjaHacker', excerpt || '', JSON.stringify(tags || []), date || new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' }), readTime || '5 min read', content, marked(content), coverImage || '', published !== undefined ? (published ? 1 : 0) : 1, now, now]
+        );
+        res.json({ success: true, id: r.rows[0].id });
+    } catch (err) {
+        res.status(500).json({ error: 'Server error' });
+    }
 });
-app.put('/api/admin/blogs/:id', requireAdmin, (req, res) => {
+
+app.put('/api/admin/blogs/:id', requireAdmin, async (req, res) => {
     const { title, author, excerpt, tags, date, readTime, content, coverImage, published } = req.body;
-    if (!db.prepare('SELECT id FROM blogs WHERE id=?').get(req.params.id)) return res.status(404).json({ error: 'Not found.' });
-    db.prepare(`UPDATE blogs SET title=?,author=?,excerpt=?,tags=?,date=?,readTime=?,content=?,contentHtml=?,coverImage=?,published=?,updatedAt=datetime('now') WHERE id=?`)
-        .run(title, author || 'NinjaHacker', excerpt || '', JSON.stringify(tags || []), date || '', readTime || '5 min read', content || '', marked(content || ''), coverImage || '', published !== undefined ? (published ? 1 : 0) : 1, req.params.id);
+    try {
+        const blogRes = await pool.query('SELECT id FROM blogs WHERE id=$1', [req.params.id]);
+        if (blogRes.rows.length === 0) return res.status(404).json({ error: 'Not found.' });
+
+        await pool.query(
+            `UPDATE blogs SET title=$1, author=$2, excerpt=$3, tags=$4, date=$5, readTime=$6, content=$7, contentHtml=$8, coverImage=$9, published=$10, updatedAt=CURRENT_TIMESTAMP WHERE id=$11`,
+            [title, author || 'NinjaHacker', excerpt || '', JSON.stringify(tags || []), date || '', readTime || '5 min read', content || '', marked(content || ''), coverImage || '', published !== undefined ? (published ? 1 : 0) : 1, req.params.id]
+        );
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+app.delete('/api/admin/blogs/:id', requireAdmin, async (req, res) => {
+    await pool.query('DELETE FROM blogs WHERE id=$1', [req.params.id]);
     res.json({ success: true });
 });
-app.delete('/api/admin/blogs/:id', requireAdmin, (req, res) => { db.prepare('DELETE FROM blogs WHERE id=?').run(req.params.id); res.json({ success: true }); });
-app.delete('/api/admin/comments/:id', requireAdmin, (req, res) => { db.prepare('DELETE FROM comments WHERE id=?').run(req.params.id); res.json({ success: true }); });
+
+app.delete('/api/admin/comments/:id', requireAdmin, async (req, res) => {
+    await pool.query('DELETE FROM comments WHERE id=$1', [req.params.id]);
+    res.json({ success: true });
+});
 
 // ═══════════════════════════════════════
 //  ADMIN — COURSE CRUD
 // ═══════════════════════════════════════
-app.get('/api/admin/courses', requireAdmin, (req, res) => {
-    const courses = db.prepare('SELECT * FROM courses ORDER BY id DESC').all();
-    for (const c of courses) { c.enrollmentCount = db.prepare('SELECT COUNT(*) as c FROM enrollments WHERE courseId=?').get(c.id).c; c.moduleCount = db.prepare('SELECT COUNT(*) as c FROM course_modules WHERE courseId=?').get(c.id).c; }
-    res.json(courses);
+app.get('/api/admin/courses', requireAdmin, async (req, res) => {
+    try {
+        const coursesRes = await pool.query('SELECT * FROM courses ORDER BY id DESC');
+        for (const c of coursesRes.rows) {
+            const eCountRes = await pool.query('SELECT COUNT(*) as c FROM enrollments WHERE courseId=$1', [c.id]);
+            c.enrollmentCount = parseInt(eCountRes.rows[0].c, 10);
+
+            const mCountRes = await pool.query('SELECT COUNT(*) as c FROM course_modules WHERE courseId=$1', [c.id]);
+            c.moduleCount = parseInt(mCountRes.rows[0].c, 10);
+        }
+        res.json(coursesRes.rows);
+    } catch (err) {
+        res.status(500).json({ error: 'Server error' });
+    }
 });
-app.post('/api/admin/courses', requireAdmin, (req, res) => {
-    const { title, code, description, price, coverImage, instructor, duration, level, published } = req.body;
+
+app.post('/api/admin/courses', requireAdmin, async (req, res) => {
+    const { title, code, description, price, coverImage, instructor, duration, level, published, startDate } = req.body;
     if (!title) return res.status(400).json({ error: 'Title required.' });
-    const r = db.prepare('INSERT INTO courses (title,code,description,price,coverImage,instructor,duration,level,published) VALUES (?,?,?,?,?,?,?,?,?)').run(title, code || '', description || '', price || 0, coverImage || '', instructor || 'NinjaHacker', duration || '', level || 'Beginner', published !== undefined ? (published ? 1 : 0) : 1);
-    res.json({ success: true, id: r.lastInsertRowid });
+    try {
+        const r = await pool.query(
+            'INSERT INTO courses (title, code, description, price, coverImage, instructor, duration, level, published, startDate) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id',
+            [title, code || '', description || '', price || 0, coverImage || '', instructor || 'NinjaHacker', duration || '', level || 'Beginner', published !== undefined ? (published ? 1 : 0) : 1, startDate || null]
+        );
+        res.json({ success: true, id: r.rows[0].id });
+    } catch (err) {
+        res.status(500).json({ error: 'Server error' });
+    }
 });
-app.put('/api/admin/courses/:id', requireAdmin, (req, res) => {
-    const { title, code, description, price, coverImage, instructor, duration, level, published } = req.body;
-    db.prepare(`UPDATE courses SET title=?,code=?,description=?,price=?,coverImage=?,instructor=?,duration=?,level=?,published=?,updatedAt=datetime('now') WHERE id=?`).run(title, code || '', description || '', price || 0, coverImage || '', instructor || 'NinjaHacker', duration || '', level || 'Beginner', published !== undefined ? (published ? 1 : 0) : 1, req.params.id);
+
+app.put('/api/admin/courses/:id', requireAdmin, async (req, res) => {
+    const { title, code, description, price, coverImage, instructor, duration, level, published, startDate } = req.body;
+    try {
+        await pool.query(
+            `UPDATE courses SET title=$1, code=$2, description=$3, price=$4, coverImage=$5, instructor=$6, duration=$7, level=$8, published=$9, startDate=$10, updatedAt=CURRENT_TIMESTAMP WHERE id=$11`,
+            [title, code || '', description || '', price || 0, coverImage || '', instructor || 'NinjaHacker', duration || '', level || 'Beginner', published !== undefined ? (published ? 1 : 0) : 1, startDate || null, req.params.id]
+        );
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+app.delete('/api/admin/courses/:id', requireAdmin, async (req, res) => {
+    await pool.query('DELETE FROM courses WHERE id=$1', [req.params.id]);
     res.json({ success: true });
 });
-app.delete('/api/admin/courses/:id', requireAdmin, (req, res) => { db.prepare('DELETE FROM courses WHERE id=?').run(req.params.id); res.json({ success: true }); });
 
 // Modules
-app.get('/api/admin/courses/:id/modules', requireAdmin, (req, res) => {
-    const modules = db.prepare('SELECT * FROM course_modules WHERE courseId=? ORDER BY sortOrder').all(req.params.id);
-    for (const m of modules) m.items = db.prepare('SELECT * FROM module_items WHERE moduleId=? ORDER BY sortOrder').all(m.id);
-    res.json(modules);
+app.get('/api/admin/courses/:id/modules', requireAdmin, async (req, res) => {
+    try {
+        const modulesRes = await pool.query('SELECT * FROM course_modules WHERE courseId=$1 ORDER BY sortOrder', [req.params.id]);
+        const modules = modulesRes.rows;
+        for (const m of modules) {
+            const itemsRes = await pool.query('SELECT * FROM module_items WHERE moduleId=$1 ORDER BY sortOrder', [m.id]);
+            m.items = itemsRes.rows;
+        }
+        res.json(modules);
+    } catch (err) {
+        res.status(500).json({ error: 'Server error' });
+    }
 });
-app.post('/api/admin/modules', requireAdmin, (req, res) => {
+
+app.post('/api/admin/modules', requireAdmin, async (req, res) => {
     const { courseId, title } = req.body;
     if (!courseId || !title) return res.status(400).json({ error: 'Required.' });
-    // Auto-increment sortOrder: next = max + 1
-    const maxOrder = db.prepare('SELECT COALESCE(MAX(sortOrder),-1) as mx FROM course_modules WHERE courseId=?').get(courseId).mx;
-    const r = db.prepare('INSERT INTO course_modules (courseId,title,sortOrder) VALUES (?,?,?)').run(courseId, title, maxOrder + 1);
-    res.json({ success: true, id: r.lastInsertRowid });
+    try {
+        const maxRes = await pool.query('SELECT COALESCE(MAX(sortOrder), -1) as mx FROM course_modules WHERE courseId=$1', [courseId]);
+        const maxOrder = parseInt(maxRes.rows[0].mx, 10);
+        const r = await pool.query(
+            'INSERT INTO course_modules (courseId, title, sortOrder) VALUES ($1, $2, $3) RETURNING id',
+            [courseId, title, maxOrder + 1]
+        );
+        res.json({ success: true, id: r.rows[0].id });
+    } catch (err) {
+        res.status(500).json({ error: 'Server error' });
+    }
 });
+
 // Reorder modules (swap two modules) — MUST be before /:id route
-app.put('/api/admin/modules/reorder', requireAdmin, (req, res) => {
+app.put('/api/admin/modules/reorder', requireAdmin, async (req, res) => {
     const { moduleId, direction, courseId } = req.body;
     if (!moduleId || !direction || !courseId) return res.status(400).json({ error: 'Required.' });
-    const modules = db.prepare('SELECT id,sortOrder FROM course_modules WHERE courseId=? ORDER BY sortOrder').all(courseId);
-    const idx = modules.findIndex(m => m.id === moduleId);
-    if (idx < 0) return res.status(404).json({ error: 'Module not found.' });
-    const swapIdx = direction === 'up' ? idx - 1 : idx + 1;
-    if (swapIdx < 0 || swapIdx >= modules.length) return res.json({ success: true }); // already at edge
-    // Swap sortOrders
-    const a = modules[idx], b = modules[swapIdx];
-    db.prepare('UPDATE course_modules SET sortOrder=? WHERE id=?').run(b.sortOrder, a.id);
-    db.prepare('UPDATE course_modules SET sortOrder=? WHERE id=?').run(a.sortOrder, b.id);
+    try {
+        const modulesRes = await pool.query('SELECT id, sortOrder FROM course_modules WHERE courseId=$1 ORDER BY sortOrder', [courseId]);
+        const modules = modulesRes.rows;
+        const idx = modules.findIndex(m => m.id === parseInt(moduleId, 10));
+        if (idx < 0) return res.status(404).json({ error: 'Module not found.' });
+
+        const swapIdx = direction === 'up' ? idx - 1 : idx + 1;
+        if (swapIdx < 0 || swapIdx >= modules.length) return res.json({ success: true }); // already at edge
+
+        const a = modules[idx], b = modules[swapIdx];
+        await pool.query('UPDATE course_modules SET sortOrder=$1 WHERE id=$2', [b.sortorder || b.sortOrder, a.id]);
+        await pool.query('UPDATE course_modules SET sortOrder=$1 WHERE id=$2', [a.sortorder || a.sortOrder, b.id]);
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+app.put('/api/admin/modules/:id', requireAdmin, async (req, res) => {
+    await pool.query('UPDATE course_modules SET title=$1, sortOrder=$2 WHERE id=$3', [req.body.title, req.body.sortOrder || 0, req.params.id]);
     res.json({ success: true });
 });
-app.put('/api/admin/modules/:id', requireAdmin, (req, res) => { db.prepare('UPDATE course_modules SET title=?,sortOrder=? WHERE id=?').run(req.body.title, req.body.sortOrder || 0, req.params.id); res.json({ success: true }); });
-app.delete('/api/admin/modules/:id', requireAdmin, (req, res) => { db.prepare('DELETE FROM course_modules WHERE id=?').run(req.params.id); res.json({ success: true }); });
+
+app.delete('/api/admin/modules/:id', requireAdmin, async (req, res) => {
+    await pool.query('DELETE FROM course_modules WHERE id=$1', [req.params.id]);
+    res.json({ success: true });
+});
 
 // Items
-app.post('/api/admin/items', requireAdmin, (req, res) => {
+app.post('/api/admin/items', requireAdmin, async (req, res) => {
     const { moduleId, type, title, link, description, sortOrder, scheduledAt } = req.body;
     if (!moduleId || !title) return res.status(400).json({ error: 'Required.' });
-    const r = db.prepare('INSERT INTO module_items (moduleId,type,title,link,description,sortOrder,scheduledAt) VALUES (?,?,?,?,?,?,?)').run(moduleId, type || 'recorded_class', title, link || '', description || '', sortOrder || 0, scheduledAt || null);
-    res.json({ success: true, id: r.lastInsertRowid });
+    try {
+        const r = await pool.query(
+            'INSERT INTO module_items (moduleId, type, title, link, description, sortOrder, scheduledAt) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id',
+            [moduleId, type || 'recorded_class', title, link || '', description || '', sortOrder || 0, scheduledAt || null]
+        );
+        res.json({ success: true, id: r.rows[0].id });
+    } catch (err) {
+        res.status(500).json({ error: 'Server error' });
+    }
 });
-app.put('/api/admin/items/:id', requireAdmin, (req, res) => { db.prepare('UPDATE module_items SET type=?,title=?,link=?,description=?,sortOrder=?,scheduledAt=? WHERE id=?').run(req.body.type || 'recorded_class', req.body.title, req.body.link || '', req.body.description || '', req.body.sortOrder || 0, req.body.scheduledAt || null, req.params.id); res.json({ success: true }); });
-app.delete('/api/admin/items/:id', requireAdmin, (req, res) => { db.prepare('DELETE FROM module_items WHERE id=?').run(req.params.id); res.json({ success: true }); });
+
+app.put('/api/admin/items/:id', requireAdmin, async (req, res) => {
+    await pool.query(
+        'UPDATE module_items SET type=$1, title=$2, link=$3, description=$4, sortOrder=$5, scheduledAt=$6 WHERE id=$7',
+        [req.body.type || 'recorded_class', req.body.title, req.body.link || '', req.body.description || '', req.body.sortOrder || 0, req.body.scheduledAt || null, req.params.id]
+    );
+    res.json({ success: true });
+});
+
+app.delete('/api/admin/items/:id', requireAdmin, async (req, res) => {
+    await pool.query('DELETE FROM module_items WHERE id=$1', [req.params.id]);
+    res.json({ success: true });
+});
 
 // Enrollments (with source tracking)
-app.get('/api/admin/enrollments', requireAdmin, (req, res) => {
-    const enrollments = db.prepare(`
-    SELECT e.id, e.enrolledAt, e.studentId, e.courseId,
-           s.name as studentName, s.email as studentEmail,
-           c.title as courseTitle, c.code as courseCode
-    FROM enrollments e 
-    JOIN students s ON s.id=e.studentId 
-    JOIN courses c ON c.id=e.courseId 
-    ORDER BY e.enrolledAt DESC`).all();
-    // Attach payment source
-    for (const e of enrollments) {
-        const payment = db.prepare('SELECT amount,status FROM payments WHERE studentId=? AND courseId=? AND status IN (?,?) ORDER BY createdAt DESC LIMIT 1').get(e.studentId, e.courseId, 'completed', 'free');
-        e.paidAmount = payment ? payment.amount : null;
+app.get('/api/admin/enrollments', requireAdmin, async (req, res) => {
+    try {
+        const enrollmentsRes = await pool.query(`
+            SELECT e.id, e.enrolledAt, e.studentId, e.courseId,
+                   s.name as studentName, s.email as studentEmail,
+                   c.title as courseTitle, c.code as courseCode
+            FROM enrollments e 
+            JOIN students s ON s.id=e.studentId 
+            JOIN courses c ON c.id=e.courseId 
+            ORDER BY e.enrolledAt DESC
+        `);
+        const enrollments = enrollmentsRes.rows;
+        for (const e of enrollments) {
+            const paymentRes = await pool.query('SELECT amount, status FROM payments WHERE studentId=$1 AND courseId=$2 AND status IN ($3, $4) ORDER BY createdAt DESC LIMIT 1', [e.studentid || e.studentId, e.courseid || e.courseId, 'completed', 'free']);
+            e.paidAmount = paymentRes.rows.length > 0 ? paymentRes.rows[0].amount : null;
+        }
+        res.json(enrollments);
+    } catch (err) {
+        res.status(500).json({ error: 'Server error' });
     }
-    res.json(enrollments);
 });
-app.post('/api/admin/enrollments', requireAdmin, (req, res) => {
-    const s = db.prepare('SELECT id FROM students WHERE email=?').get(req.body.studentEmail);
-    if (!s) return res.status(404).json({ error: 'Student not found.' });
-    try { db.prepare('INSERT INTO enrollments (studentId,courseId) VALUES (?,?)').run(s.id, req.body.courseId); res.json({ success: true }); } catch (e) { res.status(400).json({ error: 'Already enrolled.' }); }
+
+app.post('/api/admin/enrollments', requireAdmin, async (req, res) => {
+    try {
+        const sRes = await pool.query('SELECT id FROM students WHERE email=$1', [req.body.studentEmail]);
+        if (sRes.rows.length === 0) return res.status(404).json({ error: 'Student not found.' });
+        try {
+            await pool.query('INSERT INTO enrollments (studentId, courseId) VALUES ($1, $2)', [sRes.rows[0].id, req.body.courseId]);
+            res.json({ success: true });
+        } catch (e) {
+            res.status(400).json({ error: 'Already enrolled.' });
+        }
+    } catch (err) {
+        res.status(500).json({ error: 'Server error' });
+    }
 });
-app.delete('/api/admin/enrollments/:id', requireAdmin, (req, res) => { db.prepare('DELETE FROM enrollments WHERE id=?').run(req.params.id); res.json({ success: true }); });
+
+app.delete('/api/admin/enrollments/:id', requireAdmin, async (req, res) => {
+    await pool.query('DELETE FROM enrollments WHERE id=$1', [req.params.id]);
+    res.json({ success: true });
+});
 
 // Students
-app.get('/api/admin/students', requireAdmin, (req, res) => {
-    const students = db.prepare('SELECT id,name,email,emailVerified,createdAt FROM students ORDER BY id DESC').all();
-    for (const s of students) s.enrollmentCount = db.prepare('SELECT COUNT(*) as c FROM enrollments WHERE studentId=?').get(s.id).c;
-    res.json(students);
+app.get('/api/admin/students', requireAdmin, async (req, res) => {
+    try {
+        const studentsRes = await pool.query('SELECT id, name, email, emailVerified, createdAt FROM students ORDER BY id DESC');
+        const students = studentsRes.rows;
+        for (const s of students) {
+            const countRes = await pool.query('SELECT COUNT(*) as c FROM enrollments WHERE studentId=$1', [s.id]);
+            s.enrollmentCount = parseInt(countRes.rows[0].c, 10);
+        }
+        res.json(students);
+    } catch (err) {
+        res.status(500).json({ error: 'Server error' });
+    }
 });
 
 // Per-student enrollments (with payment source)
-app.get('/api/admin/students/:id/enrollments', requireAdmin, (req, res) => {
-    const enrollments = db.prepare(`
-    SELECT e.id as enrollmentId, e.courseId, e.enrolledAt,
-           c.title as courseTitle, c.code as courseCode, c.price as coursePrice
-    FROM enrollments e
-    JOIN courses c ON c.id=e.courseId
-    WHERE e.studentId=?
-    ORDER BY e.enrolledAt DESC`).all(req.params.id);
-    for (const e of enrollments) {
-        const payment = db.prepare('SELECT amount,status FROM payments WHERE studentId=? AND courseId=? AND status IN (?,?) ORDER BY createdAt DESC LIMIT 1').get(req.params.id, e.courseId, 'completed', 'free');
-        e.paidAmount = payment ? payment.amount : null; // null = admin assigned
+app.get('/api/admin/students/:id/enrollments', requireAdmin, async (req, res) => {
+    try {
+        const enrollmentsRes = await pool.query(`
+            SELECT e.id as enrollmentId, e.courseId, e.enrolledAt,
+                   c.title as courseTitle, c.code as courseCode, c.price as coursePrice
+            FROM enrollments e
+            JOIN courses c ON c.id=e.courseId
+            WHERE e.studentId=$1
+            ORDER BY e.enrolledAt DESC
+        `, [req.params.id]);
+        const enrollments = enrollmentsRes.rows;
+        for (const e of enrollments) {
+            const paymentRes = await pool.query('SELECT amount, status FROM payments WHERE studentId=$1 AND courseId=$2 AND status IN ($3, $4) ORDER BY createdAt DESC LIMIT 1', [req.params.id, e.courseid || e.courseId, 'completed', 'free']);
+            e.paidAmount = paymentRes.rows.length > 0 ? paymentRes.rows[0].amount : null; // null = admin assigned
+        }
+        res.json(enrollments);
+    } catch (err) {
+        res.status(500).json({ error: 'Server error' });
     }
-    res.json(enrollments);
 });
 
 // Per-student payments
-app.get('/api/admin/students/:id/payments', requireAdmin, (req, res) => {
-    res.json(db.prepare('SELECT p.*, c.title as courseTitle FROM payments p JOIN courses c ON c.id=p.courseId WHERE p.studentId=? ORDER BY p.createdAt DESC').all(req.params.id));
+app.get('/api/admin/students/:id/payments', requireAdmin, async (req, res) => {
+    try {
+        const paymentsRes = await pool.query('SELECT p.*, c.title as courseTitle FROM payments p JOIN courses c ON c.id=p.courseId WHERE p.studentId=$1 ORDER BY p.createdAt DESC', [req.params.id]);
+        res.json(paymentsRes.rows);
+    } catch (err) {
+        res.status(500).json({ error: 'Server error' });
+    }
 });
 
 // Payments
-app.get('/api/admin/payments', requireAdmin, (req, res) => { res.json(db.prepare('SELECT p.*,s.name as studentName,s.email as studentEmail,c.title as courseTitle FROM payments p JOIN students s ON s.id=p.studentId JOIN courses c ON c.id=p.courseId ORDER BY p.createdAt DESC').all()); });
+app.get('/api/admin/payments', requireAdmin, async (req, res) => {
+    try {
+        const paymentsRes = await pool.query('SELECT p.*, s.name as studentName, s.email as studentEmail, c.title as courseTitle FROM payments p JOIN students s ON s.id=p.studentId JOIN courses c ON c.id=p.courseId ORDER BY p.createdAt DESC');
+        res.json(paymentsRes.rows);
+    } catch (err) {
+        res.status(500).json({ error: 'Server error' });
+    }
+});
 
 // Messages
 app.get('/api/admin/messages', requireAdmin, (req, res) => { res.json(db.prepare('SELECT * FROM contact_messages ORDER BY createdAt DESC').all()); });
@@ -1401,145 +1654,316 @@ app.get('/api/admin/assignments/download/:id', requireAdmin, (req, res) => {
     res.download(sub.filePath, sub.fileName);
 });
 
-app.put('/api/admin/assignments/:id/grade', requireAdmin, (req, res) => {
+app.put('/api/admin/assignments/:id/grade', requireAdmin, async (req, res) => {
     const { grade, feedback } = req.body;
-    db.prepare('UPDATE assignment_submissions SET grade=?,feedback=?,gradedAt=datetime(\'now\') WHERE id=?').run(grade, feedback || '', req.params.id);
-    res.json({ success: true });
+    try {
+        await pool.query('UPDATE assignment_submissions SET grade=$1, feedback=$2, gradedAt=CURRENT_TIMESTAMP WHERE id=$3', [grade, feedback || '', req.params.id]);
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: 'Server error' });
+    }
 });
 
 // ═══════════════════════════════════════
 //  PROGRESS TRACKING — STUDENT
 // ═══════════════════════════════════════
-app.post('/api/student/progress/:itemId', requireStudent, (req, res) => {
-    try { db.prepare('INSERT OR IGNORE INTO student_progress (studentId,itemId) VALUES (?,?)').run(req.session.studentId, req.params.itemId); } catch (e) { }
+app.post('/api/student/progress/:itemId', requireStudent, async (req, res) => {
+    try {
+        await pool.query('INSERT INTO student_progress (studentId, itemId) VALUES ($1, $2) ON CONFLICT DO NOTHING', [req.session.studentId, req.params.itemId]);
+    } catch (e) {
+        // Ignore constraints
+    }
     res.json({ success: true });
 });
 
-app.get('/api/student/progress/:courseId', requireStudent, (req, res) => {
-    const modules = db.prepare('SELECT id FROM course_modules WHERE courseId=?').all(req.params.courseId);
-    if (!modules.length) return res.json({ completed: 0, total: 0, percent: 0, completedItems: [] });
-    const moduleIds = modules.map(m => m.id);
-    const totalItems = db.prepare(`SELECT COUNT(*) as c FROM module_items WHERE moduleId IN (${moduleIds.join(',')})`).get().c;
-    const completed = db.prepare(`SELECT mi.id FROM student_progress sp JOIN module_items mi ON mi.id=sp.itemId WHERE sp.studentId=? AND mi.moduleId IN (${moduleIds.join(',')})`).all(req.session.studentId);
-    res.json({ completed: completed.length, total: totalItems, percent: totalItems > 0 ? Math.round((completed.length / totalItems) * 100) : 0, completedItems: completed.map(c => c.id) });
+app.get('/api/student/progress/:courseId', requireStudent, async (req, res) => {
+    try {
+        const modulesRes = await pool.query('SELECT id FROM course_modules WHERE courseId=$1', [req.params.courseId]);
+        if (modulesRes.rows.length === 0) return res.json({ completed: 0, total: 0, percent: 0, completedItems: [] });
+
+        const moduleIds = modulesRes.rows.map(m => m.id);
+        const totalItemsRes = await pool.query(`SELECT COUNT(*) as c FROM module_items WHERE moduleId = ANY($1::int[])`, [moduleIds]);
+        const totalItems = parseInt(totalItemsRes.rows[0].c, 10);
+
+        const completedRes = await pool.query(`
+            SELECT mi.id 
+            FROM student_progress sp 
+            JOIN module_items mi ON mi.id=sp.itemId 
+            WHERE sp.studentId=$1 AND mi.moduleId = ANY($2::int[])
+        `, [req.session.studentId, moduleIds]);
+
+        const completed = completedRes.rows;
+        res.json({
+            completed: completed.length,
+            total: totalItems,
+            percent: totalItems > 0 ? Math.round((completed.length / totalItems) * 100) : 0,
+            completedItems: completed.map(c => c.id)
+        });
+    } catch (err) {
+        res.status(500).json({ error: 'Server error' });
+    }
 });
 
 // ═══════════════════════════════════════
 //  COURSE REVIEWS — STUDENT
 // ═══════════════════════════════════════
-app.post('/api/student/reviews/:courseId', requireStudent, (req, res) => {
+app.post('/api/student/reviews/:courseId', requireStudent, async (req, res) => {
     const { rating, review } = req.body;
     if (!rating || rating < 1 || rating > 5) return res.status(400).json({ error: 'Rating must be 1-5.' });
-    const enrolled = db.prepare('SELECT id FROM enrollments WHERE studentId=? AND courseId=?').get(req.session.studentId, req.params.courseId);
-    if (!enrolled) return res.status(403).json({ error: 'Not enrolled.' });
+
     try {
-        db.prepare('INSERT INTO course_reviews (studentId,courseId,rating,review) VALUES (?,?,?,?) ON CONFLICT(studentId,courseId) DO UPDATE SET rating=?,review=?,createdAt=datetime(\'now\')').run(req.session.studentId, req.params.courseId, rating, review || '', rating, review || '');
+        const enrolledRes = await pool.query('SELECT id FROM enrollments WHERE studentId=$1 AND courseId=$2', [req.session.studentId, req.params.courseId]);
+        if (enrolledRes.rows.length === 0) return res.status(403).json({ error: 'Not enrolled.' });
+
+        await pool.query(
+            `INSERT INTO course_reviews (studentId, courseId, rating, review) 
+             VALUES ($1, $2, $3, $4) 
+             ON CONFLICT (studentId, courseId) 
+             DO UPDATE SET rating=EXCLUDED.rating, review=EXCLUDED.review, createdAt=CURRENT_TIMESTAMP`,
+            [req.session.studentId, req.params.courseId, rating, review || '']
+        );
         res.json({ success: true });
-    } catch (e) { res.status(500).json({ error: e.message }); }
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
 });
 
-app.get('/api/courses/:id/reviews', (req, res) => {
-    const reviews = db.prepare('SELECT cr.rating,cr.review,cr.createdAt,s.name FROM course_reviews cr JOIN students s ON s.id=cr.studentId WHERE cr.courseId=? ORDER BY cr.createdAt DESC').all(req.params.id);
-    const avg = db.prepare('SELECT AVG(rating) as avg, COUNT(*) as count FROM course_reviews WHERE courseId=?').get(req.params.id);
-    res.json({ reviews, avgRating: avg.avg ? Math.round(avg.avg * 10) / 10 : 0, totalReviews: avg.count });
+app.get('/api/courses/:id/reviews', async (req, res) => {
+    try {
+        const reviewsRes = await pool.query('SELECT cr.rating, cr.review, cr.createdAt, s.name FROM course_reviews cr JOIN students s ON s.id=cr.studentId WHERE cr.courseId=$1 ORDER BY cr.createdAt DESC', [req.params.id]);
+        const avgRes = await pool.query('SELECT AVG(rating) as avg, COUNT(*) as count FROM course_reviews WHERE courseId=$1', [req.params.id]);
+
+        const avg = avgRes.rows[0];
+        res.json({
+            reviews: reviewsRes.rows,
+            avgRating: avg.avg ? Math.round(avg.avg * 10) / 10 : 0,
+            totalReviews: parseInt(avg.count, 10)
+        });
+    } catch (err) {
+        res.status(500).json({ error: 'Server error' });
+    }
 });
 
 // ═══════════════════════════════════════
 //  STUDENT PROFILE
 // ═══════════════════════════════════════
-app.get('/api/student/profile', requireStudent, (req, res) => {
-    const s = db.prepare('SELECT id,name,email,createdAt FROM students WHERE id=?').get(req.session.studentId);
-    const enrollments = db.prepare('SELECT e.enrolledAt, c.title, c.id as courseId FROM enrollments e JOIN courses c ON c.id=e.courseId WHERE e.studentId=? ORDER BY e.enrolledAt DESC').all(req.session.studentId);
-    res.json({ student: s, enrollments });
+app.get('/api/student/profile', requireStudent, async (req, res) => {
+    try {
+        const sRes = await pool.query('SELECT id, name, email, createdAt FROM students WHERE id=$1', [req.session.studentId]);
+        const s = sRes.rows[0];
+        const enrollmentsRes = await pool.query('SELECT e.enrolledAt, c.title, c.id as courseId FROM enrollments e JOIN courses c ON c.id=e.courseId WHERE e.studentId=$1 ORDER BY e.enrolledAt DESC', [req.session.studentId]);
+        res.json({ student: s, enrollments: enrollmentsRes.rows });
+    } catch (err) {
+        res.status(500).json({ error: 'Server error' });
+    }
 });
 
-app.put('/api/student/profile', requireStudent, (req, res) => {
+app.put('/api/student/profile', requireStudent, async (req, res) => {
     const { name } = req.body;
     if (!name || name.trim().length < 2) return res.status(400).json({ error: 'Name must be at least 2 characters.' });
-    db.prepare('UPDATE students SET name=? WHERE id=?').run(name.trim(), req.session.studentId);
-    res.json({ success: true });
+    try {
+        await pool.query('UPDATE students SET name=$1 WHERE id=$2', [name.trim(), req.session.studentId]);
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: 'Server error' });
+    }
 });
 
-app.put('/api/student/change-password', requireStudent, (req, res) => {
+app.put('/api/student/change-password', requireStudent, async (req, res) => {
     const { currentPassword, newPassword } = req.body;
-    const student = db.prepare('SELECT passwordHash FROM students WHERE id=?').get(req.session.studentId);
-    if (!bcrypt.compareSync(currentPassword, student.passwordHash)) return res.status(400).json({ error: 'Current password is wrong.' });
-    if (newPassword.length < 8) return res.status(400).json({ error: 'New password must be at least 8 characters.' });
-    db.prepare('UPDATE students SET passwordHash=? WHERE id=?').run(bcrypt.hashSync(newPassword, 12), req.session.studentId);
-    res.json({ success: true });
+    try {
+        const studentRes = await pool.query('SELECT passwordHash FROM students WHERE id=$1', [req.session.studentId]);
+        const student = studentRes.rows[0];
+        const match = await bcrypt.compare(currentPassword, student.passwordhash || student.passwordHash);
+        if (!match) return res.status(400).json({ error: 'Current password is wrong.' });
+        if (newPassword.length < 8) return res.status(400).json({ error: 'New password must be at least 8 characters.' });
+
+        const hash = await bcrypt.hash(newPassword, 12);
+        await pool.query('UPDATE students SET passwordHash=$1 WHERE id=$2', [hash, req.session.studentId]);
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: 'Server error' });
+    }
 });
 
 // ═══════════════════════════════════════
 //  COUPONS — ADMIN
 // ═══════════════════════════════════════
-app.get('/api/admin/coupons', requireAdmin, (req, res) => { res.json(db.prepare('SELECT * FROM coupons ORDER BY createdAt DESC').all()); });
-
-app.post('/api/admin/coupons', requireAdmin, (req, res) => {
-    const { code, discountType, discountValue, maxUses, expiresAt } = req.body;
-    if (!code) return res.status(400).json({ error: 'Code required.' });
+app.get('/api/admin/coupons', requireAdmin, async (req, res) => {
     try {
-        db.prepare('INSERT INTO coupons (code,discountType,discountValue,maxUses,expiresAt) VALUES (?,?,?,?,?)').run(code.toUpperCase(), discountType || 'percent', discountValue || 10, maxUses || 100, expiresAt || null);
-        res.json({ success: true });
-    } catch (e) { res.status(400).json({ error: 'Code already exists.' }); }
+        const couponsRes = await pool.query('SELECT * FROM coupons ORDER BY createdAt DESC');
+        res.json(couponsRes.rows);
+    } catch (err) {
+        res.status(500).json({ error: 'Server error' });
+    }
 });
 
-app.delete('/api/admin/coupons/:id', requireAdmin, (req, res) => { db.prepare('DELETE FROM coupons WHERE id=?').run(req.params.id); res.json({ success: true }); });
+app.post('/api/admin/coupons', requireAdmin, async (req, res) => {
+    const { code, discountType, discountValue, maxUses, expiresAt, courseId, studentEmail } = req.body;
+    if (!code) return res.status(400).json({ error: 'Code required.' });
+    try {
+        await pool.query(
+            'INSERT INTO coupons (code, discountType, discountValue, maxUses, expiresAt, courseId, studentEmail) VALUES ($1, $2, $3, $4, $5, $6, $7)',
+            [code.toUpperCase(), discountType || 'percent', discountValue || 10, maxUses || 100, expiresAt || null, courseId || null, studentEmail || null]
+        );
+        res.json({ success: true });
+    } catch (e) {
+        res.status(400).json({ error: 'Coupon code must be unique.' });
+    }
+});
+
+app.delete('/api/admin/coupons/:id', requireAdmin, async (req, res) => {
+    try {
+        await pool.query('DELETE FROM coupons WHERE id=$1', [req.params.id]);
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: 'Server error' });
+    }
+});
 
 // Validate coupon — Student
-app.post('/api/student/validate-coupon', requireStudent, (req, res) => {
+app.post('/api/student/validate-coupon', requireStudent, async (req, res) => {
     const { code, courseId } = req.body;
-    const coupon = db.prepare('SELECT * FROM coupons WHERE code=? AND active=1').get(code?.toUpperCase());
-    if (!coupon) return res.status(404).json({ error: 'Invalid coupon code.' });
-    if (coupon.expiresAt && new Date(coupon.expiresAt) < new Date()) return res.status(400).json({ error: 'Coupon expired.' });
-    if (coupon.usedCount >= coupon.maxUses) return res.status(400).json({ error: 'Coupon fully used.' });
-    const used = db.prepare('SELECT id FROM coupon_usage WHERE couponId=? AND studentId=? AND courseId=?').get(coupon.id, req.session.studentId, courseId);
-    if (used) return res.status(400).json({ error: 'Already used this coupon.' });
+    try {
+        const couponRes = await pool.query('SELECT * FROM coupons WHERE code=$1 AND active=1', [code?.toUpperCase()]);
+        if (couponRes.rows.length === 0) return res.status(404).json({ error: 'Invalid coupon code.' });
+        const coupon = couponRes.rows[0];
 
-    const course = db.prepare('SELECT price FROM courses WHERE id=?').get(courseId);
-    if (!course) return res.status(404).json({ error: 'Course not found.' });
-    let discount = coupon.discountType === 'percent' ? Math.round(course.price * coupon.discountValue / 100) : coupon.discountValue;
-    if (discount > course.price) discount = course.price;
-    res.json({ valid: true, discount, finalPrice: course.price - discount, couponId: coupon.id });
+        if (coupon.expiresat || coupon.expiresAt && new Date(coupon.expiresat || coupon.expiresAt) < new Date()) return res.status(400).json({ error: 'Coupon expired.' });
+        if ((coupon.usedcount || coupon.usedCount) >= (coupon.maxuses || coupon.maxUses)) return res.status(400).json({ error: 'Coupon fully used.' });
+        if ((coupon.courseid || coupon.courseId) && (coupon.courseid || coupon.courseId) !== parseInt(courseId, 10)) return res.status(400).json({ error: 'Coupon is not valid for this course.' });
+        if ((coupon.studentemail || coupon.studentEmail) && (coupon.studentemail || coupon.studentEmail).toLowerCase() !== req.session.studentEmail.toLowerCase()) return res.status(400).json({ error: 'Coupon is not valid for your account.' });
+
+        const usedRes = await pool.query('SELECT id FROM coupon_usage WHERE couponId=$1 AND studentId=$2 AND courseId=$3', [coupon.id, req.session.studentId, courseId]);
+        if (usedRes.rows.length > 0) return res.status(400).json({ error: 'Already used this coupon.' });
+
+        const courseRes = await pool.query('SELECT price FROM courses WHERE id=$1', [courseId]);
+        if (courseRes.rows.length === 0) return res.status(404).json({ error: 'Course not found.' });
+        const course = courseRes.rows[0];
+
+        let discount = (coupon.discounttype || coupon.discountType) === 'percent' ? Math.round(course.price * (coupon.discountvalue || coupon.discountValue) / 100) : (coupon.discountvalue || coupon.discountValue);
+        if (discount > course.price) discount = course.price;
+        res.json({ valid: true, discount, finalPrice: course.price - discount, couponId: coupon.id });
+    } catch (err) {
+        res.status(500).json({ error: 'Server error' });
+    }
 });
 
 // ═══════════════════════════════════════
 //  ANNOUNCEMENTS — ADMIN
 // ═══════════════════════════════════════
-app.get('/api/admin/announcements', requireAdmin, (req, res) => { res.json(db.prepare('SELECT a.*, c.title as courseTitle FROM announcements a LEFT JOIN courses c ON c.id=a.courseId ORDER BY a.createdAt DESC').all()); });
-
-app.post('/api/admin/announcements', requireAdmin, (req, res) => {
-    const { title, message, courseId } = req.body;
-    if (!title || !message) return res.status(400).json({ error: 'Title and message required.' });
-    db.prepare('INSERT INTO announcements (title,message,courseId) VALUES (?,?,?)').run(title, message, courseId || null);
-    res.json({ success: true });
+app.get('/api/admin/announcements', requireAdmin, async (req, res) => {
+    try {
+        const announcementsRes = await pool.query('SELECT a.*, c.title as courseTitle FROM announcements a LEFT JOIN courses c ON c.id=a.courseId ORDER BY a.createdAt DESC');
+        res.json(announcementsRes.rows);
+    } catch (err) {
+        res.status(500).json({ error: 'Server error' });
+    }
 });
 
-app.delete('/api/admin/announcements/:id', requireAdmin, (req, res) => { db.prepare('DELETE FROM announcements WHERE id=?').run(req.params.id); res.json({ success: true }); });
+app.post('/api/admin/announcements', requireAdmin, async (req, res) => {
+    const { title, message, courseId } = req.body;
+    if (!title || !message) return res.status(400).json({ error: 'Title and message required.' });
+    try {
+        await pool.query('INSERT INTO announcements (title, message, courseId) VALUES ($1, $2, $3)', [title, message, courseId || null]);
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+app.delete('/api/admin/announcements/:id', requireAdmin, async (req, res) => {
+    try {
+        await pool.query('DELETE FROM announcements WHERE id=$1', [req.params.id]);
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: 'Server error' });
+    }
+});
 
 // Student announcements
-app.get('/api/student/announcements', requireStudent, (req, res) => {
-    const enrolled = db.prepare('SELECT courseId FROM enrollments WHERE studentId=?').all(req.session.studentId).map(e => e.courseId);
-    if (!enrolled.length) return res.json(db.prepare('SELECT * FROM announcements WHERE courseId IS NULL ORDER BY createdAt DESC LIMIT 20').all());
-    res.json(db.prepare(`SELECT * FROM announcements WHERE courseId IS NULL OR courseId IN (${enrolled.join(',')}) ORDER BY createdAt DESC LIMIT 20`).all());
+app.get('/api/student/announcements', requireStudent, async (req, res) => {
+    try {
+        const enrolledRes = await pool.query('SELECT courseId FROM enrollments WHERE studentId=$1', [req.session.studentId]);
+        const enrolled = enrolledRes.rows.map(e => e.courseid || e.courseId);
+
+        if (enrolled.length === 0) {
+            const pubRes = await pool.query('SELECT * FROM announcements WHERE courseId IS NULL ORDER BY createdAt DESC LIMIT 20');
+            return res.json(pubRes.rows);
+        }
+
+        const annRes = await pool.query(`SELECT * FROM announcements WHERE courseId IS NULL OR courseId = ANY($1::int[]) ORDER BY createdAt DESC LIMIT 20`, [enrolled]);
+        res.json(annRes.rows);
+    } catch (err) {
+        res.status(500).json({ error: 'Server error' });
+    }
 });
 
 // ═══════════════════════════════════════
 //  ANALYTICS — ADMIN
 // ═══════════════════════════════════════
-app.get('/api/admin/analytics', requireAdmin, (req, res) => {
-    const totalStudents = db.prepare('SELECT COUNT(*) as c FROM students').get().c;
-    const totalEnrollments = db.prepare('SELECT COUNT(*) as c FROM enrollments').get().c;
-    const totalRevenue = db.prepare("SELECT COALESCE(SUM(amount),0) as total FROM payments WHERE status='completed' OR status='free'").get().total;
-    const totalCourses = db.prepare('SELECT COUNT(*) as c FROM courses WHERE published=1').get().c;
-    const recentEnrollments = db.prepare('SELECT e.enrolledAt, s.name, s.email, c.title as courseTitle FROM enrollments e JOIN students s ON s.id=e.studentId JOIN courses c ON c.id=e.courseId ORDER BY e.enrolledAt DESC LIMIT 10').all();
-    const popularCourses = db.prepare('SELECT c.title, c.id, COUNT(e.id) as enrollCount FROM courses c LEFT JOIN enrollments e ON e.courseId=c.id WHERE c.published=1 GROUP BY c.id ORDER BY enrollCount DESC LIMIT 5').all();
-    const monthlyEnrollments = db.prepare("SELECT strftime('%Y-%m', enrolledAt) as month, COUNT(*) as count FROM enrollments GROUP BY month ORDER BY month DESC LIMIT 12").all();
-    res.json({ totalStudents, totalEnrollments, totalRevenue, totalCourses, recentEnrollments, popularCourses, monthlyEnrollments });
+app.get('/api/admin/analytics', requireAdmin, async (req, res) => {
+    try {
+        const [totalStudentsRes, totalEnrollmentsRes, totalRevenueRes, totalCoursesRes, recentEnrollmentsRes, popularCoursesRes, monthlyEnrollmentsRes] = await Promise.all([
+            pool.query('SELECT COUNT(*) as c FROM students'),
+            pool.query('SELECT COUNT(*) as c FROM enrollments'),
+            pool.query("SELECT COALESCE(SUM(amount), 0) as total FROM payments WHERE status='completed' OR status='free'"),
+            pool.query('SELECT COUNT(*) as c FROM courses WHERE published=1'),
+            pool.query('SELECT e.enrolledAt, s.name, s.email, c.title as courseTitle FROM enrollments e JOIN students s ON s.id=e.studentId JOIN courses c ON c.id=e.courseId ORDER BY e.enrolledAt DESC LIMIT 10'),
+            pool.query('SELECT c.title, c.id, COUNT(e.id) as enrollCount FROM courses c LEFT JOIN enrollments e ON e.courseId=c.id WHERE c.published=1 GROUP BY c.id ORDER BY enrollCount DESC LIMIT 5'),
+            pool.query("SELECT TO_CHAR(enrolledAt, 'YYYY-MM') as month, COUNT(*) as count FROM enrollments GROUP BY month ORDER BY month DESC LIMIT 12")
+        ]);
+
+        res.json({
+            totalStudents: parseInt(totalStudentsRes.rows[0].c, 10),
+            totalEnrollments: parseInt(totalEnrollmentsRes.rows[0].c, 10),
+            totalRevenue: parseFloat(totalRevenueRes.rows[0].total) || 0,
+            totalCourses: parseInt(totalCoursesRes.rows[0].c, 10),
+            recentEnrollments: recentEnrollmentsRes.rows,
+            popularCourses: popularCoursesRes.rows.map(r => ({ ...r, enrollCount: parseInt(r.enrollcount || r.enrollCount, 10) })),
+            monthlyEnrollments: monthlyEnrollmentsRes.rows.map(r => ({ month: r.month, count: parseInt(r.count, 10) }))
+        });
+    } catch (err) {
+        res.status(500).json({ error: 'Server error' });
+    }
 });
 
 // ═══════════════════════════════════════
 //  START
 // ═══════════════════════════════════════
+// ═══════════════════════════════════════
+//  SITE SETTINGS
+// ═══════════════════════════════════════
+app.get('/api/public-announcement', async (req, res) => {
+    try {
+        const [activeRes, textRes, linkRes] = await Promise.all([
+            pool.query("SELECT value FROM site_settings WHERE key='announcement_active'"),
+            pool.query("SELECT value FROM site_settings WHERE key='announcement_text'"),
+            pool.query("SELECT value FROM site_settings WHERE key='announcement_link'")
+        ]);
+
+        const active = activeRes.rows.length > 0 ? activeRes.rows[0].value === '1' : false;
+        const text = textRes.rows.length > 0 ? textRes.rows[0].value : '';
+        const link = linkRes.rows.length > 0 ? linkRes.rows[0].value : '';
+
+        res.json({ active, text, link });
+    } catch (err) {
+        res.json({ active: false, text: '', link: '' });
+    }
+});
+
+app.put('/api/admin/settings/announcement', requireAdmin, async (req, res) => {
+    const { active, text, link } = req.body;
+    try {
+        await pool.query('INSERT INTO site_settings (key, value) VALUES ($1, $2) ON CONFLICT(key) DO UPDATE SET value=EXCLUDED.value', ['announcement_active', active ? '1' : '0']);
+        await pool.query('INSERT INTO site_settings (key, value) VALUES ($1, $2) ON CONFLICT(key) DO UPDATE SET value=EXCLUDED.value', ['announcement_text', text || '']);
+        await pool.query('INSERT INTO site_settings (key, value) VALUES ($1, $2) ON CONFLICT(key) DO UPDATE SET value=EXCLUDED.value', ['announcement_link', link || '']);
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
 app.listen(PORT, () => {
     console.log(`\n🥷 NinjaHackers server running at http://localhost:${PORT}`);
     console.log(`📝 Admin panel:     http://localhost:${PORT}/admin`);
