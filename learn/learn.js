@@ -184,11 +184,11 @@ async function handleForgotPassword(e) {
     const data = await res.json();
     if (res.ok && data.success) {
       showResetForm(email);
-      showToast('Reset code sent! Check your email 📧');
+      showToast(data.message || 'Reset code sent! Check your email 📧');
     } else {
       errorEl.textContent = data.error || 'Failed.';
     }
-  } catch (err) { errorEl.textContent = 'Connection error.'; }
+  } catch (err) { errorEl.textContent = 'Connection error: ' + err.message; }
 }
 
 async function handleResetPassword(e) {
