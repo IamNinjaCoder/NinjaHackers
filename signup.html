@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sign Up | NinjaHackers</title>
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;500;600;700&family=Exo+2:wght@300;400;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <style>
+        :root {
+            --bg: #050a0e;
+            --card: #0a131a;
+            --border: rgba(0, 255, 136, 0.15);
+            --green: #00ff88;
+            --cyan: #00e5ff;
+            --orange: #ffaa00;
+            --red: #ff3366;
+            --text: #e0f2fe;
+            --muted: #5a7a9a;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Exo 2', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+            padding: 2rem 0;
+        }
+
+        #matrix-canvas {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 0; opacity: 0.15; pointer-events: none;
+        }
+
+        .auth-card {
+            background: rgba(10, 19, 26, 0.9);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 2.5rem 2rem;
+            width: 100%;
+            max-width: 420px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5), inset 0 0 0 1px rgba(0,255,136,0.1);
+            backdrop-filter: blur(10px);
+            z-index: 10;
+        }
+
+        .auth-logo {
+            text-align: center;
+            font-size: 2.5rem;
+            color: var(--green);
+            margin-bottom: 1rem;
+            text-shadow: 0 0 15px rgba(0,255,136,0.4);
+        }
+
+        .auth-title {
+            text-align: center;
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 1.8rem;
+            font-weight: 700;
+            margin-bottom: .2rem;
+        }
+
+        .auth-sub {
+            text-align: center;
+            color: var(--muted);
+            font-size: .85rem;
+            margin-bottom: 2rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.2rem;
+        }
+
+        .form-group label {
+            display: block;
+            font-family: 'Share Tech Mono', monospace;
+            font-size: .75rem;
+            color: var(--cyan);
+            margin-bottom: .4rem;
+        }
+
+        .form-group input {
+            width: 100%;
+            background: rgba(0,0,0,0.5);
+            border: 1px solid rgba(0,229,255,0.2);
+            color: #fff;
+            padding: .75rem 1rem;
+            border-radius: 6px;
+            font-family: 'Exo 2', sans-serif;
+            transition: all .3s;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: var(--cyan);
+            box-shadow: 0 0 10px rgba(0,229,255,0.2);
+        }
+
+        .btn-primary {
+            width: 100%;
+            background: linear-gradient(135deg, var(--green), #00cc6a);
+            color: #000;
+            font-weight: 700;
+            font-size: .95rem;
+            padding: .8rem;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all .2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: .5rem;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,255,136,0.3);
+        }
+
+        .btn-link {
+            background: none;
+            border: none;
+            color: var(--cyan);
+            font-family: 'Share Tech Mono', monospace;
+            font-size: .8rem;
+            cursor: pointer;
+            text-decoration: underline;
+        }
+
+        .btn-link:hover {
+            color: #fff;
+        }
+
+        .auth-error {
+            color: var(--red);
+            font-size: .8rem;
+            text-align: center;
+            margin: .5rem 0 1rem;
+            min-height: 1.2rem;
+        }
+
+        .auth-hint {
+            font-size: .7rem;
+            color: var(--muted);
+            margin-bottom: .5rem;
+        }
+
+        .auth-toggle {
+            text-align: center;
+            margin-top: 1.5rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid rgba(255,255,255,0.05);
+            font-size: .85rem;
+            color: var(--muted);
+        }
+        
+        /* Toast */
+        .toast {
+            position: fixed; bottom: 2rem; right: 2rem;
+            background: var(--card); border: 1px solid var(--green);
+            color: var(--green); padding: .8rem 1.4rem; border-radius: 8px;
+            font-family: 'Share Tech Mono', monospace; font-size: .85rem;
+            z-index: 3000; opacity: 0; transform: translateY(10px);
+            transition: all .3s; pointer-events: none;
+        }
+        .toast.show { opacity: 1; transform: translateY(0); }
+        .toast.error { border-color: var(--red); color: var(--red); }
+    </style>
+</head>
+<body>
+    <canvas id="matrix-canvas"></canvas>
+
+    <div class="auth-card">
+        <div class="auth-logo"><i class="fas fa-user-plus"></i></div>
+        <h2 class="auth-title">Join NinjaHackers</h2>
+        <p class="auth-sub">Create your Student Account</p>
+
+        <!-- Signup -->
+        <form id="signupForm" onsubmit="event.preventDefault(); handleSignup(event);">
+            <div class="form-group">
+                <label><i class="fas fa-user"></i> Full Name</label>
+                <input type="text" id="signupName" placeholder="Your name" required />
+            </div>
+            <div class="form-group">
+                <label><i class="fas fa-envelope"></i> Email</label>
+                <input type="email" id="signupEmail" placeholder="you@gmail.com" required />
+            </div>
+            <div class="form-group">
+                <label><i class="fas fa-lock"></i> Password</label>
+                <input type="password" id="signupPassword" placeholder="Min 8 chars, A-z, 0-9" required minlength="8" />
+            </div>
+            <div class="auth-hint">Google, Outlook, Yahoo, and other major providers only</div>
+            <div class="auth-error" id="signupError"></div>
+            <button type="submit" class="btn-primary"><i class="fas fa-user-plus"></i> Create Account</button>
+        </form>
+
+        <!-- OTP Verification -->
+        <form id="otpForm" style="display:none;" onsubmit="event.preventDefault(); handleVerifyOTP(event);">
+            <div style="text-align:center;margin-bottom:1rem;">
+                <i class="fas fa-envelope-open-text" style="font-size:2rem;color:var(--green);margin-bottom:.5rem;display:block;"></i>
+                <p style="font-size:.85rem;color:var(--text);">We sent a 6-digit code to</p>
+                <p style="font-family:'Share Tech Mono',monospace;color:var(--cyan);font-size:.85rem;margin-top:.2rem;" id="otpEmailDisplay"></p>
+            </div>
+            <div class="form-group">
+                <label><i class="fas fa-key"></i> Verification Code</label>
+                <input type="text" id="otpInput" placeholder="123456" required maxlength="6" pattern="[0-9]{6}" style="text-align:center;font-size:1.5rem;letter-spacing:8px;font-family:'Share Tech Mono',monospace;" />
+            </div>
+            <div class="auth-error" id="otpError"></div>
+            <button type="submit" class="btn-primary"><i class="fas fa-check-circle"></i> Verify</button>
+            <div style="margin-top:1rem;text-align:center;">
+                <button type="button" class="btn-link" onclick="resendOTP()">Resend Code</button>
+            </div>
+        </form>
+
+        <div class="auth-toggle">
+            <span>Already have an account?</span>
+            <a href="/signin.html" class="btn-link" style="margin-left:.3rem;text-decoration:none;">Login</a>
+        </div>
+        
+        <div style="text-align:center;margin-top:1rem;">
+            <a href="/" style="color:var(--muted);font-size:0.75rem;text-decoration:none;"><i class="fas fa-home"></i> Back to Home</a>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+        // Matrix Canvas Background
+        (function(){const c=document.getElementById('matrix-canvas');if(!c)return;const x=c.getContext('2d');c.width=window.innerWidth;c.height=window.innerHeight;const ch='01アイウエオカキクケコサシスセソ',fs=14;let dr=Array(Math.floor(c.width/fs)).fill(1);function d(){x.fillStyle='rgba(5,10,14,0.05)';x.fillRect(0,0,c.width,c.height);x.fillStyle='#00ff88';x.font=fs+'px Share Tech Mono';dr.forEach((y,i)=>{x.fillText(ch[Math.floor(Math.random()*ch.length)],i*fs,y*fs);if(y*fs>c.height&&Math.random()>0.975)dr[i]=0;dr[i]++;});}setInterval(d,50);window.addEventListener('resize',()=>{c.width=window.innerWidth;c.height=window.innerHeight;dr=Array(Math.floor(c.width/fs)).fill(1);});})();
+
+        function showToast(msg, err=false) { const e=document.getElementById('toast'); e.textContent=msg; e.className='toast show'+(err?' error':''); setTimeout(()=>{e.className='toast';},3000); }
+        function clearErrors() { ['signupError', 'otpError'].forEach(id => { document.getElementById(id).textContent = ''; }); }
+
+        let pendingVerifyEmail = '';
+
+        function showOTPForm(email) {
+            document.getElementById('signupForm').style.display = 'none';
+            document.getElementById('otpForm').style.display = 'block';
+            document.getElementById('otpEmailDisplay').textContent = email;
+            pendingVerifyEmail = email;
+            document.querySelector('.auth-title').textContent = 'Verify Email';
+            document.querySelector('.auth-sub').textContent = 'Please enter the verification code';
+            clearErrors();
+        }
+
+        async function handleSignup(e) {
+            const name = document.getElementById('signupName').value;
+            const email = document.getElementById('signupEmail').value;
+            const password = document.getElementById('signupPassword').value;
+            const errorEl = document.getElementById('signupError');
+            errorEl.textContent = '';
+            
+            const btn = e.target.querySelector('button[type="submit"]');
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating...';
+            btn.disabled = true;
+
+            try {
+                const res = await fetch('/api/student/signup', {
+                    method:'POST', headers:{'Content-Type':'application/json'},
+                    body: JSON.stringify({name, email, password})
+                });
+                const data = await res.json();
+                
+                if (res.ok && data.success) {
+                    if (data.requiresVerification) {
+                        showOTPForm(data.email);
+                        showToast('Check your email for the verification code! 📧');
+                    } else {
+                        showToast('Account created! Welcome aboard 🥷');
+                        setTimeout(() => { window.location.href = '/learn'; }, 1000);
+                    }
+                } else {
+                    errorEl.textContent = data.error || 'Signup failed.';
+                }
+            } catch(err) { errorEl.textContent = 'Connection error.'; }
+            btn.innerHTML = '<i class="fas fa-user-plus"></i> Create Account';
+            btn.disabled = false;
+        }
+
+        async function handleVerifyOTP(e) {
+            const otp = document.getElementById('otpInput').value.trim();
+            const errorEl = document.getElementById('otpError');
+            errorEl.textContent = '';
+            
+            const btn = e.target.querySelector('button[type="submit"]');
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Verifying...';
+            btn.disabled = true;
+
+            if (!otp || otp.length !== 6) { errorEl.textContent = 'Enter the 6-digit code.'; return; }
+
+            try {
+                const res = await fetch('/api/student/verify-otp', {
+                    method:'POST', headers:{'Content-Type':'application/json'},
+                    body: JSON.stringify({email:pendingVerifyEmail, otp})
+                });
+                const data = await res.json();
+                
+                if (res.ok && data.success) {
+                    showToast('Email verified! Redirecting to Dashboard... 🥷');
+                    setTimeout(() => { window.location.href = '/learn'; }, 1000);
+                } else {
+                    errorEl.textContent = data.error || 'Verification failed.';
+                }
+            } catch(err) { errorEl.textContent = 'Connection error.'; }
+            btn.innerHTML = '<i class="fas fa-check-circle"></i> Verify';
+            btn.disabled = false;
+        }
+
+        async function resendOTP() {
+            if (!pendingVerifyEmail) return;
+            try {
+                const res = await fetch('/api/student/resend-otp', {
+                    method:'POST', headers:{'Content-Type':'application/json'},
+                    body: JSON.stringify({email:pendingVerifyEmail})
+                });
+                const data = await res.json();
+                if (res.ok && data.success) showToast('Verification code resent! 📧');
+                else showToast(data.error || 'Failed to resend code.', true);
+            } catch(err) { showToast('Connection error.', true); }
+        }
+
+        // Auto-redirect if already logged in
+        fetch('/api/student/check').then(res => res.json()).then(data => {
+            if (data.authenticated) window.location.href = '/learn';
+        });
+    </script>
+</body>
+</html>
