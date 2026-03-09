@@ -752,6 +752,9 @@ app.post('/api/admin/login', async (req, res) => {
     try {
         const result = await pool.query('SELECT * FROM admin_users WHERE username = $1', [username]);
         const user = result.rows[0];
+
+        console.log(`[ADMIN LOGIN] Attempt for "${username}". Found in DB? ${!!user}`);
+
         if (!user) {
             logSecurity('ADMIN_LOGIN_FAIL', ip, `unknown user: ${username}`);
             return res.status(401).json({ error: 'Invalid credentials.' });
@@ -760,11 +763,15 @@ app.post('/api/admin/login', async (req, res) => {
         // Account lock check
         if (checkAccountLock(user)) {
             const remaining = Math.ceil((new Date(user.lockeduntil || user.lockedUntil) - new Date()) / 60000);
+            console.log(`[ADMIN LOGIN] Account locked for "${username}". Remaining: ${remaining}m`);
             logSecurity('ADMIN_LOGIN_LOCKED', ip, username);
             return res.status(423).json({ error: `Account locked. Try again in ${remaining} minutes.` });
         }
 
-        if (!await bcrypt.compare(password, user.passwordhash || user.passwordHash)) {
+        const passMatch = await bcrypt.compare(password, user.passwordhash || user.passwordHash);
+        console.log(`[ADMIN LOGIN] Password match for "${username}": ${passMatch}`);
+
+        if (!passMatch) {
             await recordFailedLogin('admin_users', user.id);
             logSecurity('ADMIN_LOGIN_FAIL', ip, username);
             const loginAttempts = user.loginattempts || user.loginAttempts || 0;
