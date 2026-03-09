@@ -590,16 +590,24 @@ const app = express();
 
 const allowedOrigins = [
     'http://localhost:3000',
+    'http://localhost:10000',
+    'http://127.0.0.1:3000',
+    'http://127.0.0.1:10000',
     'https://bninjahacker.site',
-    'https://www.bninjahacker.site'
+    'https://www.bninjahacker.site',
+    'https://ninjahackers.onrender.com'
 ];
 
 app.use(cors({
     origin: function (origin, callback) {
-        // allow requests with no origin (like mobile apps or curl requests)
+        // allow requests with no origin (like mobile apps, curl requests, or same-origin fallback on Render)
         if (!origin) return callback(null, true);
         if (allowedOrigins.indexOf(origin) === -1) {
-            var msg = 'The CORS policy for this site does not allow access from the specified Origin.';
+            // Check if it's a render dynamic URL just in case
+            if (origin.endsWith('.onrender.com')) {
+                return callback(null, true);
+            }
+            var msg = 'The CORS policy for this site does not allow access from the specified Origin: ' + origin;
             return callback(new Error(msg), false);
         }
         return callback(null, true);
