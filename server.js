@@ -535,16 +535,35 @@ async function sendOTPEmail(email, otp, name) {
             from: process.env.SMTP_FROM_NOREPLY || process.env.SMTP_FROM || process.env.SMTP_USER,
             to: email,
             subject: '[NinjaHackers] Verify Your Email - OTP',
-            html: `<div style="font-family:sans-serif;padding:2rem;background:#0a1628;color:#c8d8e8;border-radius:12px;max-width:500px;">
-        <h2 style="color:#00ff88;margin-bottom:.5rem;">🥷 NinjaHackers</h2>
-        <p>Hi ${name},</p>
-        <p>Your verification code is:</p>
-        <div style="background:#020508;border:2px solid #00ff88;border-radius:8px;text-align:center;padding:1.5rem;margin:1rem 0;">
-          <span style="font-size:2rem;font-weight:700;letter-spacing:8px;color:#00ff88;">${otp}</span>
+            html: `<div style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f4f7f6; padding: 40px 20px; text-align: center;">
+    <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.05);">
+        <div style="background: linear-gradient(135deg, #0f2027, #203a43, #2c5364); padding: 40px 20px;">
+            <h1 style="color: #00ff88; margin: 0; font-size: 28px; font-weight: 800; letter-spacing: 1px;">🥷 NinjaHackers</h1>
+            <p style="color: #c8d8e8; margin-top: 10px; font-size: 16px;">Security & Learning Portal</p>
         </div>
-        <p style="font-size:.85rem;color:#5a7a9a;">This code expires in <b>10 minutes</b>. Don't share it with anyone.</p>
-        <p style="font-size:.75rem;color:#5a7a9a;margin-top:1.5rem;">If you didn't request this, ignore this email.</p>
-      </div>`
+        <div style="padding: 40px 30px; text-align: left;">
+            <h2 style="color: #1a202c; font-size: 22px; margin-bottom: 20px;">Hi ${name},</h2>
+            <p style="color: #4a5568; font-size: 16px; line-height: 1.6; margin-bottom: 30px;">
+                Welcome to NinjaHackers! Please use the secure verification code below to verify your email address and complete your registration.
+            </p>
+            <div style="background-color: #f8fafc; border: 2px dashed #cbd5e1; border-radius: 12px; padding: 25px; text-align: center; margin-bottom: 30px;">
+                <span style="display: block; font-family: 'Courier New', Courier, monospace; font-size: 38px; font-weight: 700; color: #0ea5e9; letter-spacing: 10px;">${otp}</span>
+            </div>
+            <p style="color: #718096; font-size: 14px; line-height: 1.5; margin-bottom: 0;">
+                For security reasons, this code will expire in <b>10 minutes</b>. If you did not request this, you can safely ignore this email.
+            </p>
+        </div>
+        <div style="background-color: #f8fafc; padding: 30px; border-top: 1px solid #e2e8f0;">
+            <p style="color: #4a5568; font-size: 15px; font-weight: 600; margin-bottom: 15px;">Stay connected and keep learning!</p>
+            <a href="https://www.linkedin.com/company/ninjahackers/" target="_blank" style="display: inline-block; background-color: #0077b5; color: #ffffff; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-weight: 600; font-size: 14px;">
+                Follow us on LinkedIn
+            </a>
+            <p style="color: #a0aec0; font-size: 12px; margin-top: 25px;">
+                &copy; ${new Date().getFullYear()} NinjaHackers. All rights reserved.
+            </p>
+        </div>
+    </div>
+</div>`
         });
         return true;
     } catch (err) {
@@ -566,20 +585,41 @@ async function sendEnrollmentEmail(studentId, course, priceLabel) {
             from: process.env.SMTP_FROM_SUPPORT || process.env.SMTP_FROM || process.env.SMTP_USER,
             to: student.email,
             subject: `[NinjaHackers] Enrolled: ${course.title}`,
-            html: `<div style="font-family:sans-serif;padding:2rem;background:#0a1628;color:#c8d8e8;border-radius:12px;max-width:500px;">
-                <h2 style="color:#00ff88;margin-bottom:.5rem;">🥷 NinjaHackers</h2>
-                <p>Hi ${student.name},</p>
-                <p>You have been successfully enrolled in:</p>
-                <div style="background:#020508;border:2px solid #00ff88;border-radius:8px;padding:1.2rem;margin:1rem 0;">
-                    <div style="font-size:1.2rem;font-weight:700;color:#00ff88;margin-bottom:.5rem;">${course.title}</div>
-                    <div style="font-size:.85rem;color:#5a7a9a;">
-                        <span style="margin-right:1rem;">💰 ${priceLabel}</span>
-                        <span>📅 ${new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</span>
-                    </div>
+            html: `<div style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f4f7f6; padding: 40px 20px; text-align: center;">
+    <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.05);">
+        <div style="background: linear-gradient(135deg, #0f2027, #203a43, #2c5364); padding: 40px 20px;">
+            <h1 style="color: #00ff88; margin: 0; font-size: 28px; font-weight: 800; letter-spacing: 1px;">🥷 NinjaHackers</h1>
+            <p style="color: #c8d8e8; margin-top: 10px; font-size: 16px;">Course Enrollment Successful</p>
+        </div>
+        <div style="padding: 40px 30px; text-align: left;">
+            <h2 style="color: #1a202c; font-size: 22px; margin-bottom: 20px;">Hi ${student.name},</h2>
+            <p style="color: #4a5568; font-size: 16px; line-height: 1.6; margin-bottom: 25px;">
+                You have been successfully enrolled in <b>${course.title}</b>. Your journey into advanced cybersecurity continues!
+            </p>
+            <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 25px; margin-bottom: 30px;">
+                <div style="font-size: 18px; font-weight: 700; color: #01ff88; margin-bottom: 10px;">${course.title}</div>
+                <div style="font-size: 14px; color: #718096;">
+                    <span style="margin-right: 20px;">💰 ${priceLabel}</span>
+                    <span>📅 ${new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</span>
                 </div>
-                <a href="https://bninjahacker.site/learn" style="display:inline-block;background:#00ff88;color:#000;padding:.7rem 1.5rem;border-radius:6px;text-decoration:none;font-weight:700;margin-top:.5rem;">🎓 Start Learning</a>
-                <p style="font-size:.75rem;color:#5a7a9a;margin-top:1.5rem;">Access your course anytime at bninjahacker.site/learn</p>
-            </div>`
+            </div>
+            <div style="text-align: center;">
+                <a href="${process.env.BASE_URL || 'https://bninjahacker.site'}/learn" style="display: inline-block; background: linear-gradient(135deg, #00ff88, #00e5ff); color: #050a0e; text-decoration: none; padding: 15px 35px; border-radius: 10px; font-weight: 800; font-size: 16px; box-shadow: 0 4px 15px rgba(0, 255, 136, 0.3);">
+                    🎓 Start Learning Now
+                </a>
+            </div>
+        </div>
+        <div style="background-color: #f8fafc; padding: 30px; border-top: 1px solid #e2e8f0;">
+            <p style="color: #4a5568; font-size: 15px; font-weight: 600; margin-bottom: 15px;">Stay connected and keep learning!</p>
+            <a href="https://www.linkedin.com/company/ninjahackers/" target="_blank" style="display: inline-block; background-color: #0077b5; color: #ffffff; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-weight: 600; font-size: 14px;">
+                Follow us on LinkedIn
+            </a>
+            <p style="color: #a0aec0; font-size: 12px; margin-top: 25px;">
+                &copy; ${new Date().getFullYear()} NinjaHackers. All rights reserved.
+            </p>
+        </div>
+    </div>
+</div>`
         });
     } catch (err) { console.error('Enrollment email error:', err.message); }
 }
