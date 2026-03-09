@@ -601,6 +601,7 @@ function getClientIP(req) {
 //  EXPRESS APP
 // ═══════════════════════════════════════
 const app = express();
+app.set('trust proxy', 1); // Trust Render Load Balancer for HTTPS/Secure cookies
 
 const allowedOrigins = [
     'http://localhost:3000',
@@ -656,9 +657,9 @@ app.use(session({
     saveUninitialized: false,
     name: 'ninjasid',
     cookie: {
-        maxAge: 4 * 60 * 60 * 1000, // 4 hours (not 7 days)
+        maxAge: 4 * 60 * 60 * 1000, // 4 hours
         httpOnly: true,
-        sameSite: 'strict', // strict — cookies not sent on cross-site requests
+        sameSite: 'lax', // Relaxed for production cross-site path compatibility
         secure: process.env.NODE_ENV === 'production'
     }
 }));
@@ -671,6 +672,7 @@ app.use((req, res, next) => {
     const fingerprint = `${getClientIP(req)}|${(req.headers['user-agent'] || '').substring(0, 100)}`;
     // If session has a fingerprint, verify it matches
     if (req.session._fingerprint && req.session._fingerprint !== fingerprint) {
+        console.log(`[SESSION] Fingerprint mismatch! Expected: ${req.session._fingerprint}, Got: ${fingerprint}`);
         logSecurity('SESSION_HIJACK_ATTEMPT', getClientIP(req), `Expected: ${req.session._fingerprint.split('|')[0]}`);
         req.session.destroy();
         return res.status(401).json({ error: 'Session invalid. Please log in again.' });
