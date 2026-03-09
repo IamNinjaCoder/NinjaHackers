@@ -439,6 +439,7 @@ async function initDB() {
         await safeAlter(`ALTER TABLE quizzes ADD COLUMN timerMinutes INTEGER NOT NULL DEFAULT 0`);
 
         // Seed or Update Admin User
+        console.log(`[SEEDER] Admin setup: Username="${process.env.ADMIN_USERNAME || "admin"}", Password length=${(process.env.ADMIN_PASSWORD || "admin").length}`);
         const adminPass = process.env.ADMIN_PASSWORD || 'admin';
         const adminHash = await bcrypt.hash(adminPass, 10);
 
