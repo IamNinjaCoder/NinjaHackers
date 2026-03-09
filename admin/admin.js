@@ -249,6 +249,8 @@ async function loadCourses() {
   } catch (e) { showToast('Failed to load courses.', true); }
 }
 
+let currentCourseCover = '';
+
 function openCourseEditor(course = null) {
   document.getElementById('tab-courses').style.display = 'none';
   document.getElementById('courseEditorView').style.display = 'block';
@@ -263,6 +265,8 @@ function openCourseEditor(course = null) {
     document.getElementById('courseDuration').value = course.duration || '';
     document.getElementById('courseLevel').value = course.level || 'Beginner';
     document.getElementById('coursePublished').value = course.published ? '1' : '0';
+    currentCourseCover = course.coverImage || '';
+    updateCourseCoverPreview();
     document.getElementById('moduleManager').style.display = 'block';
     loadModules(course.id);
   } else {
@@ -276,6 +280,8 @@ function openCourseEditor(course = null) {
     document.getElementById('courseDuration').value = '';
     document.getElementById('courseLevel').value = 'Beginner';
     document.getElementById('coursePublished').value = '1';
+    currentCourseCover = '';
+    updateCourseCoverPreview();
     document.getElementById('moduleManager').style.display = 'none';
     document.getElementById('moduleList').innerHTML = '';
   }
@@ -283,10 +289,39 @@ function openCourseEditor(course = null) {
 
 function closeCourseEditor() { document.getElementById('courseEditorView').style.display = 'none'; switchTab('courses'); }
 
+function updateCourseCoverPreview() {
+  const el = document.getElementById('courseCoverPreview');
+  if (currentCourseCover) {
+    el.innerHTML = `<img src="${currentCourseCover}" style="width:100%;height:100%;object-fit:cover;border-radius:8px;">`;
+  } else {
+    el.innerHTML = '<i class="fas fa-image" style="color:var(--muted);opacity:.3;font-size:1.5rem;"></i>';
+  }
+}
+
+async function handleCourseCoverUpload(e) {
+  const file = e.target.files[0]; if (!file) return;
+  if (file.size > 5 * 1024 * 1024) { showToast('Max 5MB.', true); return; }
+  const b64 = await fileToBase64(file);
+  try {
+    const res = await fetch('/api/admin/upload', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ image: b64, filename: file.name.replace(/\.[^.]+$/, '') }) });
+    const data = await res.json();
+    if (data.success) { currentCourseCover = data.url; updateCourseCoverPreview(); showToast('Cover uploaded!'); }
+    else showToast(data.error || 'Upload failed.', true);
+  } catch (err) { showToast('Upload error.', true); }
+  e.target.value = '';
+}
+
+function removeCourseCover() {
+  currentCourseCover = '';
+  updateCourseCoverPreview();
+  showToast('Cover removed.');
+}
+
 async function editCourse(id) {
   const res = await fetch('/api/admin/courses'); const courses = await res.json();
-  const course = courses.find(c => c.id === id);
+  const course = courses.find(c => c.id == id);
   if (course) openCourseEditor(course);
+  else showToast('Course not found.', true);
 }
 
 async function saveCourse() {
@@ -297,6 +332,7 @@ async function saveCourse() {
     title, code: document.getElementById('courseCode').value.trim(),
     description: document.getElementById('courseDesc').value.trim(),
     price: parseInt(document.getElementById('coursePrice').value) || 0,
+    coverImage: currentCourseCover,
     instructor: document.getElementById('courseInstructor').value.trim(),
     duration: document.getElementById('courseDuration').value.trim(),
     level: document.getElementById('courseLevel').value,

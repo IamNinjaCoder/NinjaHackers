@@ -709,29 +709,33 @@ async function openProfile() {
     const data = await (await fetch('/api/student/profile')).json();
     const modal = document.createElement('div');
     modal.id = 'profileModal';
-    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem;';
-    modal.innerHTML = `<div style="background:var(--surface);border:1px solid rgba(0,255,136,.2);border-radius:12px;padding:1.5rem;max-width:500px;width:100%;max-height:85vh;overflow-y:auto;">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
-        <h3 style="color:var(--green);margin:0;"><i class="fas fa-user-circle"></i> My Profile</h3>
-        <button onclick="document.getElementById('profileModal').remove()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:1.2rem;"><i class="fas fa-times"></i></button>
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.85);backdrop-filter:blur(8px);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem;animation:fadeIn .2s ease;';
+    const inputStyle = 'width:100%;padding:.55rem .8rem;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:8px;color:#fff;font-size:.82rem;font-family:inherit;outline:none;box-sizing:border-box;';
+    modal.innerHTML = `<div style="background:rgba(10,14,26,.95);border:1px solid rgba(0,255,136,.15);border-radius:16px;padding:2rem;max-width:480px;width:100%;max-height:85vh;overflow-y:auto;box-shadow:0 24px 80px rgba(0,0,0,.6);">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem;">
+        <h3 style="color:var(--green);margin:0;font-family:'Exo 2',sans-serif;font-size:1.15rem;"><i class="fas fa-user-circle" style="margin-right:.4rem;"></i> My Profile</h3>
+        <button onclick="document.getElementById('profileModal').remove()" style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);color:var(--muted);cursor:pointer;font-size:.9rem;width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;transition:all .2s;" onmouseover="this.style.borderColor='rgba(255,71,87,.3)';this.style.color='var(--red)'" onmouseout="this.style.borderColor='rgba(255,255,255,.08)';this.style.color='var(--muted)'"><i class="fas fa-times"></i></button>
       </div>
-      <div style="margin-bottom:1rem;">
-        <label style="font-size:.65rem;color:var(--muted);">Name</label>
-        <div style="display:flex;gap:.5rem;"><input type="text" id="profileName" value="${esc(data.student.name)}" style="flex:1;"/><button onclick="updateProfileName()" style="background:var(--green);color:#000;border:none;padding:.3rem .6rem;border-radius:4px;cursor:pointer;font-size:.7rem;"><i class="fas fa-save"></i></button></div>
+      <div style="margin-bottom:1.2rem;">
+        <label style="font-size:.7rem;color:var(--muted);display:block;margin-bottom:.3rem;font-family:'Share Tech Mono',monospace;text-transform:uppercase;letter-spacing:1px;">Name</label>
+        <div style="display:flex;gap:.5rem;">
+          <input type="text" id="profileName" value="${esc(data.student.name)}" style="${inputStyle}flex:1;"/>
+          <button onclick="updateProfileName()" style="background:var(--green);color:#080c16;border:none;padding:.4rem .7rem;border-radius:8px;cursor:pointer;font-size:.75rem;font-weight:700;transition:all .2s;" onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'"><i class="fas fa-save"></i></button>
+        </div>
       </div>
-      <div style="margin-bottom:1rem;">
-        <label style="font-size:.65rem;color:var(--muted);">Email</label>
-        <div style="font-size:.85rem;color:var(--text);padding:.4rem;background:var(--bg);border-radius:4px;">${esc(data.student.email)}</div>
+      <div style="margin-bottom:1.2rem;">
+        <label style="font-size:.7rem;color:var(--muted);display:block;margin-bottom:.3rem;font-family:'Share Tech Mono',monospace;text-transform:uppercase;letter-spacing:1px;">Email</label>
+        <div style="font-size:.82rem;color:var(--text-secondary);padding:.55rem .8rem;background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.05);border-radius:8px;font-family:'Share Tech Mono',monospace;">${esc(data.student.email)}</div>
       </div>
-      <div style="margin-bottom:1rem;border-top:1px solid rgba(255,255,255,.05);padding-top:1rem;">
-        <label style="font-size:.65rem;color:var(--muted);">Change Password</label>
-        <input type="password" id="currentPwd" placeholder="Current password" style="width:100%;margin-bottom:.3rem;font-size:.75rem;"/>
-        <input type="password" id="newPwd" placeholder="New password (min 8 chars)" style="width:100%;margin-bottom:.3rem;font-size:.75rem;"/>
-        <button onclick="changePassword()" style="background:rgba(255,80,80,.15);color:var(--red);border:1px solid rgba(255,80,80,.3);padding:.3rem .8rem;border-radius:4px;cursor:pointer;font-size:.7rem;"><i class="fas fa-key"></i> Change Password</button>
+      <div style="margin-bottom:1.2rem;border-top:1px solid rgba(255,255,255,.04);padding-top:1.2rem;">
+        <label style="font-size:.7rem;color:var(--muted);display:block;margin-bottom:.5rem;font-family:'Share Tech Mono',monospace;text-transform:uppercase;letter-spacing:1px;">Change Password</label>
+        <input type="password" id="currentPwd" placeholder="Current password" style="${inputStyle}margin-bottom:.4rem;"/>
+        <input type="password" id="newPwd" placeholder="New password (min 8 chars)" style="${inputStyle}margin-bottom:.6rem;"/>
+        <button onclick="changePassword()" style="background:rgba(255,71,87,.08);color:var(--red);border:1px solid rgba(255,71,87,.2);padding:.45rem 1rem;border-radius:8px;cursor:pointer;font-size:.75rem;font-weight:600;transition:all .2s;" onmouseover="this.style.background='rgba(255,71,87,.15)'" onmouseout="this.style.background='rgba(255,71,87,.08)'"><i class="fas fa-key"></i> Change Password</button>
       </div>
-      <div style="border-top:1px solid rgba(255,255,255,.05);padding-top:1rem;">
-        <label style="font-size:.65rem;color:var(--muted);">Enrolled Courses (${data.enrollments.length})</label>
-        ${data.enrollments.map(e => `<div style="font-size:.75rem;padding:.3rem 0;border-bottom:1px solid rgba(255,255,255,.03);display:flex;justify-content:space-between;"><span>${esc(e.title)}</span><span style="color:var(--muted);font-size:.6rem;">${new Date(e.enrolledAt).toLocaleDateString('en-IN')}</span></div>`).join('')}
+      <div style="border-top:1px solid rgba(255,255,255,.04);padding-top:1.2rem;">
+        <label style="font-size:.7rem;color:var(--muted);display:block;margin-bottom:.5rem;font-family:'Share Tech Mono',monospace;text-transform:uppercase;letter-spacing:1px;">Enrolled Courses (${data.enrollments.length})</label>
+        ${data.enrollments.length ? data.enrollments.map(e => `<div style="font-size:.78rem;padding:.5rem .6rem;margin-bottom:.3rem;background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.04);border-radius:8px;display:flex;justify-content:space-between;align-items:center;"><span style="color:var(--text);">${esc(e.title)}</span><span style="color:var(--muted);font-size:.62rem;font-family:'Share Tech Mono',monospace;">${new Date(e.enrolledAt).toLocaleDateString('en-IN')}</span></div>`).join('') : '<div style="text-align:center;padding:1rem;color:var(--muted);font-size:.8rem;"><i class="fas fa-book-open" style="opacity:.3;"></i><br>No courses enrolled yet</div>'}
       </div>
     </div>`;
     document.body.appendChild(modal);
