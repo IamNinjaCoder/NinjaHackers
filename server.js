@@ -532,7 +532,7 @@ async function sendOTPEmail(email, otp, name) {
     }
     try {
         await transporter.sendMail({
-            from: process.env.SMTP_FROM || process.env.SMTP_USER,
+            from: process.env.SMTP_FROM_NOREPLY || process.env.SMTP_FROM || process.env.SMTP_USER,
             to: email,
             subject: '[NinjaHackers] Verify Your Email - OTP',
             html: `<div style="font-family:sans-serif;padding:2rem;background:#0a1628;color:#c8d8e8;border-radius:12px;max-width:500px;">
@@ -563,7 +563,7 @@ async function sendEnrollmentEmail(studentId, course, priceLabel) {
     }
     try {
         await transporter.sendMail({
-            from: process.env.SMTP_FROM || process.env.SMTP_USER,
+            from: process.env.SMTP_FROM_SUPPORT || process.env.SMTP_FROM || process.env.SMTP_USER,
             to: student.email,
             subject: `[NinjaHackers] Enrolled: ${course.title}`,
             html: `<div style="font-family:sans-serif;padding:2rem;background:#0a1628;color:#c8d8e8;border-radius:12px;max-width:500px;">
@@ -1027,7 +1027,7 @@ app.post('/api/student/forgot-password', async (req, res) => {
         if (transporter) {
             try {
                 await transporter.sendMail({
-                    from: process.env.SMTP_FROM || process.env.SMTP_USER,
+                    from: process.env.SMTP_FROM_NOREPLY || process.env.SMTP_FROM || process.env.SMTP_USER,
                     to: student.email,
                     subject: '[NinjaHackers] Password Reset Code',
                     html: `<div style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f4f7f6; padding: 40px 20px; text-align: center;">
@@ -1413,7 +1413,7 @@ app.post('/api/contact', async (req, res) => {
                         .replace(/"/g, '&quot;');
                 }
                 await transporter.sendMail({
-                    from: process.env.SMTP_FROM || process.env.SMTP_USER,
+                    from: process.env.SMTP_FROM_SUPPORT || process.env.SMTP_FROM || process.env.SMTP_USER,
                     to: process.env.CONTACT_TO || process.env.SMTP_USER,
                     subject: `[NinjaHackers] Contact: ${escapeHtml(subject) || 'New Message'}`,
                     html: `<h3>New Contact</h3><p><b>From:</b> ${escapeHtml(name)} (${escapeHtml(email)})</p><p><b>Subject:</b> ${escapeHtml(subject) || 'N/A'}</p><p>${escapeHtml(message).replace(/\n/g, '<br>')}</p>`
