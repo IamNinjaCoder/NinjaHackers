@@ -8,6 +8,7 @@ const crypto = require('crypto');
 const path = require('path');
 const fs = require('fs');
 const multer = require('multer');
+const cors = require('cors');
 
 // ─── Load .env ───
 const envPath = path.join(__dirname, '.env');
@@ -117,7 +118,10 @@ const upload = multer({
 
 // Determine if we should use URL or local config
 const poolConfig = process.env.DATABASE_URL
-    ? { connectionString: process.env.DATABASE_URL } // For Heroku/Render/Supabase (add ssl: { rejectUnauthorized: false } if needed)
+    ? {
+        connectionString: process.env.DATABASE_URL,
+        ssl: { rejectUnauthorized: false } // Required for Neon, Render, Supabase, Heroku
+    }
     : {
         user: process.env.USER,
         host: process.env.PGHOST || '/tmp', // Local MacOS UNIX socket fallback
@@ -584,6 +588,26 @@ function getClientIP(req) {
 // ═══════════════════════════════════════
 const app = express();
 
+const allowedOrigins = [
+    'http://localhost:3000',
+    'https://ninjahackers.site',
+    'https://www.ninjahackers.site',
+    'https://bninja.hacker.site'
+];
+
+app.use(cors({
+    origin: function (origin, callback) {
+        // allow requests with no origin (like mobile apps or curl requests)
+        if (!origin) return callback(null, true);
+        if (allowedOrigins.indexOf(origin) === -1) {
+            var msg = 'The CORS policy for this site does not allow access from the specified Origin.';
+            return callback(new Error(msg), false);
+        }
+        return callback(null, true);
+    },
+    credentials: true
+}));
+
 app.use(helmet({
     contentSecurityPolicy: {
         useDefaults: true,
@@ -594,7 +618,7 @@ app.use(helmet({
             "style-src": ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net", "https://cdnjs.cloudflare.com", "https://fonts.googleapis.com"],
             "font-src": ["'self'", "https://fonts.gstatic.com", "https://cdnjs.cloudflare.com", "https://cdn.jsdelivr.net"],
             "connect-src": ["'self'", "https://checkout.razorpay.com", "https://api.razorpay.com"],
-            "frame-src": ["'self'", "https://checkout.razorpay.com", "https://api.razorpay.com", "https://drive.google.com"],
+            "frame-src": ["'self'", "https://checkout.razorpay.com", "https://api.razorpay.com", "https://drive.google.com", "https://www.youtube.com", "https://youtube.com"],
             "img-src": ["'self'", "data:", "https:"]
         }
     }
