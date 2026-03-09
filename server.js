@@ -127,6 +127,42 @@ const poolConfig = process.env.DATABASE_URL
 
 const pool = new Pool(poolConfig);
 
+// PostgreSQL lowercases all unquoted column names, but JS code uses camelCase.
+// This wrapper converts all row keys back to camelCase automatically.
+const _origQuery = pool.query.bind(pool);
+const camelCaseMap = {
+    readtime: 'readTime', contenthtml: 'contentHtml', coverimage: 'coverImage',
+    createdat: 'createdAt', updatedat: 'updatedAt', blogid: 'blogId',
+    courseid: 'courseId', studentid: 'studentId', moduleid: 'moduleId',
+    itemid: 'itemId', sortorder: 'sortOrder', emailverified: 'emailVerified',
+    otpcode: 'otpCode', otpexpiry: 'otpExpiry', loginattempts: 'loginAttempts',
+    lockeduntil: 'lockedUntil', passwordhash: 'passwordHash', startdate: 'startDate',
+    scheduledat: 'scheduledAt', enrolledat: 'enrolledAt', discounttype: 'discountType',
+    discountvalue: 'discountValue', maxuses: 'maxUses', usedcount: 'usedCount',
+    expiresat: 'expiresAt', studentemail: 'studentEmail', couponid: 'couponId',
+    razorpayorderid: 'razorpayOrderId', razorpaypaymentid: 'razorpayPaymentId',
+    razorpaysignature: 'razorpaySignature', completedat: 'completedAt',
+    submittedat: 'submittedAt', gradedat: 'gradedAt', filepath: 'filePath',
+    filename: 'fileName', islive: 'isLive', passingpercent: 'passingPercent',
+    maxattempts: 'maxAttempts', timerminutes: 'timerMinutes', correctoption: 'correctOption',
+    totalquestions: 'totalQuestions', usedat: 'usedAt'
+};
+function toCamelRow(row) {
+    if (!row || typeof row !== 'object') return row;
+    const out = {};
+    for (const [k, v] of Object.entries(row)) {
+        out[camelCaseMap[k] || k] = v;
+    }
+    return out;
+}
+pool.query = async function (...args) {
+    const result = await _origQuery(...args);
+    if (result && result.rows) {
+        result.rows = result.rows.map(toCamelRow);
+    }
+    return result;
+};
+
 async function initDB() {
     try {
         await pool.query(`
@@ -532,8 +568,10 @@ app.use(helmet({
         useDefaults: true,
         directives: {
             "default-src": ["'self'"],
-            "script-src": ["'self'", "'unsafe-inline'", "https://checkout.razorpay.com"],
+            "script-src": ["'self'", "'unsafe-inline'", "https://checkout.razorpay.com", "https://cdn.jsdelivr.net", "https://cdnjs.cloudflare.com"],
             "script-src-attr": ["'unsafe-inline'"],
+            "style-src": ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net", "https://cdnjs.cloudflare.com", "https://fonts.googleapis.com"],
+            "font-src": ["'self'", "https://fonts.gstatic.com", "https://cdnjs.cloudflare.com", "https://cdn.jsdelivr.net"],
             "connect-src": ["'self'", "https://checkout.razorpay.com", "https://api.razorpay.com"],
             "frame-src": ["'self'", "https://checkout.razorpay.com", "https://api.razorpay.com", "https://drive.google.com"],
             "img-src": ["'self'", "data:", "https:"]

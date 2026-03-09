@@ -111,6 +111,8 @@ function openBlogEditor(blog = null) {
   if (blog) {
     document.getElementById('editorTitle').innerHTML = '<i class="fas fa-edit" style="color:var(--green);margin-right:.5rem;"></i>Edit Blog Post';
     document.getElementById('editBlogId').value = blog.id;
+    console.log('[DEBUG] openBlogEditor SET editBlogId to:', blog.id, 'type:', typeof blog.id);
+    console.log('[DEBUG] editBlogId.value now:', document.getElementById('editBlogId').value);
     document.getElementById('blogTitleInput').value = blog.title;
     document.getElementById('blogAuthor').value = blog.author || '';
     document.getElementById('blogExcerpt').value = blog.excerpt;
@@ -141,15 +143,19 @@ function openBlogEditor(blog = null) {
 function closeBlogEditor() { document.getElementById('blogEditorView').style.display = 'none'; switchTab('blogs'); }
 
 async function editBlog(id) {
+  console.log('[DEBUG] editBlog called with id:', id, 'type:', typeof id);
   const res = await fetch('/api/admin/blogs');
   const blogs = await res.json();
+  console.log('[DEBUG] fetched blogs:', blogs.map(b => ({ id: b.id, idType: typeof b.id, title: b.title })));
   const blog = blogs.find(b => b.id == id);
+  console.log('[DEBUG] found blog:', blog ? { id: blog.id, title: blog.title } : 'NOT FOUND');
   if (blog) openBlogEditor(blog);
   else showToast('Blog not found.', true);
 }
 
 async function saveBlog() {
   const id = document.getElementById('editBlogId').value;
+  console.log('[DEBUG] saveBlog - editBlogId value:', JSON.stringify(id), 'truthy:', !!id);
   const title = document.getElementById('blogTitleInput').value.trim();
   const author = document.getElementById('blogAuthor').value.trim();
   const excerpt = document.getElementById('blogExcerpt').value.trim();
