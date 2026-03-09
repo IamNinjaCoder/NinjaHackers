@@ -89,8 +89,12 @@ try {
             auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
         });
         console.log('✅ Email configured.');
+    } else if (process.env.NODE_ENV === 'production') {
+        console.warn('⚠️ SMTP_USER is not configured or uses placeholder. Emails will not be sent.');
     }
-} catch (e) { }
+} catch (e) {
+    console.error('❌ Email configuration error:', e.message);
+}
 
 marked.setOptions({ breaks: true, gfm: true });
 
@@ -523,9 +527,7 @@ function generateOTP() {
 
 async function sendOTPEmail(email, otp, name) {
     if (!transporter) {
-        if (process.env.NODE_ENV !== 'production') {
-            console.log(`📧 OTP for ${email}: ${otp}`);
-        }
+        console.warn(`📩 Email not configured. OTP for ${email}: ${otp}`);
         return true;
     }
     try {
