@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz — Ninja Hackers</title>
+    <link rel="icon" href="/favicon.ico">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Exo+2:wght@400;600;700&family=Share+Tech+Mono&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <link rel="stylesheet" href="/learn/quiz.css?v=2">
+</head>
+
+<body>
+
+    <!-- Loading Screen -->
+    <div id="quizLoading" class="quiz-loading">
+        <div class="loading-spinner"></div>
+        <p>Loading Quiz...</p>
+    </div>
+
+    <!-- Quiz Container -->
+    <div id="quizApp" class="quiz-app" style="display:none;">
+
+        <!-- Top Bar -->
+        <header class="quiz-header">
+            <div class="quiz-header-left">
+                <i class="fas fa-shield-alt" style="color:#00d4ff;"></i>
+                <span class="quiz-brand">Ninja Hackers</span>
+            </div>
+            <div class="quiz-header-center">
+                <div id="quizTimer" class="quiz-timer" style="display:none;">
+                    <i class="fas fa-clock"></i>
+                    <span id="timerDisplay">00:00</span>
+                </div>
+            </div>
+            <div class="quiz-header-right">
+                <span id="quizProgress" class="quiz-progress">0 / 0</span>
+            </div>
+        </header>
+
+        <!-- Timer Progress Bar -->
+        <div id="timerBar" class="timer-bar" style="display:none;">
+            <div id="timerBarFill" class="timer-bar-fill"></div>
+        </div>
+
+        <!-- Quiz Title -->
+        <div class="quiz-title-section">
+            <h1 id="quizTitle">Quiz</h1>
+            <p id="quizMeta" class="quiz-meta"></p>
+        </div>
+
+        <!-- Questions Container -->
+        <div id="questionsContainer" class="questions-container"></div>
+
+        <!-- Actions -->
+        <div id="quizActions" class="quiz-actions">
+            <button id="btnSubmit" class="btn-quiz-submit" onclick="submitQuiz()">
+                <i class="fas fa-paper-plane"></i> Submit Answers
+            </button>
+        </div>
+
+        <!-- Results Section (hidden initially) -->
+        <div id="resultsSection" class="results-section" style="display:none;"></div>
+    </div>
+
+    <script src="/learn/quiz.js?v=5"></script>
+</body>
+
+</html>

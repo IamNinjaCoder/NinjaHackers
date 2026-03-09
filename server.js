@@ -276,6 +276,7 @@ async function initDB() {
         itemId INTEGER NOT NULL UNIQUE,
         passingPercent INTEGER NOT NULL DEFAULT 60,
         maxAttempts INTEGER NOT NULL DEFAULT 3,
+        timerMinutes INTEGER NOT NULL DEFAULT 0,
         FOREIGN KEY (itemId) REFERENCES module_items(id) ON DELETE CASCADE
       );
 
@@ -374,6 +375,7 @@ async function initDB() {
         await safeAlter(`ALTER TABLE students ADD COLUMN otpCode TEXT DEFAULT NULL`);
         await safeAlter(`ALTER TABLE students ADD COLUMN otpExpiry TEXT DEFAULT NULL`);
         await safeAlter(`ALTER TABLE courses ADD COLUMN startDate TEXT DEFAULT NULL`);
+        await safeAlter(`ALTER TABLE quizzes ADD COLUMN timerMinutes INTEGER NOT NULL DEFAULT 0`);
 
         console.log('✅ PostgreSQL database schema synchronized.');
     } catch (err) {
@@ -532,7 +534,8 @@ app.use(helmet({
             "default-src": ["'self'"],
             "script-src": ["'self'", "'unsafe-inline'", "https://checkout.razorpay.com"],
             "script-src-attr": ["'unsafe-inline'"],
-            "frame-src": ["https://drive.google.com"],
+            "connect-src": ["'self'", "https://checkout.razorpay.com", "https://api.razorpay.com"],
+            "frame-src": ["'self'", "https://checkout.razorpay.com", "https://api.razorpay.com", "https://drive.google.com"],
             "img-src": ["'self'", "data:", "https:"]
         }
     }
@@ -1373,14 +1376,21 @@ app.delete('/api/admin/comments/:id', requireAdmin, async (req, res) => {
 app.get('/api/admin/courses', requireAdmin, async (req, res) => {
     try {
         const coursesRes = await pool.query('SELECT * FROM courses ORDER BY id DESC');
-        for (const c of coursesRes.rows) {
+        const mappedCourses = coursesRes.rows.map(c => ({
+            ...c,
+            coverImage: c.coverimage || c.coverImage,
+            startDate: c.startdate || c.startDate,
+            createdAt: c.createdat || c.createdAt,
+            updatedAt: c.updatedat || c.updatedAt
+        }));
+        for (const c of mappedCourses) {
             const eCountRes = await pool.query('SELECT COUNT(*) as c FROM enrollments WHERE courseId=$1', [c.id]);
             c.enrollmentCount = parseInt(eCountRes.rows[0].c, 10);
 
             const mCountRes = await pool.query('SELECT COUNT(*) as c FROM course_modules WHERE courseId=$1', [c.id]);
             c.moduleCount = parseInt(mCountRes.rows[0].c, 10);
         }
-        res.json(coursesRes.rows);
+        res.json(mappedCourses);
     } catch (err) {
         res.status(500).json({ error: 'Server error' });
     }
@@ -1521,9 +1531,18 @@ app.get('/api/admin/enrollments', requireAdmin, async (req, res) => {
             JOIN courses c ON c.id=e.courseId 
             ORDER BY e.enrolledAt DESC
         `);
-        const enrollments = enrollmentsRes.rows;
+        const enrollments = enrollmentsRes.rows.map(e => ({
+            id: e.id,
+            enrolledAt: e.enrolledat || e.enrolledAt,
+            studentId: e.studentid || e.studentId,
+            courseId: e.courseid || e.courseId,
+            studentName: e.studentname || e.studentName,
+            studentEmail: e.studentemail || e.studentEmail,
+            courseTitle: e.coursetitle || e.courseTitle,
+            courseCode: e.coursecode || e.courseCode
+        }));
         for (const e of enrollments) {
-            const paymentRes = await pool.query('SELECT amount, status FROM payments WHERE studentId=$1 AND courseId=$2 AND status IN ($3, $4) ORDER BY createdAt DESC LIMIT 1', [e.studentid || e.studentId, e.courseid || e.courseId, 'completed', 'free']);
+            const paymentRes = await pool.query('SELECT amount, status FROM payments WHERE studentId=$1 AND courseId=$2 AND status IN ($3, $4) ORDER BY createdAt DESC LIMIT 1', [e.studentId, e.courseId, 'completed', 'free']);
             e.paidAmount = paymentRes.rows.length > 0 ? paymentRes.rows[0].amount : null;
         }
         res.json(enrollments);
@@ -1547,6 +1566,40 @@ app.post('/api/admin/enrollments', requireAdmin, async (req, res) => {
     }
 });
 
+app.delete('/api/admin/students/:studentId/progress/:courseId', requireAdmin, async (req, res) => {
+    try {
+        const { studentId, courseId } = req.params;
+
+        // Find all module items that belong to this course
+        const itemsRes = await pool.query(`
+            SELECT mi.id 
+            FROM module_items mi
+            JOIN course_modules cm ON mi.moduleid = cm.id
+            WHERE cm.courseid = $1
+        `, [courseId]);
+
+        const itemIds = itemsRes.rows.map(r => r.id);
+
+        if (itemIds.length > 0) {
+            // student_progress and assignment_submissions use "itemid"
+            await pool.query(`DELETE FROM student_progress WHERE studentid = $1 AND itemid = ANY($2::int[])`, [studentId, itemIds]);
+            await pool.query(`DELETE FROM assignment_submissions WHERE studentid = $1 AND itemid = ANY($2::int[])`, [studentId, itemIds]);
+
+            // quiz_attempts uses "quizid", so we need to find quiz IDs from the item IDs
+            const quizRes = await pool.query(`SELECT id FROM quizzes WHERE itemid = ANY($1::int[])`, [itemIds]);
+            const quizIds = quizRes.rows.map(r => r.id);
+            if (quizIds.length > 0) {
+                await pool.query(`DELETE FROM quiz_attempts WHERE studentid = $1 AND quizid = ANY($2::int[])`, [studentId, quizIds]);
+            }
+        }
+
+        res.json({ success: true });
+    } catch (e) {
+        console.error(e);
+        res.status(500).json({ error: 'Failed to reset progress' });
+    }
+});
+
 app.delete('/api/admin/enrollments/:id', requireAdmin, async (req, res) => {
     await pool.query('DELETE FROM enrollments WHERE id=$1', [req.params.id]);
     res.json({ success: true });
@@ -1556,7 +1609,13 @@ app.delete('/api/admin/enrollments/:id', requireAdmin, async (req, res) => {
 app.get('/api/admin/students', requireAdmin, async (req, res) => {
     try {
         const studentsRes = await pool.query('SELECT id, name, email, emailVerified, createdAt FROM students ORDER BY id DESC');
-        const students = studentsRes.rows;
+        const students = studentsRes.rows.map(s => ({
+            id: s.id,
+            name: s.name,
+            email: s.email,
+            emailVerified: s.emailverified !== undefined ? s.emailverified : s.emailVerified,
+            createdAt: s.createdat || s.createdAt
+        }));
         for (const s of students) {
             const countRes = await pool.query('SELECT COUNT(*) as c FROM enrollments WHERE studentId=$1', [s.id]);
             s.enrollmentCount = parseInt(countRes.rows[0].c, 10);
@@ -1578,9 +1637,16 @@ app.get('/api/admin/students/:id/enrollments', requireAdmin, async (req, res) =>
             WHERE e.studentId=$1
             ORDER BY e.enrolledAt DESC
         `, [req.params.id]);
-        const enrollments = enrollmentsRes.rows;
+        const enrollments = enrollmentsRes.rows.map(e => ({
+            enrollmentId: e.enrollmentid || e.enrollmentId,
+            courseId: e.courseid || e.courseId,
+            enrolledAt: e.enrolledat || e.enrolledAt,
+            courseTitle: e.coursetitle || e.courseTitle,
+            courseCode: e.coursecode || e.courseCode,
+            coursePrice: e.courseprice || e.coursePrice
+        }));
         for (const e of enrollments) {
-            const paymentRes = await pool.query('SELECT amount, status FROM payments WHERE studentId=$1 AND courseId=$2 AND status IN ($3, $4) ORDER BY createdAt DESC LIMIT 1', [req.params.id, e.courseid || e.courseId, 'completed', 'free']);
+            const paymentRes = await pool.query('SELECT amount, status FROM payments WHERE studentId=$1 AND courseId=$2 AND status IN ($3, $4) ORDER BY createdAt DESC LIMIT 1', [req.params.id, e.courseId, 'completed', 'free']);
             e.paidAmount = paymentRes.rows.length > 0 ? paymentRes.rows[0].amount : null; // null = admin assigned
         }
         res.json(enrollments);
@@ -1593,7 +1659,14 @@ app.get('/api/admin/students/:id/enrollments', requireAdmin, async (req, res) =>
 app.get('/api/admin/students/:id/payments', requireAdmin, async (req, res) => {
     try {
         const paymentsRes = await pool.query('SELECT p.*, c.title as courseTitle FROM payments p JOIN courses c ON c.id=p.courseId WHERE p.studentId=$1 ORDER BY p.createdAt DESC', [req.params.id]);
-        res.json(paymentsRes.rows);
+        res.json(paymentsRes.rows.map(p => ({
+            ...p,
+            courseTitle: p.coursetitle || p.courseTitle,
+            createdAt: p.createdat || p.createdAt,
+            razorpayPaymentId: p.razorpaypaymentid || p.razorpayPaymentId,
+            studentId: p.studentid || p.studentId,
+            courseId: p.courseid || p.courseId
+        })));
     } catch (err) {
         res.status(500).json({ error: 'Server error' });
     }
@@ -1603,7 +1676,16 @@ app.get('/api/admin/students/:id/payments', requireAdmin, async (req, res) => {
 app.get('/api/admin/payments', requireAdmin, async (req, res) => {
     try {
         const paymentsRes = await pool.query('SELECT p.*, s.name as studentName, s.email as studentEmail, c.title as courseTitle FROM payments p JOIN students s ON s.id=p.studentId JOIN courses c ON c.id=p.courseId ORDER BY p.createdAt DESC');
-        res.json(paymentsRes.rows);
+        res.json(paymentsRes.rows.map(p => ({
+            ...p,
+            studentName: p.studentname || p.studentName,
+            studentEmail: p.studentemail || p.studentEmail,
+            courseTitle: p.coursetitle || p.courseTitle,
+            createdAt: p.createdat || p.createdAt,
+            razorpayPaymentId: p.razorpaypaymentid || p.razorpayPaymentId,
+            studentId: p.studentid || p.studentId,
+            courseId: p.courseid || p.courseId
+        })));
     } catch (err) {
         res.status(500).json({ error: 'Server error' });
     }
@@ -1613,7 +1695,7 @@ app.get('/api/admin/payments', requireAdmin, async (req, res) => {
 app.get('/api/admin/messages', requireAdmin, async (req, res) => {
     try {
         const r = await pool.query('SELECT * FROM contact_messages ORDER BY createdAt DESC');
-        res.json(r.rows);
+        res.json(r.rows.map(m => ({ ...m, createdAt: m.createdat || m.createdAt })));
     } catch (e) { res.status(500).json({ error: 'Server error' }); }
 });
 
@@ -1628,18 +1710,33 @@ app.delete('/api/admin/messages/:id', requireAdmin, async (req, res) => {
 app.get('/api/admin/security-logs', requireAdmin, async (req, res) => {
     try {
         const r = await pool.query('SELECT * FROM security_logs ORDER BY createdAt DESC LIMIT 100');
-        res.json(r.rows);
+        res.json(r.rows.map(l => ({ ...l, createdAt: l.createdat || l.createdAt })));
     } catch (e) { res.status(500).json({ error: 'Server error' }); }
 });
 
 // ═══════════════════════════════════════
 //  QUIZ — ADMIN
 // ═══════════════════════════════════════
+
+// Helper: normalise Postgres lowercase colnames to camelCase for quiz question rows
+function normalizeQuizQuestion(q) {
+    return {
+        id: q.id,
+        quizId: q.quizid || q.quizId,
+        question: q.question,
+        optionA: q.optiona || q.optionA || '',
+        optionB: q.optionb || q.optionB || '',
+        optionC: q.optionc || q.optionC || '',
+        optionD: q.optiond || q.optionD || '',
+        correctOption: q.correctoption || q.correctOption || 'A',
+        sortOrder: q.sortorder || q.sortOrder || 0
+    };
+}
 app.post('/api/admin/quizzes', requireAdmin, async (req, res) => {
-    const { itemId, passingPercent, maxAttempts, questions } = req.body;
+    const { itemId, passingPercent, maxAttempts, timerMinutes, questions } = req.body;
     if (!itemId || !questions?.length) return res.status(400).json({ error: 'itemId and questions required.' });
     try {
-        await pool.query('INSERT INTO quizzes (itemId, passingPercent, maxAttempts) VALUES ($1,$2,$3) ON CONFLICT(itemId) DO UPDATE SET passingPercent=EXCLUDED.passingPercent, maxAttempts=EXCLUDED.maxAttempts', [itemId, passingPercent || 60, maxAttempts || 3]);
+        await pool.query('INSERT INTO quizzes (itemId, passingPercent, maxAttempts, timerMinutes) VALUES ($1,$2,$3,$4) ON CONFLICT(itemId) DO UPDATE SET passingPercent=EXCLUDED.passingPercent, maxAttempts=EXCLUDED.maxAttempts, timerMinutes=EXCLUDED.timerMinutes', [itemId, passingPercent || 60, maxAttempts || 3, timerMinutes || 0]);
 
         const quizRes = await pool.query('SELECT id FROM quizzes WHERE itemId=$1', [itemId]);
         const quizId = quizRes.rows[0].id;
@@ -1662,7 +1759,7 @@ app.get('/api/admin/quizzes/:itemId', requireAdmin, async (req, res) => {
         if (!quiz) return res.json({ quiz: null, questions: [] });
 
         const questionsRes = await pool.query('SELECT * FROM quiz_questions WHERE quizId=$1 ORDER BY sortOrder', [quiz.id]);
-        res.json({ quiz, questions: questionsRes.rows });
+        res.json({ quiz, questions: questionsRes.rows.map(normalizeQuizQuestion) });
     } catch (e) { res.status(500).json({ error: 'Server error' }); }
 });
 
@@ -1687,11 +1784,49 @@ app.get('/api/student/quiz/:itemId', requireStudent, async (req, res) => {
         const quiz = quizRes.rows[0];
         if (!quiz) return res.status(404).json({ error: 'Quiz not found.' });
 
+        const maxAttempts = quiz.maxattempts || quiz.maxAttempts;
+        const passingPercent = quiz.passingpercent || quiz.passingPercent;
+
+        // Never send correctOption in the standard questions array
         const questionsRes = await pool.query('SELECT id,question,optionA,optionB,optionC,optionD,sortOrder FROM quiz_questions WHERE quizId=$1 ORDER BY sortOrder', [quiz.id]);
+        const normalizedQuestions = questionsRes.rows.map(normalizeQuizQuestion);
 
         const attemptsRes = await pool.query('SELECT * FROM quiz_attempts WHERE studentId=$1 AND quizId=$2 ORDER BY createdAt DESC', [req.session.studentId, quiz.id]);
+        const attempts = attemptsRes.rows;
+        const attemptsUsed = attempts.length;
 
-        res.json({ quiz: { id: quiz.id, passingPercent: quiz.passingpercent || quiz.passingPercent, maxAttempts: quiz.maxattempts || quiz.maxAttempts }, questions: questionsRes.rows, attempts: attemptsRes.rows.map(a => ({ ...a, answers: JSON.parse(a.answers) })), attemptsUsed: attemptsRes.rows.length });
+        const bestScore = attempts.length ? Math.max(...attempts.map(a => a.score)) : 0;
+        const totalQs = questionsRes.rows.length;
+        const scored100 = (totalQs > 0 && bestScore === totalQs);
+        const outOfAttempts = (attemptsUsed >= maxAttempts);
+
+        let reviewResults = null;
+        // SERVER-SIDE SECURITY: Only send correct answers if they exhausted attempts or scored perfect
+        if (attempts.length > 0 && (outOfAttempts || scored100)) {
+            const allQ = await pool.query('SELECT id, correctOption, correctoption as co FROM quiz_questions WHERE quizId=$1', [quiz.id]);
+            const lastAttempt = attempts[0];
+            const parsedAnswers = JSON.parse(lastAttempt.answers || '{}');
+
+            reviewResults = allQ.rows.map(q => {
+                const correctOpt = q.co || q.correctoption || q.correctOption;
+                const studentAnswer = parsedAnswers[q.id] || '';
+                return {
+                    questionId: q.id,
+                    studentAnswer,
+                    correctOption: correctOpt,
+                    correct: studentAnswer === correctOpt
+                };
+            });
+        }
+
+        res.json({
+            quiz: { id: quiz.id, passingPercent, maxAttempts, timerMinutes: quiz.timerminutes || quiz.timerMinutes || 0 },
+            questions: normalizedQuestions,
+            attempts: attempts.map(a => ({ id: a.id, score: a.score, passed: a.passed, totalQuestions: a.totalquestions || a.totalQuestions })),
+            attemptsUsed,
+            bestScore,
+            reviewResults
+        });
     } catch (err) {
         res.status(500).json({ error: 'Server error' });
     }
@@ -1735,11 +1870,41 @@ app.post('/api/student/quiz/:itemId/submit', requireStudent, async (req, res) =>
         if (passed) {
             await pool.query('INSERT INTO student_progress (studentId,itemId) VALUES ($1,$2) ON CONFLICT DO NOTHING', [req.session.studentId, parseInt(req.params.itemId)]);
         }
-        res.json({ success: true, score, total: questions.length, percent, passed: !!passed, results });
+
+        const maxAttempts = quiz.maxattempts || quiz.maxAttempts;
+        const attemptsUsed = parseInt(attemptsRes.rows[0].c, 10) + 1;
+        const outOfAttempts = attemptsUsed >= maxAttempts;
+        const scored100 = score === questions.length;
+
+        // Compute bestScore across ALL attempts including this one
+        const allAttemptsRes = await pool.query('SELECT score FROM quiz_attempts WHERE studentId=$1 AND quizId=$2', [req.session.studentId, quiz.id]);
+        const bestScore = Math.max(...allAttemptsRes.rows.map(a => a.score));
+
+        // SERVER-SIDE SECURITY: Strip the results array from the response if they have attempts left & didn't score 100%
+        const finalResults = (outOfAttempts || scored100) ? results : null;
+
+        res.json({ success: true, score, totalQuestions: questions.length, percent, passed: !!passed, attemptsUsed, maxAttempts, bestScore, reviewResults: finalResults });
     } catch (err) {
         console.error(err);
         res.status(500).json({ error: 'Server error' });
     }
+});
+
+app.post('/api/student/quiz/:itemId/burn', requireStudent, async (req, res) => {
+    try {
+        const quizRes = await pool.query('SELECT * FROM quizzes WHERE itemId=$1', [req.params.itemId]);
+        const quiz = quizRes.rows[0];
+        if (!quiz) return res.status(404).json({ error: 'Quiz not found.' });
+
+        const attemptsRes = await pool.query('SELECT COUNT(*) as c FROM quiz_attempts WHERE studentId=$1 AND quizId=$2', [req.session.studentId, quiz.id]);
+        const maxAttempts = quiz.maxattempts || quiz.maxAttempts;
+        const attemptsUsed = parseInt(attemptsRes.rows[0].c, 10);
+
+        for (let i = 0; i < maxAttempts - attemptsUsed; i++) {
+            await pool.query('INSERT INTO quiz_attempts (studentId,quizId,score,totalQuestions,passed,answers) VALUES ($1,$2,0,0,0,$3)', [req.session.studentId, quiz.id, '{}']);
+        }
+        res.json({ success: true });
+    } catch (err) { res.status(500).json({ error: 'Server error' }); }
 });
 
 // ═══════════════════════════════════════
@@ -1767,9 +1932,47 @@ app.get('/api/student/assignment/:itemId/status', requireStudent, async (req, re
     } catch (e) { res.status(500).json({ error: 'Server error' }); }
 });
 
+app.delete('/api/student/assignment/:submissionId', requireStudent, async (req, res) => {
+    try {
+        const existingRes = await pool.query('SELECT id, grade, gradedAt, filePath FROM assignment_submissions WHERE id=$1 AND studentId=$2', [req.params.submissionId, req.session.studentId]);
+        const existing = existingRes.rows[0];
+
+        if (!existing) return res.status(404).json({ error: 'Submission not found' });
+        if (existing.grade || existing.gradedat || existing.gradedAt) return res.status(403).json({ error: 'Cannot delete graded assignment' });
+
+        await pool.query('DELETE FROM assignment_submissions WHERE id=$1', [existing.id]);
+        res.json({ success: true });
+    } catch (e) { res.status(500).json({ error: 'Server error' }); }
+});
+
 // ═══════════════════════════════════════
 //  ASSIGNMENT — ADMIN
 // ═══════════════════════════════════════
+
+app.get('/api/admin/assignments/all', requireAdmin, async (req, res) => {
+    try {
+        const query = `
+            SELECT a.id, a.fileName, a.grade, a.feedback, a.submittedAt, a.gradedAt, 
+                   s.name as studentname, s.email as studentemail, 
+                   m.title as itemtitle, c.title as coursetitle
+            FROM assignment_submissions a
+            JOIN students s ON a.studentId = s.id
+            JOIN module_items m ON a.itemId = m.id
+            JOIN course_modules cm ON m.moduleId = cm.id
+            JOIN courses c ON cm.courseId = c.id
+            ORDER BY a.submittedAt DESC
+        `;
+        const result = await pool.query(query);
+        const mapped = result.rows.map(r => ({
+            id: r.id, fileName: r.filename || r.fileName, grade: r.grade, feedback: r.feedback, submittedAt: r.submittedat || r.submittedAt, gradedAt: r.gradedat || r.gradedAt,
+            studentName: r.studentname, studentEmail: r.studentemail, itemTitle: r.itemtitle, courseTitle: r.coursetitle
+        }));
+        res.json(mapped);
+    } catch (e) {
+        console.error(e);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
 app.get('/api/admin/assignments/:itemId', requireAdmin, async (req, res) => {
     try {
         const r = await pool.query('SELECT asub.*, s.name, s.email FROM assignment_submissions asub JOIN students s ON s.id=asub.studentId WHERE asub.itemId=$1 ORDER BY asub.submittedAt DESC', [req.params.itemId]);
@@ -1929,7 +2132,16 @@ app.put('/api/student/change-password', requireStudent, async (req, res) => {
 app.get('/api/admin/coupons', requireAdmin, async (req, res) => {
     try {
         const couponsRes = await pool.query('SELECT * FROM coupons ORDER BY createdAt DESC');
-        res.json(couponsRes.rows);
+        res.json(couponsRes.rows.map(c => ({
+            ...c,
+            discountType: c.discounttype || c.discountType,
+            discountValue: c.discountvalue || c.discountValue,
+            maxUses: c.maxuses || c.maxUses,
+            usedCount: c.usedcount || c.usedCount,
+            expiresAt: c.expiresat || c.expiresAt,
+            courseId: c.courseid || c.courseId,
+            studentEmail: c.studentemail || c.studentEmail
+        })));
     } catch (err) {
         res.status(500).json({ error: 'Server error' });
     }
@@ -1995,7 +2207,12 @@ app.post('/api/student/validate-coupon', requireStudent, async (req, res) => {
 app.get('/api/admin/announcements', requireAdmin, async (req, res) => {
     try {
         const announcementsRes = await pool.query('SELECT a.*, c.title as courseTitle FROM announcements a LEFT JOIN courses c ON c.id=a.courseId ORDER BY a.createdAt DESC');
-        res.json(announcementsRes.rows);
+        res.json(announcementsRes.rows.map(a => ({
+            ...a,
+            courseTitle: a.coursetitle || a.courseTitle,
+            createdAt: a.createdat || a.createdAt,
+            courseId: a.courseid || a.courseId
+        })));
     } catch (err) {
         res.status(500).json({ error: 'Server error' });
     }
@@ -2059,7 +2276,7 @@ app.get('/api/admin/analytics', requireAdmin, async (req, res) => {
             totalEnrollments: parseInt(totalEnrollmentsRes.rows[0].c, 10),
             totalRevenue: parseFloat(totalRevenueRes.rows[0].total) || 0,
             totalCourses: parseInt(totalCoursesRes.rows[0].c, 10),
-            recentEnrollments: recentEnrollmentsRes.rows,
+            recentEnrollments: recentEnrollmentsRes.rows.map(r => ({ ...r, enrolledAt: r.enrolledat || r.enrolledAt, courseTitle: r.coursetitle || r.courseTitle })),
             popularCourses: popularCoursesRes.rows.map(r => ({ ...r, enrollCount: parseInt(r.enrollcount || r.enrollCount, 10) })),
             monthlyEnrollments: monthlyEnrollmentsRes.rows.map(r => ({ month: r.month, count: parseInt(r.count, 10) }))
         });

@@ -330,7 +330,7 @@ function renderCourseViewer() {
   document.getElementById('dashboardHome').style.display = 'none';
   document.getElementById('sidebar').style.display = 'none';
   document.getElementById('mainContent').style.marginLeft = '0';
-  document.getElementById('courseViewer').style.display = 'block';
+  document.getElementById('courseViewer').style.display = 'flex';
   document.getElementById('viewerCourseTitle').textContent = currentCourse.title;
   document.getElementById('viewerCourseMeta').innerHTML =
     `<i class="fas fa-user"></i> ${esc(currentCourse.instructor)} · <i class="fas fa-clock"></i> ${esc(currentCourse.duration)} · <i class="fas fa-signal"></i> ${esc(currentCourse.level)}`;
@@ -384,63 +384,82 @@ function openItem(itemId) {
   switch (item.type) {
     case 'live_class':
       if (item.scheduledAt && item.isLive === false) {
-        // Class hasn't started — show countdown, NO link available
-        html = `<div class="content-header"><div class="content-title">${esc(item.title)}</div><div class="content-type-badge type-live_class"><i class="fas fa-broadcast-tower"></i> LIVE CLASS</div></div>
-          ${item.description ? `<div class="content-description">${esc(item.description)}</div>` : ''}
-          <div style="text-align:center;padding:2rem;">
-            <div style="font-size:1.1rem;color:var(--orange);margin-bottom:.5rem;"><i class="fas fa-clock"></i> Class scheduled for</div>
-            <div style="font-size:1.3rem;font-weight:700;color:var(--text);margin-bottom:1.5rem;font-family:'Share Tech Mono',monospace;">${new Date(item.scheduledAt).toLocaleString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</div>
-            <div id="countdown-${item.id}" style="font-size:2rem;font-weight:700;color:var(--green);font-family:'Share Tech Mono',monospace;letter-spacing:2px;"></div>
-            <p style="margin-top:1.5rem;font-size:.78rem;color:var(--muted);font-family:'Share Tech Mono',monospace;"><i class="fas fa-lock"></i> The join link will appear when the class starts</p>
-          </div>`;
-        // Start countdown
+        html = `<div class="content-header">
+          <div class="content-title">${esc(item.title)}</div>
+          <div class="content-type-badge type-live_class"><i class="fas fa-broadcast-tower"></i> LIVE CLASS</div>
+        </div>
+        ${item.description ? `<div class="content-description">${esc(item.description)}</div>` : ''}
+        <div class="scheduled-card">
+          <div class="schedule-icon"><i class="fas fa-calendar-alt"></i></div>
+          <div style="color:var(--orange);font-size:.9rem;font-weight:600;"><i class="fas fa-clock"></i> Class Scheduled</div>
+          <div class="schedule-date">${new Date(item.scheduledAt).toLocaleString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</div>
+          <div class="countdown" id="countdown-${item.id}"></div>
+          <div class="lock-msg"><i class="fas fa-lock"></i> Join link will appear when class begins</div>
+        </div>`;
         setTimeout(() => startCountdown(item.id, item.scheduledAt), 100);
       } else {
-        // Class is live or no schedule — show join button
-        html = `<div class="content-header"><div class="content-title">${esc(item.title)}</div><div class="content-type-badge type-live_class"><i class="fas fa-broadcast-tower"></i> LIVE CLASS</div></div>
-          ${item.description ? `<div class="content-description">${esc(item.description)}</div>` : ''}
-          <div style="text-align:center;padding:1rem;"><span style="display:inline-block;background:rgba(0,255,136,.1);border:1px solid var(--green);border-radius:20px;padding:.3rem 1rem;font-size:.75rem;color:var(--green);margin-bottom:1rem;"><i class="fas fa-circle" style="font-size:.5rem;"></i> Class is live now!</span></div>
+        html = `<div class="content-header">
+          <div class="content-title">${esc(item.title)}</div>
+          <div class="content-type-badge type-live_class"><i class="fas fa-broadcast-tower"></i> LIVE CLASS</div>
+        </div>
+        ${item.description ? `<div class="content-description">${esc(item.description)}</div>` : ''}
+        <div class="live-status-card">
+          <div class="live-badge"><div class="pulse-dot"></div> Class is Live Now</div>
+          <p style="color:var(--text-secondary);font-size:.85rem;">Join the session using the button below. It will open in a new tab.</p>
           <a href="${safeHref(item.link)}" target="_blank" rel="noopener" class="content-action action-live"><i class="fas fa-video"></i> Join Live Session</a>
-          <p style="margin-top:1rem;font-size:.78rem;color:var(--muted);font-family:'Share Tech Mono',monospace;"><i class="fas fa-info-circle"></i> Opens TeamViewer / meeting link in a new tab</p>`;
+        </div>`;
       }
       break;
     case 'recorded_class':
       const driveEmbed = getDriveEmbedUrl(item.link);
-      html = `<div class="content-header"><div class="content-title">${esc(item.title)}</div><div class="content-type-badge type-recorded_class"><i class="fas fa-play-circle"></i> RECORDED CLASS</div></div>
-        ${item.description ? `<div class="content-description">${esc(item.description)}</div>` : ''}
-        ${driveEmbed ? `<div class="video-container" oncontextmenu="return false" style="position:relative;">
-          <iframe src="${driveEmbed}" allowfullscreen allow="autoplay" style="pointer-events:auto;"></iframe>
-          <div style="position:absolute;top:8px;right:8px;font-size:.55rem;color:rgba(255,255,255,.3);font-family:'Share Tech Mono',monospace;pointer-events:none;z-index:10;">NinjaHackers</div>
-        </div>` : ''}
-        <a href="${safeHref(item.link)}" target="_blank" rel="noopener" class="content-action action-video"><i class="fas fa-external-link-alt"></i> Open in Drive</a>`;
-      // Track progress
+      html = `<div class="content-header">
+        <div class="content-title">${esc(item.title)}</div>
+        <div class="content-type-badge type-recorded_class"><i class="fas fa-play-circle"></i> RECORDED CLASS</div>
+      </div>
+      ${item.description ? `<div class="content-description">${esc(item.description)}</div>` : ''}
+      ${driveEmbed ? `<div class="video-container" oncontextmenu="return false">
+        <iframe src="${driveEmbed}" allowfullscreen allow="autoplay"></iframe>
+      </div>` : ''}
+      <a href="${safeHref(item.link)}" target="_blank" rel="noopener" class="content-action action-video"><i class="fas fa-external-link-alt"></i> Watch on Google Drive</a>`;
       fetch(`/api/student/progress/${item.id}`, { method: 'POST' });
       break;
     case 'notes':
-      html = `<div class="content-header"><div class="content-title">${esc(item.title)}</div><div class="content-type-badge type-notes"><i class="fas fa-file-alt"></i> NOTES</div></div>
-        ${item.description ? `<div class="content-description" style="background:var(--surface);padding:1rem;border-radius:8px;border:1px solid rgba(0,212,255,.1);line-height:1.6;">${item.description}</div>` : ''}
-        ${item.link ? `<a href="${safeHref(item.link)}" target="_blank" rel="noopener" class="content-action action-notes"><i class="fas fa-external-link-alt"></i> View / Download Notes</a>` : ''}`;
+      html = `<div class="content-header">
+        <div class="content-title">${esc(item.title)}</div>
+        <div class="content-type-badge type-notes"><i class="fas fa-file-alt"></i> NOTES</div>
+      </div>
+      ${item.description ? `<div class="notes-content-box">${item.description}</div>` : ''}
+      ${item.link ? `<div style="margin-top:1rem;"><a href="${safeHref(item.link)}" target="_blank" rel="noopener" class="content-action action-notes"><i class="fas fa-download"></i> View / Download Notes</a></div>` : ''}`;
       fetch(`/api/student/progress/${item.id}`, { method: 'POST' });
       break;
     case 'assignment':
-      html = `<div class="content-header"><div class="content-title">${esc(item.title)}</div><div class="content-type-badge type-assignment"><i class="fas fa-tasks"></i> ASSIGNMENT</div></div>
-        ${item.description ? `<div class="content-description">${esc(item.description)}</div>` : ''}
-        ${item.link ? `<a href="${safeHref(item.link)}" target="_blank" rel="noopener" class="content-action action-assignment" style="margin-bottom:1rem;"><i class="fas fa-external-link-alt"></i> View Assignment Brief</a>` : ''}
-        <div style="background:var(--surface);border:1px solid rgba(255,160,0,.15);border-radius:8px;padding:1rem;margin-top:.5rem;">
-          <h4 style="color:var(--orange);font-size:.85rem;margin:0 0 .5rem;"><i class="fas fa-upload"></i> Submit Your Work</h4>
-          <div id="assignmentStatus-${item.id}" style="margin-bottom:.5rem;font-size:.75rem;color:var(--muted);"></div>
-          <form id="assignForm-${item.id}" style="display:flex;gap:.5rem;align-items:center;">
-            <input type="file" id="assignFile-${item.id}" accept=".pdf,.zip,.rar,.doc,.docx,.txt,.png,.jpg,.jpeg,.gif" style="flex:1;font-size:.7rem;"/>
-            <button type="button" onclick="submitAssignment(${item.id})" style="background:var(--orange);color:#000;border:none;padding:.4rem .8rem;border-radius:6px;cursor:pointer;font-weight:600;font-size:.75rem;"><i class="fas fa-paper-plane"></i> Submit</button>
-          </form>
-        </div>`;
+      html = `<div class="content-header">
+        <div class="content-title">${esc(item.title)}</div>
+        <div class="content-type-badge type-assignment"><i class="fas fa-tasks"></i> ASSIGNMENT</div>
+      </div>
+      ${item.description ? `<div class="content-description">${esc(item.description)}</div>` : ''}
+      ${item.link ? `<a href="${safeHref(item.link)}" target="_blank" rel="noopener" class="content-action action-assignment" style="margin-bottom:1rem;"><i class="fas fa-external-link-alt"></i> View Assignment Brief</a>` : ''}
+      <div class="assignment-box">
+        <h4><i class="fas fa-upload"></i> Submit Your Work</h4>
+        <div id="assignmentStatus-${item.id}" style="margin-bottom:.5rem;font-size:.75rem;color:var(--muted);"></div>
+        <form id="assignForm-${item.id}">
+          <input type="file" id="assignFile-${item.id}" accept=".pdf,.zip,.rar,.doc,.docx,.txt,.png,.jpg,.jpeg,.gif"/>
+          <button type="button" onclick="submitAssignment(${item.id})"><i class="fas fa-paper-plane"></i> Submit</button>
+        </form>
+      </div>`;
       setTimeout(() => loadAssignmentStatus(item.id), 100);
       break;
     case 'quiz':
-      html = `<div class="content-header"><div class="content-title">${esc(item.title)}</div><div class="content-type-badge" style="background:rgba(168,85,247,.15);color:#a855f7;border-color:rgba(168,85,247,.3);"><i class="fas fa-question-circle"></i> QUIZ</div></div>
-        ${item.description ? `<div class="content-description">${esc(item.description)}</div>` : ''}
-        <div id="quizArea-${item.id}" style="margin-top:1rem;"><div style="text-align:center;color:var(--muted);"><i class="fas fa-spinner fa-spin"></i> Loading quiz...</div></div>`;
-      setTimeout(() => loadQuiz(item.id), 100);
+      html = `<div class="content-header">
+        <div class="content-title">${esc(item.title)}</div>
+        <div class="content-type-badge" style="background:rgba(168,85,247,.12);color:#a855f7;border:1px solid rgba(168,85,247,.25);"><i class="fas fa-question-circle"></i> QUIZ</div>
+      </div>
+      ${item.description ? `<div class="content-description">${esc(item.description)}</div>` : ''}
+      <div class="live-status-card" style="border-color:rgba(168,85,247,.2);">
+        <i class="fas fa-brain" style="font-size:2.5rem;color:var(--purple);opacity:.6;"></i>
+        <p style="color:var(--text-secondary);font-size:.88rem;">Test your knowledge with this quiz. Your answers are graded automatically.</p>
+        <a href="/learn/quiz.html?itemId=${item.id}" class="content-action action-live" style="background:linear-gradient(135deg,var(--purple),#7c3aed);text-decoration:none;"><i class="fas fa-rocket"></i> Launch Quiz</a>
+      </div>`;
       break;
     default:
       html = `<div class="content-header"><div class="content-title">${esc(item.title)}</div></div>
@@ -463,17 +482,39 @@ async function submitAssignment(itemId) {
   } catch (e) { showToast('Upload failed.', true); }
 }
 
+async function deleteAssignment(subId, itemId) {
+  if (!confirm('Are you sure you want to delete your submission?')) return;
+  try {
+    const res = await fetch(`/api/student/assignment/${subId}`, { method: 'DELETE' });
+    const data = await res.json();
+    if (data.success) { showToast('Submission deleted'); loadAssignmentStatus(itemId); }
+    else showToast(data.error || 'Failed to delete', true);
+  } catch (e) { showToast('Error deleting', true); }
+}
+
 async function loadAssignmentStatus(itemId) {
   try {
     const data = await (await fetch(`/api/student/assignment/${itemId}/status`)).json();
     const el = document.getElementById(`assignmentStatus-${itemId}`);
     if (!el) return;
     if (data.submission) {
-      el.innerHTML = `<div style="background:rgba(0,255,136,.05);border:1px solid rgba(0,255,136,.15);border-radius:6px;padding:.6rem;">
-        <div style="color:var(--green);font-size:.75rem;font-weight:600;"><i class="fas fa-check-circle"></i> Submitted: ${esc(data.submission.fileName)}</div>
-        <div style="font-size:.6rem;color:var(--muted);margin-top:.2rem;">Submitted: ${new Date(data.submission.submittedAt).toLocaleString('en-IN')}</div>
-        ${data.submission.grade ? `<div style="margin-top:.4rem;padding:.3rem .5rem;background:rgba(0,212,255,.1);border-radius:4px;"><span style="color:var(--cyan);font-weight:700;">Grade: ${esc(data.submission.grade)}</span>${data.submission.feedback ? ` — <span style="color:var(--muted);font-size:.7rem;">${esc(data.submission.feedback)}</span>` : ''}</div>` : '<div style="color:var(--orange);font-size:.65rem;margin-top:.3rem;"><i class="fas fa-clock"></i> Pending review</div>'}
+      const isGraded = !!data.submission.grade;
+      el.innerHTML = `<div style="background:var(--dark);border:1px solid var(--green);border-radius:6px;padding:.6rem;display:flex;justify-content:space-between;align-items:center;">
+        <div>
+          <div style="color:var(--green);font-size:.75rem;font-weight:600;"><i class="fas fa-check-circle"></i> ${esc(data.submission.fileName)}</div>
+          <div style="font-size:.6rem;color:var(--muted);margin-top:.2rem;">Submitted: ${new Date(data.submission.submittedAt).toLocaleString('en-IN')}</div>
+          ${isGraded ? `<div style="margin-top:.4rem;padding:.3rem .5rem;background:rgba(0,212,255,.1);border-radius:4px;"><span style="color:var(--cyan);font-weight:700;">Grade: ${esc(data.submission.grade)}</span>${data.submission.feedback ? ` — <span style="color:var(--muted);font-size:.7rem;">${esc(data.submission.feedback)}</span>` : ''}</div>` : '<div style="color:var(--orange);font-size:.65rem;margin-top:.3rem;"><i class="fas fa-clock"></i> Pending review</div>'}
+        </div>
+        ${!isGraded ? `<button type="button" onclick="deleteAssignment(${data.submission.id}, ${itemId})" style="background:none;border:none;color:var(--red);cursor:pointer;padding:.5rem;" title="Delete submission"><i class="fas fa-trash-alt"></i></button>` : ''}
       </div>`;
+      const form = document.getElementById(`assignForm-${itemId}`);
+      if (form) form.style.display = 'none';
+    } else {
+      el.innerHTML = '';
+      const form = document.getElementById(`assignForm-${itemId}`);
+      if (form) form.style.display = 'flex';
+      const fileInput = document.getElementById(`assignFile-${itemId}`);
+      if (fileInput) fileInput.value = '';
     }
   } catch (e) { }
 }
@@ -487,33 +528,91 @@ async function loadQuiz(itemId) {
     if (!area) return;
     if (data.error) { area.innerHTML = `<p style="color:var(--muted);text-align:center;padding:1rem;">${data.error}</p>`; return; }
 
-    const { quiz, questions, attempts, attemptsUsed } = data;
+    const { quiz, questions, attempts, attemptsUsed, reviewResults } = data;
     const canAttempt = attemptsUsed < quiz.maxAttempts;
     const lastAttempt = attempts[0];
+    const bestScore = attempts.length ? Math.max(...attempts.map(a => a.score)) : 0;
+    const totalQs = questions.length;
 
     let html = `<div style="display:flex;gap:1rem;margin-bottom:1rem;font-size:.7rem;">
       <span style="color:var(--muted);"><i class="fas fa-percentage"></i> Pass: ${quiz.passingPercent}%</span>
       <span style="color:var(--muted);"><i class="fas fa-redo"></i> Attempts: ${attemptsUsed}/${quiz.maxAttempts}</span>
-      ${lastAttempt ? `<span style="color:${lastAttempt.passed ? 'var(--green)' : 'var(--red)'};">${lastAttempt.passed ? '<i class="fas fa-check-circle"></i> Passed' : '<i class="fas fa-times-circle"></i> Failed'} (${Math.round(lastAttempt.score / lastAttempt.totalQuestions * 100)}%)</span>` : ''}
+      ${lastAttempt ? `<span style="color:${lastAttempt.passed ? 'var(--green)' : 'var(--red)'};">${lastAttempt.passed ? '<i class="fas fa-check-circle"></i> Passed' : '<i class="fas fa-times-circle"></i> Failed'} (${Math.round(lastAttempt.score / totalQs * 100)}%)</span>` : ''}
     </div>`;
 
-    if (canAttempt) {
-      html += questions.map((q, i) => `<div style="background:var(--surface);border:1px solid rgba(168,85,247,.1);border-radius:8px;padding:.8rem;margin-bottom:.5rem;">
-        <div style="font-size:.8rem;font-weight:600;color:var(--text);margin-bottom:.5rem;"><span style="color:#a855f7;">Q${i + 1}.</span> ${esc(q.question)}</div>
+    if (reviewResults) {
+      html += `<div style="text-align:center;padding:1rem;border-bottom:1px solid var(--border);margin-bottom:1rem;">
+        <h3 style="color:var(--green);font-family:'Rajdhani',sans-serif;margin-bottom:.5rem;">Quiz Review</h3>
+        <p style="font-size:.85rem;color:var(--muted);">Here are the correct answers evaluated against your latest execution.</p>
+      </div>`;
+      html += reviewResults.map((r, i) => {
+        const q = questions.find(qu => qu.id === r.questionId);
+        return `<div style="background:var(--card);border:1px solid ${r.correct ? 'var(--green)' : 'var(--red)'};border-radius:8px;padding:.8rem;margin-bottom:.5rem;">
+          <div style="font-size:.8rem;font-weight:600;color:var(--text);margin-bottom:.5rem;"><span style="color:${r.correct ? 'var(--green)' : 'var(--red)'};">Q${i + 1}.</span> ${esc(q.question)}</div>
+          <div style="font-size:.75rem;">
+            Your answer: <b style="color:${r.correct ? 'var(--green)' : 'var(--red)'}; margin-right: 1rem;">${r.studentAnswer || '—'}</b>
+            ${!r.correct ? `<span style="color:var(--green);"><i class="fas fa-check-circle"></i> Correct option: <b>${r.correctOption}</b></span>` : ''}
+          </div>
+        </div>`;
+      }).join('');
+      area.innerHTML = html;
+      return;
+    }
+
+    // Logic: Not enough to review yet.
+    if (lastAttempt && lastAttempt.passed && canAttempt) {
+      html += `<div style="text-align:center;padding:2rem;">
+          <div style="font-size:3rem;margin-bottom:1rem;">🎉</div>
+          <h3 style="color:var(--green);margin-bottom:.5rem;">You passed!</h3>
+          <p style="font-size:.85rem;color:var(--muted);margin-bottom:1.5rem;">Would you like to try again for a higher score, or view the results? Viewing results ends all attempts.</p>
+          <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
+             <button onclick="renderQuizForm(${itemId}, ${JSON.stringify(questions).replace(/"/g, '&quot;')})" class="btn-primary" style="width:200px;"><i class="fas fa-redo"></i> Reattempt</button>
+             <button onclick="burnAttemptsAndViewResults(${itemId})" style="width:200px;background:var(--dark);color:var(--cyan);border:1px solid var(--cyan);border-radius:6px;padding:.9rem;cursor:pointer;font-weight:700;"><i class="fas fa-eye"></i> View Results</button>
+          </div>
+       </div>`;
+    } else if (lastAttempt && !lastAttempt.passed && canAttempt) {
+      html += `<div style="text-align:center;padding:2rem;">
+          <div style="font-size:3rem;margin-bottom:1rem;">😔</div>
+          <h3 style="color:var(--red);margin-bottom:.5rem;">Not quite there...</h3>
+          <p style="font-size:.85rem;color:var(--muted);margin-bottom:1.5rem;">You didn't pass this time, but you have ${quiz.maxAttempts - attemptsUsed} attempts remaining.</p>
+          <button onclick="renderQuizForm(${itemId}, ${JSON.stringify(questions).replace(/"/g, '&quot;')})" class="btn-primary" style="width:auto;margin:0 auto;display:inline-flex;padding:.8rem 2rem;"><i class="fas fa-redo"></i> Try Again</button>
+       </div>`;
+    } else if (canAttempt) {
+      html += `<div id="quizFormContainer-${itemId}"></div>`;
+      area.innerHTML = html;
+      renderQuizForm(itemId, questions);
+      return;
+    } else {
+      html += `<div style="text-align:center;padding:1rem;"><span style="color:var(--orange);font-size:.85rem;"><i class="fas fa-ban"></i> No attempts remaining.</span></div>`;
+    }
+
+    if (area) area.innerHTML = html;
+  } catch (e) { console.error(e); }
+}
+
+function renderQuizForm(itemId, questions) {
+  let html = questions.map((q, i) => `<div style="background:var(--dark);border:1px solid var(--border);border-radius:6px;padding:.8rem;margin-bottom:.5rem;">
+        <div style="font-size:.85rem;font-weight:600;color:var(--cyan);margin-bottom:.5rem;">Q${i + 1}. <span style="color:var(--text);">${esc(q.question)}</span></div>
         <div style="display:grid;gap:.3rem;">
-          ${['A', 'B', 'C', 'D'].filter(opt => q['option' + opt]).map(opt => `<label style="display:flex;align-items:center;gap:.4rem;padding:.3rem .5rem;border-radius:4px;cursor:pointer;font-size:.75rem;border:1px solid rgba(168,85,247,.1);transition:all .2s;" onmouseover="this.style.background='rgba(168,85,247,.08)'" onmouseout="this.style.background='transparent'">
-            <input type="radio" name="quiz-q-${q.id}" value="${opt}" style="accent-color:#a855f7;"/>
-            <span style="color:#a855f7;font-weight:700;min-width:16px;">${opt})</span> ${esc(q['option' + opt])}
+          ${['A', 'B', 'C', 'D'].filter(opt => q['option' + opt]).map(opt => `<label style="display:flex;align-items:center;gap:.4rem;padding:.4rem .6rem;border-radius:4px;cursor:pointer;font-size:.75rem;border:1px solid var(--border);background:var(--card);transition:all .2s;" onmouseover="this.style.borderColor='var(--cyan)'" onmouseout="this.style.borderColor='var(--border)'">
+            <input type="radio" name="quiz-q-${q.id}" value="${opt}" style="accent-color:var(--cyan);"/>
+            <span style="color:var(--cyan);font-weight:700;min-width:16px;">${opt})</span> ${esc(q['option' + opt])}
           </label>`).join('')}
         </div>
       </div>`).join('');
-      const qIds = JSON.stringify(questions.map(q => q.id));
-      html += `<button onclick='submitQuiz(${itemId},${qIds})' style="width:100%;padding:.7rem;background:#a855f7;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:700;font-size:.85rem;margin-top:.5rem;"><i class="fas fa-paper-plane"></i> Submit Quiz</button>`;
-    } else {
-      html += `<div style="text-align:center;padding:1rem;"><span style="color:var(--orange);font-size:.85rem;"><i class="fas fa-ban"></i> No attempts remaining</span></div>`;
-    }
-    area.innerHTML = html;
-  } catch (e) { console.error(e); }
+  const qIds = JSON.stringify(questions.map(q => q.id));
+  html += `<button onclick='submitQuiz(${itemId},${qIds})' class="btn-primary" style="margin-top:1rem;"><i class="fas fa-paper-plane"></i> Submit Answers</button>`;
+
+  const area = document.getElementById(`quizArea-${itemId}`);
+  if (area) area.innerHTML = `<div id="quizFormContainer-${itemId}">${html}</div>`;
+}
+
+async function burnAttemptsAndViewResults(itemId) {
+  if (!confirm('This will end your remaining attempts instantly so you can view the correct answers. Proceed?')) return;
+  try {
+    await fetch(`/api/student/quiz/${itemId}/burn`, { method: 'POST' });
+    loadQuiz(itemId);
+  } catch (e) { }
 }
 
 async function submitQuiz(itemId, questionIds) {
@@ -526,19 +625,7 @@ async function submitQuiz(itemId, questionIds) {
     const res = await fetch(`/api/student/quiz/${itemId}/submit`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ answers }) });
     const data = await res.json();
     if (data.error) { showToast(data.error, true); return; }
-    const area = document.getElementById(`quizArea-${itemId}`);
-    if (area) {
-      area.innerHTML = `<div style="text-align:center;padding:1.5rem;">
-        <div style="font-size:3rem;margin-bottom:.5rem;">${data.passed ? '🎉' : '😔'}</div>
-        <div style="font-size:1.5rem;font-weight:700;color:${data.passed ? 'var(--green)' : 'var(--red)'};">${data.percent}%</div>
-        <div style="font-size:.85rem;color:var(--muted);margin:.3rem 0;">${data.score}/${data.total} correct</div>
-        <div style="font-size:.85rem;font-weight:600;color:${data.passed ? 'var(--green)' : 'var(--red)'};">${data.passed ? '✅ PASSED!' : '❌ Not passed'}</div>
-        ${data.results ? `<div style="text-align:left;margin-top:1rem;">${data.results.map((r, i) => `<div style="font-size:.75rem;padding:.3rem;border-bottom:1px solid rgba(255,255,255,.05);">
-          <span style="color:${r.correct ? 'var(--green)' : 'var(--red)'};">${r.correct ? '✓' : '✗'}</span> Q${i + 1}: Your answer: <b>${r.studentAnswer || '—'}</b> ${!r.correct ? `(Correct: <b style="color:var(--green);">${r.correctOption}</b>)` : ''}
-        </div>`).join('')}</div>` : ''}
-        <button onclick="loadQuiz(${itemId})" style="margin-top:1rem;padding:.5rem 1rem;background:rgba(168,85,247,.15);border:1px solid rgba(168,85,247,.3);color:#a855f7;border-radius:6px;cursor:pointer;font-size:.75rem;"><i class="fas fa-redo"></i> Try Again</button>
-      </div>`;
-    }
+    loadQuiz(itemId); // Reload entirely to reflect new state mathematically
   } catch (e) { showToast('Submit failed.', true); }
 }
 

@@ -10,6 +10,7 @@ let currentCoverImage = '';
 let currentTab = 'blogs';
 let allStudents = [];
 let currentStudentId = null;
+let allPayments = [];
 
 // ─── INIT ───
 document.addEventListener('DOMContentLoaded', async () => {
@@ -68,6 +69,7 @@ function switchTab(tab) {
     case 'analytics': loadAnalytics(); break;
     case 'coupons': loadCoupons(); break;
     case 'announcements': loadAnnouncements(); break;
+    case 'assignments': loadAssignments(); break;
   }
 }
 
@@ -506,9 +508,25 @@ async function loadStudentEnrollments(studentId) {
           <div class="enrolled-course-title">${esc(e.courseTitle)} <span style="color:var(--muted);font-size:.7rem;">(${esc(e.courseCode)})</span></div>
           <div class="enrolled-course-meta">Enrolled ${formatDate(e.enrolledAt)} · ${e.paidAmount !== null ? (e.paidAmount === 0 ? '<span class="status-badge source-free-tag">FREE</span>' : `<span class="status-badge source-paid">PAID ₹${e.paidAmount}</span>`) : '<span class="status-badge source-admin">ADMIN ASSIGNED</span>'}</div>
         </div>
-        <button class="btn-remove-course" onclick="removeCourseFromStudent(${e.enrollmentId},${studentId})"><i class="fas fa-times"></i> Remove</button>
+        <div style="display:flex;gap:.5rem;">
+           <button class="btn-remove-course" onclick="resetStudentProgress(${studentId}, ${e.courseid || e.courseId})" style="background:transparent;color:var(--orange);border:1px solid rgba(255,160,0,.3);"><i class="fas fa-undo"></i> Reset Progress</button>
+           <button class="btn-remove-course" onclick="removeCourseFromStudent(${e.enrollmentId || e.enrollmentid},${studentId})"><i class="fas fa-times"></i> Remove</button>
+        </div>
       </div>`).join('');
   } catch (e) { }
+}
+
+async function resetStudentProgress(studentId, courseId) {
+  if (!confirm("Are you sure you want to completely RESET this student's progress for this course? This will delete all quiz attempts and assignments.")) return;
+  try {
+    const res = await fetch(`/api/admin/students/${studentId}/progress/${courseId}`, { method: 'DELETE' });
+    if (res.ok) {
+      showToast('Student course progress fully reset.');
+    } else {
+      const d = await res.json();
+      showToast(d.error || 'Failed to reset progress', true);
+    }
+  } catch (e) { showToast('Network error', true); }
 }
 
 async function loadAssignableCourses(studentId) {
@@ -635,26 +653,35 @@ async function deleteEnrollment(id) {
 async function loadPayments() {
   try {
     const res = await fetch('/api/admin/payments');
-    const data = await res.json();
-    const total = data.filter(p => p.status === 'completed').reduce((s, p) => s + p.amount, 0);
-    const free = data.filter(p => p.status === 'free').length;
-    const pending = data.filter(p => p.status === 'pending').length;
-    document.getElementById('paymentCount').textContent = `${data.length} payments`;
+    allPayments = await res.json();
+    const total = allPayments.filter(p => p.status === 'completed').reduce((s, p) => s + p.amount, 0);
+    const free = allPayments.filter(p => p.status === 'free').length;
+    const pending = allPayments.filter(p => p.status === 'pending').length;
+    document.getElementById('paymentCount').textContent = `${allPayments.length} payments`;
     document.getElementById('paymentStats').innerHTML = `
-      <div class="payment-stat-card"><div class="stat-num" style="color:var(--green);">₹${total.toLocaleString()}</div><div class="stat-label">Total Revenue</div></div>
-      <div class="payment-stat-card"><div class="stat-num" style="color:var(--cyan);">${data.filter(p => p.status === 'completed').length}</div><div class="stat-label">Paid Orders</div></div>
-      <div class="payment-stat-card"><div class="stat-num" style="color:var(--cyan);">${free}</div><div class="stat-label">Free Enrolls</div></div>
-      <div class="payment-stat-card"><div class="stat-num" style="color:#ffaa00;">${pending}</div><div class="stat-label">Pending</div></div>`;
-    document.getElementById('paymentBody').innerHTML = data.length ? data.map(p => `
-      <tr>
-        <td>${esc(p.studentName)}<br><span style="font-size:.65rem;color:var(--muted);">${esc(p.studentEmail)}</span></td>
-        <td>${esc(p.courseTitle)}</td>
-        <td>${p.amount === 0 ? 'Free' : '₹' + p.amount}</td>
-        <td><span class="status-badge status-${p.status}">${p.status}</span></td>
-        <td>${formatDate(p.createdAt)}</td>
-        <td style="font-family:'Share Tech Mono',monospace;font-size:.65rem;">${esc(p.razorpayPaymentId || '-')}</td>
-      </tr>`).join('') : '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:2rem;">No payments yet.</td></tr>';
+      <div class="payment-stat-card" style="cursor:pointer;" onclick="filterPayments('all')"><div class="stat-num" style="color:var(--green);">₹${total.toLocaleString()}</div><div class="stat-label">Total Revenue</div></div>
+      <div class="payment-stat-card" style="cursor:pointer;" onclick="filterPayments('completed')"><div class="stat-num" style="color:var(--cyan);">${allPayments.filter(p => p.status === 'completed').length}</div><div class="stat-label">Paid Orders</div></div>
+      <div class="payment-stat-card" style="cursor:pointer;" onclick="filterPayments('free')"><div class="stat-num" style="color:var(--cyan);">${free}</div><div class="stat-label">Free Enrolls</div></div>
+      <div class="payment-stat-card" style="cursor:pointer;" onclick="filterPayments('pending')"><div class="stat-num" style="color:#ffaa00;">${pending}</div><div class="stat-label">Pending</div></div>`;
+
+    filterPayments('all');
   } catch (e) { showToast('Failed.', true); }
+}
+
+function filterPayments(status) {
+  let displayData = allPayments;
+  if (status !== 'all') {
+    displayData = allPayments.filter(p => p.status === status);
+  }
+  document.getElementById('paymentBody').innerHTML = displayData.length ? displayData.map(p => `
+    <tr>
+      <td>${esc(p.studentName)}<br><span style="font-size:.65rem;color:var(--muted);">${esc(p.studentEmail)}</span></td>
+      <td>${esc(p.courseTitle)}</td>
+      <td>${p.amount === 0 ? 'Free' : '₹' + p.amount}</td>
+      <td><span class="status-badge status-${p.status}">${p.status}</span></td>
+      <td>${formatDate(p.createdAt)}</td>
+      <td style="font-family:'Share Tech Mono',monospace;font-size:.65rem;">${esc(p.razorpayPaymentId || '-')}</td>
+    </tr>`).join('') : `<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:2rem;">No ${status === 'all' ? '' : status + ' '}payments found.</td></tr>`;
 }
 
 // ═══════════════════════════════════════
@@ -833,8 +860,9 @@ let quizQuestions = [];
 async function openQuizBuilder(itemId) {
   const data = await (await fetch(`/api/admin/quizzes/${itemId}`)).json();
   quizQuestions = data.questions.length ? data.questions : [{ question: '', optionA: '', optionB: '', optionC: '', optionD: '', correctOption: 'A' }];
-  const passing = data.quiz?.passingPercent || 60;
-  const maxAttempts = data.quiz?.maxAttempts || 3;
+  const passing = data.quiz?.passingPercent || data.quiz?.passingpercent || 60;
+  const maxAttempts = data.quiz?.maxAttempts || data.quiz?.maxattempts || 3;
+  const timerMinutes = data.quiz?.timerMinutes || data.quiz?.timerminutes || 0;
   const modal = document.createElement('div');
   modal.id = 'quizBuilderModal';
   modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem;';
@@ -843,9 +871,10 @@ async function openQuizBuilder(itemId) {
       <h3 style="color:var(--green);margin:0;"><i class="fas fa-question-circle"></i> Quiz Builder</h3>
       <button onclick="document.getElementById('quizBuilderModal').remove()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:1.2rem;"><i class="fas fa-times"></i></button>
     </div>
-    <div style="display:flex;gap:.5rem;margin-bottom:1rem;">
+    <div style="display:flex;gap:.5rem;margin-bottom:1rem;flex-wrap:wrap;">
       <div><label style="font-size:.65rem;color:var(--muted);">Pass %</label><input type="number" id="quizPassPercent" value="${passing}" style="width:60px;"/></div>
       <div><label style="font-size:.65rem;color:var(--muted);">Max Attempts</label><input type="number" id="quizMaxAttempts" value="${maxAttempts}" style="width:60px;"/></div>
+      <div><label style="font-size:.65rem;color:var(--muted);">Timer (min)</label><input type="number" id="quizTimerMinutes" value="${timerMinutes}" min="0" placeholder="0 = none" style="width:70px;"/></div>
     </div>
     <div id="quizQuestionsContainer"></div>
     <div style="display:flex;gap:.5rem;margin-top:1rem;">
@@ -889,8 +918,89 @@ async function saveQuiz(itemId) {
   if (!valid.length) { showToast('Add at least one question with A and B options.', true); return; }
   const res = await fetch('/api/admin/quizzes', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ itemId, passingPercent: parseInt(document.getElementById('quizPassPercent').value) || 60, maxAttempts: parseInt(document.getElementById('quizMaxAttempts').value) || 3, questions: valid })
+    body: JSON.stringify({ itemId, passingPercent: parseInt(document.getElementById('quizPassPercent').value) || 60, maxAttempts: parseInt(document.getElementById('quizMaxAttempts').value) || 3, timerMinutes: parseInt(document.getElementById('quizTimerMinutes').value) || 0, questions: valid })
   });
   if ((await res.json()).success) { showToast('Quiz saved!'); document.getElementById('quizBuilderModal')?.remove(); }
   else showToast('Failed to save quiz.', true);
+}
+
+// ═══════════════════════════════════════
+//  ASSIGNMENTS
+// ═══════════════════════════════════════
+let allAssignments = [];
+
+async function loadAssignments() {
+  try {
+    const res = await fetch('/api/admin/assignments/all');
+    if (res.status === 401) return handleLogout();
+    allAssignments = await res.json();
+
+    // Extract unique courses for the filter dropdown
+    const courses = [...new Set(allAssignments.map(a => a.courseTitle))].sort();
+    const filterEl = document.getElementById('assignmentCourseFilter');
+    const currVal = filterEl.value;
+    filterEl.innerHTML = '<option value="">All Courses</option>' + courses.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
+    if (courses.includes(currVal)) filterEl.value = currVal;
+
+    filterAssignments();
+  } catch (e) { }
+}
+
+function filterAssignments() {
+  const courseFilter = document.getElementById('assignmentCourseFilter').value;
+  const filtered = courseFilter ? allAssignments.filter(a => a.courseTitle === courseFilter) : allAssignments;
+
+  document.getElementById('assignmentCount').textContent = `${filtered.length} Total Submissions`;
+  const list = document.getElementById('assignmentList');
+
+  if (!filtered.length) { list.innerHTML = '<div class="empty-state"><i class="fas fa-file-alt"></i><p>No assignments found.</p></div>'; return; }
+
+  list.innerHTML = filtered.map(a => `
+    <div style="background:var(--surface);border:1px solid rgba(0,212,255,.15);border-radius:8px;padding:1rem;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:.5rem;">
+        <div>
+           <h3 style="color:var(--cyan);font-size:.9rem;margin-bottom:.2rem;">${esc(a.studentName)} (${esc(a.studentEmail)})</h3>
+           <div style="font-size:.7rem;color:var(--muted);"><i class="fas fa-book"></i> ${esc(a.courseTitle)} > ${esc(a.itemTitle)}</div>
+        </div>
+        <div style="text-align:right;">
+           <div style="font-size:.7rem;color:var(--muted);margin-bottom:.3rem;">Submitted: ${new Date(a.submittedAt).toLocaleString('en-IN')}</div>
+           <a href="/api/admin/assignments/download/${a.id}" class="btn-primary" style="padding:.3rem .6rem;font-size:.7rem;text-decoration:none;display:inline-block;"><i class="fas fa-download"></i> Download</a>
+        </div>
+      </div>
+      <div style="padding-top:.8rem;border-top:1px solid var(--border);margin-top:.5rem;">
+         ${a.grade ? `
+            <div style="display:flex;gap:1rem;font-size:.8rem;">
+               <span style="color:var(--green);font-weight:700;">Grade: ${esc(a.grade)}</span>
+               <span style="color:var(--muted);font-style:italic;">"${esc(a.feedback || '')}"</span>
+            </div>
+         ` : `
+            <div style="display:flex;gap:.5rem;align-items:center;">
+                <input type="text" id="grade-${a.id}" placeholder="Grade (e.g. A, 95/100)" style="width:140px;padding:.4rem;font-size:.75rem;border:1px solid var(--border);background:var(--bg);color:var(--text);border-radius:4px;" />
+                <input type="text" id="feedback-${a.id}" placeholder="Feedback..." style="flex:1;padding:.4rem;font-size:.75rem;border:1px solid var(--border);background:var(--bg);color:var(--text);border-radius:4px;" />
+                <button onclick="saveGrade(${a.id})" style="padding:.4rem .8rem;background:var(--cyan);color:#0B0F19;border:none;border-radius:4px;cursor:pointer;font-weight:700;font-size:.75rem;"><i class="fas fa-check"></i> Submit Grade</button>
+            </div>
+         `}
+      </div>
+    </div>
+  `).join('');
+}
+
+async function saveGrade(id) {
+  const grade = document.getElementById(`grade-${id}`).value.trim();
+  const feedback = document.getElementById(`feedback-${id}`).value.trim();
+  if (!grade) return showToast('Grade is required', true);
+  try {
+    const res = await fetch(`/api/admin/assignments/${id}/grade`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ grade, feedback })
+    });
+    if (res.ok) {
+      showToast('Grade saved');
+      loadAssignments();
+    } else {
+      const d = await res.json();
+      showToast(d.error || 'Error saving grade', true);
+    }
+  } catch (e) { showToast('Network error', true); }
 }
