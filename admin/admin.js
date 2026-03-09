@@ -143,8 +143,9 @@ function closeBlogEditor() { document.getElementById('blogEditorView').style.dis
 async function editBlog(id) {
   const res = await fetch('/api/admin/blogs');
   const blogs = await res.json();
-  const blog = blogs.find(b => b.id === id);
+  const blog = blogs.find(b => b.id == id);
   if (blog) openBlogEditor(blog);
+  else showToast('Blog not found.', true);
 }
 
 async function saveBlog() {

@@ -1323,7 +1323,7 @@ app.post('/api/admin/upload', requireAdmin, (req, res) => {
 app.get('/api/admin/blogs', requireAdmin, async (req, res) => {
     try {
         const blogsRes = await pool.query('SELECT id, title, author, excerpt, tags, date, readTime, content, coverImage, published, createdAt, updatedAt FROM blogs ORDER BY id DESC');
-        res.json(blogsRes.rows.map(b => ({ ...b, tags: JSON.parse(b.tags) })));
+        res.json(blogsRes.rows.map(b => ({ ...b, tags: typeof b.tags === 'string' ? JSON.parse(b.tags) : (b.tags || []) })));
     } catch (err) {
         res.status(500).json({ error: 'Server error' });
     }
