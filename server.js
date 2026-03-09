@@ -590,9 +590,8 @@ const app = express();
 
 const allowedOrigins = [
     'http://localhost:3000',
-    'https://ninjahackers.site',
-    'https://www.ninjahackers.site',
-    'https://bninja.hacker.site'
+    'https://bninjahacker.site',
+    'https://www.bninjahacker.site'
 ];
 
 app.use(cors({
