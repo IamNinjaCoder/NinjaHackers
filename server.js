@@ -438,7 +438,20 @@ async function initDB() {
         await safeAlter(`ALTER TABLE courses ADD COLUMN startDate TEXT DEFAULT NULL`);
         await safeAlter(`ALTER TABLE quizzes ADD COLUMN timerMinutes INTEGER NOT NULL DEFAULT 0`);
 
-        console.log('✅ PostgreSQL database schema synchronized.');
+        // Seed or Update Admin User
+        const adminPass = process.env.ADMIN_PASSWORD || 'admin';
+        const adminHash = await bcrypt.hash(adminPass, 10);
+
+        // Try to update existing admin, or insert if none exists
+        const adminExists = await pool.query('SELECT id FROM admin_users LIMIT 1');
+        if (adminExists.rows.length === 0) {
+            await pool.query('INSERT INTO admin_users (username, passwordHash) VALUES ($1, $2)', [ADMIN_USERNAME, adminHash]);
+        } else {
+            // Update the existing primary admin's credentials to match ENV
+            await pool.query('UPDATE admin_users SET username = $1, passwordHash = $2 WHERE id = $3', [ADMIN_USERNAME, adminHash, adminExists.rows[0].id]);
+        }
+
+        console.log('✅ PostgreSQL database schema synchronized and Admin User verified.');
     } catch (err) {
         console.error('❌ Database schema error:', err);
     }
