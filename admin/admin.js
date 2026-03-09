@@ -70,6 +70,8 @@ function switchTab(tab) {
     case 'coupons': loadCoupons(); break;
     case 'announcements': loadAnnouncements(); break;
     case 'assignments': loadAssignments(); break;
+    case 'works': loadWorks(); break;
+    case 'videos': loadVideos(); break;
   }
 }
 
@@ -786,6 +788,8 @@ async function confirmDelete() {
   switch (deleteTargetType) {
     case 'blog': url = `/api/admin/blogs/${deleteTargetId}`; break;
     case 'course': url = `/api/admin/courses/${deleteTargetId}`; break;
+    case 'works': url = `/api/admin/works/${deleteTargetId}`; break;
+    case 'videos': url = `/api/admin/videos/${deleteTargetId}`; break;
   }
   if (url) { await fetch(url, { method: 'DELETE' }); showToast('Deleted.'); switchTab(currentTab); }
   closeDeleteModal();
@@ -1047,3 +1051,183 @@ async function saveGrade(id) {
     }
   } catch (e) { showToast('Network error', true); }
 }
+
+// ═══════════════════════════════════════
+//  WORKS
+// ═══════════════════════════════════════
+let currentWorkId = null;
+
+async function loadWorks() {
+  try {
+    const res = await fetch('/api/admin/works');
+    if (res.status === 401) return handleLogout();
+    const works = await res.json();
+    document.getElementById('worksCount').textContent = `${works.length} Projects`;
+    const list = document.getElementById('worksList');
+    list.innerHTML = works.map(w => `
+      <tr>
+         <td>
+            <div style="display:flex;align-items:center;gap:.8rem;">
+               <div style="width:36px;height:36px;border-radius:8px;background:var(--surface);display:flex;align-items:center;justify-content:center;border:1px solid var(--border);">
+                  <i class="${esc(w.icon)}" style="color:var(--${esc(w.iconColor)});font-size:1.1rem;"></i>
+               </div>
+               <div>
+                  <div style="font-family:'Rajdhani',sans-serif;font-weight:700;color:#fff;">${esc(w.title)}</div>
+                  <div style="font-size:.65rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:200px;">${esc(w.description)}</div>
+               </div>
+            </div>
+         </td>
+         <td>
+            <span style="font-size:.7rem;padding:.2rem .5rem;border-radius:4px;border:1px solid rgba(255,255,255,.1);">${esc(w.status)}</span>
+         </td>
+         <td><div style="display:flex;gap:.3rem;flex-wrap:wrap;">${(w.tags || []).map(t => `<span class="tag tag-cyan" style="font-size:.6rem;">${esc(t)}</span>`).join('')}</div></td>
+         <td>
+            <div class="action-btns">
+               <button class="btn-edit" onclick="editWork(${w.id})" title="Edit"><i class="fas fa-edit"></i></button>
+               <button class="btn-delete" onclick="openDeleteModal('works', ${w.id})" title="Delete"><i class="fas fa-trash"></i></button>
+            </div>
+         </td>
+      </tr>
+    `).join('');
+    if (!works.length) list.innerHTML = '<tr><td colspan="4" class="empty-state">No works found.</td></tr>';
+  } catch (e) { showToast('Failed to load works.', true); }
+}
+
+function openWorkEditor(work = null) {
+  currentWorkId = work ? work.id : null;
+  document.getElementById('workEditorTitle').textContent = work ? 'Edit Work' : 'New Work';
+  document.getElementById('workTitle').value = work ? work.title : '';
+  document.getElementById('workDescription').value = work ? work.description : '';
+  document.getElementById('workIcon').value = work ? work.icon : 'fas fa-cog';
+  document.getElementById('workIconColor').value = work ? work.iconColor : 'cyan';
+  document.getElementById('workStatus').value = work ? work.status : 'Completed';
+  document.getElementById('workTags').value = work ? (work.tags || []).join(', ') : '';
+  document.getElementById('workLink').value = work ? work.link : '';
+
+  document.getElementById('worksListView').style.display = 'none';
+  document.getElementById('workEditorView').style.display = 'block';
+}
+
+function closeWorkEditor() {
+  document.getElementById('workEditorView').style.display = 'none';
+  document.getElementById('worksListView').style.display = 'block';
+}
+
+async function editWork(id) {
+  const res = await fetch('/api/admin/works');
+  const works = await res.json();
+  const work = works.find(w => w.id == id);
+  if (work) openWorkEditor(work);
+}
+
+async function saveWork() {
+  const title = document.getElementById('workTitle').value.trim();
+  if (!title) { showToast('Title required.', true); return; }
+
+  const payload = {
+    title,
+    description: document.getElementById('workDescription').value.trim(),
+    icon: document.getElementById('workIcon').value.trim() || 'fas fa-cog',
+    iconColor: document.getElementById('workIconColor').value,
+    status: document.getElementById('workStatus').value,
+    tags: document.getElementById('workTags').value.split(',').map(t => t.trim()).filter(Boolean),
+    link: document.getElementById('workLink').value.trim()
+  };
+
+  try {
+    const method = currentWorkId ? 'PUT' : 'POST';
+    const url = currentWorkId ? `/api/admin/works/${currentWorkId}` : '/api/admin/works';
+    const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+    const data = await res.json();
+    if (data.success) { showToast('Work saved!'); closeWorkEditor(); loadWorks(); }
+    else showToast(data.error || 'Failed to save.', true);
+  } catch (e) { showToast('Connection error.', true); }
+}
+
+
+// ═══════════════════════════════════════
+//  VIDEOS
+// ═══════════════════════════════════════
+let currentVideoId = null;
+
+async function loadVideos() {
+  try {
+    const res = await fetch('/api/admin/videos');
+    if (res.status === 401) return handleLogout();
+    const videos = await res.json();
+    document.getElementById('videosCount').textContent = `${videos.length} Videos`;
+    const list = document.getElementById('videosList');
+    list.innerHTML = videos.map(v => `
+      <tr>
+         <td style="width:120px;">
+            <div style="width:100px;height:56px;border-radius:6px;overflow:hidden;background:#000;border:1px solid var(--border);">
+               <img src="https://img.youtube.com/vi/${esc(v.videoId || v.videoid)}/mqdefault.jpg" style="width:100%;height:100%;object-fit:cover;" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\\'http://www.w3.org/2000/svg\\'><rect width=\\'100%\\' height=\\'100%\\' fill=\\'#111\\'/></svg>'"/>
+            </div>
+         </td>
+         <td>
+            <div style="font-family:'Rajdhani',sans-serif;font-weight:700;color:#fff;">${esc(v.title)}</div>
+            <div style="font-size:.65rem;color:var(--muted);"><i class="fab fa-youtube" style="color:#ff0000;margin-right:4px;"></i>${esc(v.videoId || v.videoid)}</div>
+         </td>
+         <td>
+            <div style="font-size:.7rem;color:var(--muted);">${esc(v.meta)}</div>
+            <span class="tag tag-red" style="font-size:.6rem;margin-top:4px;">${esc(v.tag)}</span>
+         </td>
+         <td>
+            <div class="action-btns">
+               <button class="btn-edit" onclick="editVideo(${v.id})" title="Edit"><i class="fas fa-edit"></i></button>
+               <button class="btn-delete" onclick="openDeleteModal('videos', ${v.id})" title="Delete"><i class="fas fa-trash"></i></button>
+            </div>
+         </td>
+      </tr>
+    `).join('');
+    if (!videos.length) list.innerHTML = '<tr><td colspan="4" class="empty-state">No videos found.</td></tr>';
+  } catch (e) { showToast('Failed to load videos.', true); }
+}
+
+function openVideoEditor(video = null) {
+  currentVideoId = video ? video.id : null;
+  document.getElementById('videoEditorTitle').textContent = video ? 'Edit Video' : 'Add Video';
+  document.getElementById('videoYtId').value = video ? (video.videoId || video.videoid) : '';
+  document.getElementById('videoTitle').value = video ? video.title : '';
+  document.getElementById('videoMeta').value = video ? video.meta : '';
+  document.getElementById('videoTag').value = video ? video.tag : '';
+
+  document.getElementById('videosListView').style.display = 'none';
+  document.getElementById('videoEditorView').style.display = 'block';
+}
+
+function closeVideoEditor() {
+  document.getElementById('videoEditorView').style.display = 'none';
+  document.getElementById('videosListView').style.display = 'block';
+}
+
+async function editVideo(id) {
+  const res = await fetch('/api/admin/videos');
+  const videos = await res.json();
+  const video = videos.find(v => v.id == id);
+  if (video) openVideoEditor(video);
+}
+
+async function saveVideo() {
+  const title = document.getElementById('videoTitle').value.trim();
+  const videoId = document.getElementById('videoYtId').value.trim();
+  if (!title || !videoId) { showToast('Title and Video ID required.', true); return; }
+
+  const payload = {
+    title,
+    videoId: videoId.replace('https://youtube.com/watch?v=', '').replace('https://youtu.be/', '').split('&')[0], // Extract just the ID if full URL pasted
+    meta: document.getElementById('videoMeta').value.trim(),
+    tag: document.getElementById('videoTag').value.trim()
+  };
+
+  try {
+    const method = currentVideoId ? 'PUT' : 'POST';
+    const url = currentVideoId ? `/api/admin/videos/${currentVideoId}` : '/api/admin/videos';
+    const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+    const data = await res.json();
+    if (data.success) { showToast('Video saved!'); closeVideoEditor(); loadVideos(); }
+    else showToast(data.error || 'Failed to save.', true);
+  } catch (e) { showToast('Connection error.', true); }
+}
+
+setInterval(checkSession, 1000 * 60);

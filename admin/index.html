@@ -54,6 +54,10 @@
                 Announce</button>
             <button class="tab" data-tab="assignments" onclick="switchTab('assignments')"><i
                     class="fas fa-file-alt"></i> Assignments</button>
+            <button class="tab" data-tab="works" onclick="switchTab('works')"><i class="fas fa-tools"></i>
+                Works</button>
+            <button class="tab" data-tab="videos" onclick="switchTab('videos')"><i class="fab fa-youtube"></i>
+                Videos</button>
         </div>
 
         <!-- ═══ BLOGS TAB ═══ -->
@@ -480,6 +484,149 @@
                 </select>
             </div>
             <div id="assignmentList" style="display:grid;grid-template-columns:1fr;gap:1rem;"></div>
+        </div>
+
+        <!-- ═══ WORKS TAB ═══ -->
+        <div class="admin-content tab-content" id="tab-works" style="display:none;">
+            <!-- List View -->
+            <div id="worksListView">
+                <div class="admin-title-bar">
+                    <div>
+                        <h1><i class="fas fa-tools" style="color:var(--cyan);margin-right:.5rem;"></i>My Work</h1>
+                        <p class="admin-subtitle" id="worksCount">Loading...</p>
+                    </div>
+                    <button class="btn-new" onclick="openWorkEditor()"><i class="fas fa-plus"></i> New Work</button>
+                </div>
+                <div class="data-table-wrap">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Project</th>
+                                <th>Status</th>
+                                <th>Tags</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="worksList"></tbody>
+                    </table>
+                </div>
+            </div>
+            <!-- Editor View -->
+            <div id="workEditorView" style="display:none;">
+                <div class="admin-title-bar">
+                    <h1 id="workEditorTitle">New Work</h1>
+                    <button class="btn-cancel" onclick="closeWorkEditor()">Cancel</button>
+                </div>
+                <div
+                    style="background:var(--surface);border:1px solid rgba(0,212,255,.15);border-radius:12px;padding:1.5rem;box-shadow:0 8px 32px rgba(0,0,0,.4);">
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-bottom:1rem;">
+                        <div class="form-group">
+                            <label>Title</label>
+                            <input type="text" id="workTitle" placeholder="e.g. WebRecon Scanner" />
+                        </div>
+                        <div class="form-group">
+                            <label>Description</label>
+                            <input type="text" id="workDescription" placeholder="Brief explanation of the project" />
+                        </div>
+                    </div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1.5rem;margin-bottom:1rem;">
+                        <div class="form-group">
+                            <label>Icon Class (FontAwesome)</label>
+                            <input type="text" id="workIcon" placeholder="fas fa-spider" value="fas fa-cog" />
+                        </div>
+                        <div class="form-group">
+                            <label>Icon Color Class</label>
+                            <select id="workIconColor">
+                                <option value="cyan">Cyan</option>
+                                <option value="green">Green</option>
+                                <option value="red">Red</option>
+                                <option value="purple">Purple</option>
+                                <option value="orange">Orange</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Status</label>
+                            <select id="workStatus">
+                                <option value="Completed">Completed</option>
+                                <option value="In Progress">In Progress</option>
+                                <option value="Idea">Idea</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-bottom:1.5rem;">
+                        <div class="form-group">
+                            <label>Tags (Comma separated)</label>
+                            <input type="text" id="workTags" placeholder="Python, Tool, Web Security" />
+                        </div>
+                        <div class="form-group">
+                            <label>Link (Optional)</label>
+                            <input type="text" id="workLink" placeholder="https://github.com/..." />
+                        </div>
+                    </div>
+                    <button class="btn-save" onclick="saveWork()" style="width:100%;"><i class="fas fa-save"></i> Save
+                        Project</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═══ VIDEOS TAB ═══ -->
+        <div class="admin-content tab-content" id="tab-videos" style="display:none;">
+            <!-- List View -->
+            <div id="videosListView">
+                <div class="admin-title-bar">
+                    <div>
+                        <h1><i class="fab fa-youtube" style="color:var(--red);margin-right:.5rem;"></i>YouTube Videos
+                        </h1>
+                        <p class="admin-subtitle" id="videosCount">Loading...</p>
+                    </div>
+                    <button class="btn-new" onclick="openVideoEditor()"><i class="fas fa-plus"></i> Add Video</button>
+                </div>
+                <div class="data-table-wrap">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Thumbnail</th>
+                                <th>Title</th>
+                                <th>Meta</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="videosList"></tbody>
+                    </table>
+                </div>
+            </div>
+            <!-- Editor View -->
+            <div id="videoEditorView" style="display:none;">
+                <div class="admin-title-bar">
+                    <h1 id="videoEditorTitle">Add Video</h1>
+                    <button class="btn-cancel" onclick="closeVideoEditor()">Cancel</button>
+                </div>
+                <div
+                    style="background:var(--surface);border:1px solid rgba(255,0,0,.15);border-radius:12px;padding:1.5rem;box-shadow:0 8px 32px rgba(0,0,0,.4);">
+                    <div class="form-group" style="margin-bottom:1rem;">
+                        <label>YouTube Video ID</label>
+                        <input type="text" id="videoYtId" placeholder="e.g. dQw4w9WgXcQ" />
+                        <small style="color:var(--muted);font-size:0.75rem;margin-top:4px;display:block;">Extract this
+                            from the YouTube URL: https://youtube.com/watch?v=<strong>dQw4w9WgXcQ</strong></small>
+                    </div>
+                    <div class="form-group" style="margin-bottom:1rem;">
+                        <label>Title</label>
+                        <input type="text" id="videoTitle" placeholder="e.g. Nmap Full Tutorial for Beginners" />
+                    </div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-bottom:1.5rem;">
+                        <div class="form-group">
+                            <label>Meta Details</label>
+                            <input type="text" id="videoMeta" placeholder="e.g. Beginner · 10 min view" />
+                        </div>
+                        <div class="form-group">
+                            <label>Primary Tag</label>
+                            <input type="text" id="videoTag" placeholder="e.g. Tutorial" />
+                        </div>
+                    </div>
+                    <button class="btn-save" onclick="saveVideo()" style="width:100%;"><i class="fas fa-save"></i> Save
+                        Video</button>
+                </div>
+            </div>
         </div>
 
     </div>

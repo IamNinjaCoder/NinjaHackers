@@ -145,7 +145,7 @@ const camelCaseMap = {
     submittedat: 'submittedAt', gradedat: 'gradedAt', filepath: 'filePath',
     filename: 'fileName', islive: 'isLive', passingpercent: 'passingPercent',
     maxattempts: 'maxAttempts', timerminutes: 'timerMinutes', correctoption: 'correctOption',
-    totalquestions: 'totalQuestions', usedat: 'usedAt'
+    totalquestions: 'totalQuestions', usedat: 'usedAt', iconcolor: 'iconColor', videoid: 'videoId'
 };
 function toCamelRow(row) {
     if (!row || typeof row !== 'object') return row;
@@ -197,6 +197,27 @@ async function initDB() {
         passwordHash TEXT NOT NULL,
         loginAttempts INTEGER NOT NULL DEFAULT 0,
         lockedUntil TEXT DEFAULT NULL
+      );
+
+      CREATE TABLE IF NOT EXISTS works (
+        id SERIAL PRIMARY KEY,
+        title TEXT NOT NULL,
+        description TEXT NOT NULL DEFAULT '',
+        icon TEXT NOT NULL DEFAULT 'fas fa-cog',
+        iconColor TEXT NOT NULL DEFAULT 'cyan',
+        status TEXT NOT NULL DEFAULT 'Completed',
+        tags TEXT NOT NULL DEFAULT '[]',
+        link TEXT DEFAULT '',
+        createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS videos (
+        id SERIAL PRIMARY KEY,
+        videoId TEXT NOT NULL,
+        title TEXT NOT NULL,
+        meta TEXT NOT NULL DEFAULT '',
+        tag TEXT NOT NULL DEFAULT '',
+        createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
       );
 
       CREATE TABLE IF NOT EXISTS students (
@@ -1210,6 +1231,24 @@ app.post('/api/payment/verify', requireStudent, async (req, res) => {
 
 // ═══════════════════════════════════════
 //  PUBLIC — COURSES
+app.get('/api/videos', async (req, res) => {
+    try {
+        const videosRes = await pool.query('SELECT * FROM videos ORDER BY id DESC');
+        res.json(videosRes.rows);
+    } catch (err) {
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+app.get('/api/works', async (req, res) => {
+    try {
+        const worksRes = await pool.query('SELECT * FROM works ORDER BY id DESC');
+        res.json(worksRes.rows.map(w => ({ ...w, tags: JSON.parse(w.tags || '[]') })));
+    } catch (err) {
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
 // ═══════════════════════════════════════
 app.get('/api/courses', async (req, res) => {
     try {
@@ -2357,6 +2396,86 @@ app.put('/api/admin/settings/announcement', requireAdmin, async (req, res) => {
     } catch (err) {
         res.status(500).json({ error: 'Server error' });
     }
+});
+
+// ═══════════════════════════════════════
+//  ADMIN WORKS
+// ═══════════════════════════════════════
+app.get('/api/admin/works', requireAdmin, async (req, res) => {
+    try {
+        const worksRes = await pool.query('SELECT * FROM works ORDER BY id DESC');
+        res.json(worksRes.rows.map(w => ({ ...w, tags: JSON.parse(w.tags || '[]') })));
+    } catch (err) { res.status(500).json({ error: 'Server error' }); }
+});
+
+app.post('/api/admin/works', requireAdmin, async (req, res) => {
+    const { title, description, icon, iconColor, status, tags, link } = req.body;
+    if (!title) return res.status(400).json({ error: 'Title required.' });
+    try {
+        const r = await pool.query(
+            'INSERT INTO works (title, description, icon, iconColor, status, tags, link) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id',
+            [title, description || '', icon || 'fas fa-cog', iconColor || 'cyan', status || 'Completed', JSON.stringify(tags || []), link || '']
+        );
+        res.json({ success: true, id: r.rows[0].id });
+    } catch (err) { res.status(500).json({ error: 'Server error' }); }
+});
+
+app.put('/api/admin/works/:id', requireAdmin, async (req, res) => {
+    const { title, description, icon, iconColor, status, tags, link } = req.body;
+    try {
+        await pool.query(
+            'UPDATE works SET title=$1, description=$2, icon=$3, iconColor=$4, status=$5, tags=$6, link=$7 WHERE id=$8',
+            [title, description || '', icon || 'fas fa-cog', iconColor || 'cyan', status || 'Completed', JSON.stringify(tags || []), link || '', req.params.id]
+        );
+        res.json({ success: true });
+    } catch (err) { res.status(500).json({ error: 'Server error' }); }
+});
+
+app.delete('/api/admin/works/:id', requireAdmin, async (req, res) => {
+    try {
+        await pool.query('DELETE FROM works WHERE id=$1', [req.params.id]);
+        res.json({ success: true });
+    } catch (err) { res.status(500).json({ error: 'Server error' }); }
+});
+
+// ═══════════════════════════════════════
+//  ADMIN VIDEOS
+// ═══════════════════════════════════════
+app.get('/api/admin/videos', requireAdmin, async (req, res) => {
+    try {
+        const videosRes = await pool.query('SELECT * FROM videos ORDER BY id DESC');
+        res.json(videosRes.rows);
+    } catch (err) { res.status(500).json({ error: 'Server error' }); }
+});
+
+app.post('/api/admin/videos', requireAdmin, async (req, res) => {
+    const { videoId, title, meta, tag } = req.body;
+    if (!title || !videoId) return res.status(400).json({ error: 'Title and Video ID required.' });
+    try {
+        const r = await pool.query(
+            'INSERT INTO videos (videoId, title, meta, tag) VALUES ($1, $2, $3, $4) RETURNING id',
+            [videoId, title, meta || '', tag || '']
+        );
+        res.json({ success: true, id: r.rows[0].id });
+    } catch (err) { res.status(500).json({ error: 'Server error' }); }
+});
+
+app.put('/api/admin/videos/:id', requireAdmin, async (req, res) => {
+    const { videoId, title, meta, tag } = req.body;
+    try {
+        await pool.query(
+            'UPDATE videos SET videoId=$1, title=$2, meta=$3, tag=$4 WHERE id=$5',
+            [videoId, title, meta || '', tag || '', req.params.id]
+        );
+        res.json({ success: true });
+    } catch (err) { res.status(500).json({ error: 'Server error' }); }
+});
+
+app.delete('/api/admin/videos/:id', requireAdmin, async (req, res) => {
+    try {
+        await pool.query('DELETE FROM videos WHERE id=$1', [req.params.id]);
+        res.json({ success: true });
+    } catch (err) { res.status(500).json({ error: 'Server error' }); }
 });
 
 app.listen(PORT, () => {

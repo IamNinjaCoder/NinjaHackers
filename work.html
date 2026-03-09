@@ -46,77 +46,7 @@
         <div class="container">
             <div class="work-grid">
 
-                <div class="work-card">
-                    <div class="work-icon green"><i class="fas fa-spider"></i></div>
-                    <div class="work-title">WebRecon Scanner</div>
-                    <div class="work-desc">An automated web reconnaissance tool that performs subdomain enumeration,
-                        port scanning, directory brute-forcing, and technology fingerprinting in one workflow.</div>
-                    <div style="display:flex;gap:.6rem;flex-wrap:wrap;align-items:center;">
-                        <span class="work-status status-done"><i class="fas fa-check-circle"></i> Completed</span>
-                        <span class="tag tag-green">Python</span>
-                        <span class="tag tag-cyan">Tool</span>
-                    </div>
-                </div>
-
-                <div class="work-card">
-                    <div class="work-icon cyan"><i class="fas fa-shield-alt"></i></div>
-                    <div class="work-title">XSS Payload Generator</div>
-                    <div class="work-desc">A context-aware XSS payload generator that crafts bypass payloads based on
-                        WAF detection and encoding filters. Supports reflected, stored, and DOM-based contexts.</div>
-                    <div style="display:flex;gap:.6rem;flex-wrap:wrap;align-items:center;">
-                        <span class="work-status status-done"><i class="fas fa-check-circle"></i> Completed</span>
-                        <span class="tag tag-green">Python</span>
-                        <span class="tag tag-red">Web Security</span>
-                    </div>
-                </div>
-
-                <div class="work-card">
-                    <div class="work-icon purple"><i class="fas fa-network-wired"></i></div>
-                    <div class="work-title">NetStalker</div>
-                    <div class="work-desc">A lightweight network monitoring and packet sniffing tool built with Scapy.
-                        Detects ARP spoofing, rogue DHCP servers, and suspicious traffic patterns in real-time.</div>
-                    <div style="display:flex;gap:.6rem;flex-wrap:wrap;align-items:center;">
-                        <span class="work-status status-wip"><i class="fas fa-code"></i> In Progress</span>
-                        <span class="tag tag-green">Python</span>
-                        <span class="tag tag-cyan">Network</span>
-                    </div>
-                </div>
-
-                <div class="work-card">
-                    <div class="work-icon green"><i class="fas fa-lock"></i></div>
-                    <div class="work-title">CryptoBreaker CTF Toolkit</div>
-                    <div class="work-desc">A collection of cryptography challenge solvers — including Caesar, Vigenère,
-                        RSA, and custom encoding decoders — designed for CTF competitions.</div>
-                    <div style="display:flex;gap:.6rem;flex-wrap:wrap;align-items:center;">
-                        <span class="work-status status-done"><i class="fas fa-check-circle"></i> Completed</span>
-                        <span class="tag tag-green">Python</span>
-                        <span class="tag tag-purple">Crypto</span>
-                    </div>
-                </div>
-
-                <div class="work-card">
-                    <div class="work-icon cyan"><i class="fas fa-search"></i></div>
-                    <div class="work-title">OSINT Framework Dashboard</div>
-                    <div class="work-desc">A web-based dashboard that aggregates OSINT data from multiple sources —
-                        including Shodan, crt.sh, WHOIS, and DNS records — into one unified interface.</div>
-                    <div style="display:flex;gap:.6rem;flex-wrap:wrap;align-items:center;">
-                        <span class="work-status status-wip"><i class="fas fa-code"></i> In Progress</span>
-                        <span class="tag tag-cyan">JavaScript</span>
-                        <span class="tag tag-orange">OSINT</span>
-                    </div>
-                </div>
-
-                <div class="work-card">
-                    <div class="work-icon purple"><i class="fas fa-terminal"></i></div>
-                    <div class="work-title">Bash Pentest Automation Suite</div>
-                    <div class="work-desc">A modular Bash scripting suite automating common penetration testing tasks —
-                        from initial enumeration to privilege escalation checks on Linux targets.</div>
-                    <div style="display:flex;gap:.6rem;flex-wrap:wrap;align-items:center;">
-                        <span class="work-status status-idea"><i class="fas fa-lightbulb"></i> Idea</span>
-                        <span class="tag tag-orange">Bash</span>
-                        <span class="tag tag-red">Pentest</span>
-                    </div>
-                </div>
+                <!-- Dynamic items will be injected here -->
 
             </div>
         </div>
@@ -144,6 +74,50 @@
         (function () { const c = document.getElementById('matrix-canvas'); if (!c) return; const x = c.getContext('2d'); c.width = window.innerWidth; c.height = window.innerHeight; const ch = '01アイウエオカキクケコサシスセソ', fs = 14; let dr = Array(Math.floor(c.width / fs)).fill(1); function d() { x.fillStyle = 'rgba(5,10,14,0.05)'; x.fillRect(0, 0, c.width, c.height); x.fillStyle = '#00ff88'; x.font = fs + 'px Share Tech Mono'; dr.forEach((y, i) => { x.fillText(ch[Math.floor(Math.random() * ch.length)], i * fs, y * fs); if (y * fs > c.height && Math.random() > 0.975) dr[i] = 0; dr[i]++; }); } setInterval(d, 50); window.addEventListener('resize', () => { c.width = window.innerWidth; c.height = window.innerHeight; dr = Array(Math.floor(c.width / fs)).fill(1); }); })();
         function toggleMenu() { document.getElementById('mobileMenu').classList.toggle('open'); }
         window.addEventListener('scroll', () => { const nav = document.getElementById('navbar'); if (nav) nav.style.boxShadow = window.scrollY > 20 ? '0 4px 30px rgba(0,0,0,0.4)' : ''; });
+
+        function escapeHTML(str) {
+            return String(str || '').replace(/[&<>'"]/g,
+                tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": "&#39;", '"': "&quot;" }[tag]));
+        }
+
+        async function loadWorks() {
+            try {
+                const res = await fetch('/api/works');
+                const works = await res.json();
+                const grid = document.querySelector('.work-grid');
+                if (!works.length) {
+                    grid.innerHTML = '<div style="color:var(--muted);text-align:center;grid-column:1/-1;padding:2rem;">No works found. Projects will appear here soon.</div>';
+                    return;
+                }
+
+                grid.innerHTML = works.map(w => {
+                    let statusIcon = '<i class="fas fa-check-circle"></i>';
+                    let statusClass = 'status-done';
+                    if (w.status === 'In Progress') { statusIcon = '<i class="fas fa-code"></i>'; statusClass = 'status-wip'; }
+                    else if (w.status === 'Idea') { statusIcon = '<i class="fas fa-lightbulb"></i>'; statusClass = 'status-idea'; }
+
+                    const tagsHtml = (w.tags || []).map(t => `<span class="tag tag-cyan">${escapeHTML(t)}</span>`).join('');
+
+                    return `
+                        <div class="work-card">
+                            <div class="work-icon ${escapeHTML(w.iconColor)}"><i class="${escapeHTML(w.icon)}"></i></div>
+                            <div class="work-title">
+                                ${w.link ? `<a href="${escapeHTML(w.link)}" target="_blank" style="color:inherit;text-decoration:none;">${escapeHTML(w.title)} <i class="fas fa-external-link-alt" style="font-size:0.75rem;opacity:0.6;"></i></a>` : escapeHTML(w.title)}
+                            </div>
+                            <div class="work-desc">${escapeHTML(w.description)}</div>
+                            <div style="display:flex;gap:.6rem;flex-wrap:wrap;align-items:center;">
+                                <span class="work-status ${statusClass}">${statusIcon} ${escapeHTML(w.status)}</span>
+                                ${tagsHtml}
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            } catch (err) {
+                console.error('Error loading works:', err);
+            }
+        }
+
+        loadWorks();
     </script>
 </body>
 
