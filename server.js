@@ -291,7 +291,7 @@ async function initDB() {
         description TEXT DEFAULT '',
         sortOrder INTEGER NOT NULL DEFAULT 0,
         scheduledAt TEXT DEFAULT NULL,
-        remindersSent TEXT NOT NULL DEFAULT '[]',
+        reminderssent TEXT NOT NULL DEFAULT '[]',
         FOREIGN KEY (moduleId) REFERENCES course_modules(id) ON DELETE CASCADE
       );
 
@@ -693,7 +693,7 @@ function startClassReminderWorker() {
 
                     sentReminders.push(timing);
                     await pool.query(
-                        'UPDATE module_items SET "remindersSent" = $1 WHERE id = $2',
+                        'UPDATE module_items SET remindersSent = $1 WHERE id = $2',
                         [JSON.stringify(sentReminders), item.id]
                     );
                 }
