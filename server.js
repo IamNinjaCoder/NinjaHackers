@@ -817,11 +817,11 @@ app.post('/api/admin/login', async (req, res) => {
         console.log(`[ADMIN LOGIN] Password match for "${username}": ${passMatch}`);
 
         if (!passMatch) {
-            await recordFailedLogin('admin_users', user.id);
+            if (user) await recordFailedLogin('admin_users', user.id);
             logSecurity('ADMIN_LOGIN_FAIL', ip, username);
-            const loginAttempts = user.loginattempts || user.loginAttempts || 0;
+            const loginAttempts = user ? (user.loginattempts || user.loginAttempts || 0) : 0;
             const remaining = MAX_LOGIN_ATTEMPTS - (loginAttempts + 1);
-            return res.status(401).json({ error: `Invalid credentials.${remaining <= 2 ? ` ${remaining} attempts remaining.` : ''}` });
+            return res.status(401).json({ error: `Invalid credentials.${(user && remaining <= 2) ? ` ${remaining} attempts remaining.` : ''}` });
         }
 
         await resetLoginAttempts('admin_users', user.id);
@@ -2492,6 +2492,45 @@ app.put('/api/admin/settings/announcement', requireAdmin, async (req, res) => {
     } catch (err) {
         res.status(500).json({ error: 'Server error' });
     }
+});
+
+// ═══════════════════════════════════════
+//  PUBLIC API ENDPOINTS (Dynamic Site Features)
+// ═══════════════════════════════════════
+
+app.get('/api/public/stats', async (req, res) => {
+    try {
+        const statsRes = await pool.query('SELECT key, value FROM site_settings WHERE key IN ($1, $2, $3, $4)', ['stat_blogs', 'stat_ctf', 'stat_tools', 'stat_students']);
+        const stats = { stat_blogs: '0', stat_ctf: '0', stat_tools: '0', stat_students: '0' };
+        for (const row of statsRes.rows) stats[row.key] = row.value;
+        res.json(stats);
+    } catch (err) { res.status(500).json({ error: 'Server error' }); }
+});
+
+app.put('/api/admin/settings/stats', requireAdmin, async (req, res) => {
+    const { stat_blogs, stat_ctf, stat_tools, stat_students } = req.body;
+    try {
+        await pool.query('INSERT INTO site_settings (key, value) VALUES ($1, $2) ON CONFLICT(key) DO UPDATE SET value=EXCLUDED.value', ['stat_blogs', stat_blogs || '0']);
+        await pool.query('INSERT INTO site_settings (key, value) VALUES ($1, $2) ON CONFLICT(key) DO UPDATE SET value=EXCLUDED.value', ['stat_ctf', stat_ctf || '0']);
+        await pool.query('INSERT INTO site_settings (key, value) VALUES ($1, $2) ON CONFLICT(key) DO UPDATE SET value=EXCLUDED.value', ['stat_tools', stat_tools || '0']);
+        await pool.query('INSERT INTO site_settings (key, value) VALUES ($1, $2) ON CONFLICT(key) DO UPDATE SET value=EXCLUDED.value', ['stat_students', stat_students || '0']);
+        res.json({ success: true });
+    } catch (err) { res.status(500).json({ error: 'Server error' }); }
+});
+
+app.get('/api/public/featured-blogs', async (req, res) => {
+    try {
+        const r = await pool.query('SELECT id, title, author, excerpt, tags, date, "readTime", "coverImage" FROM blogs WHERE published=1 ORDER BY id DESC LIMIT 3');
+        const blogs = r.rows.map(b => ({ ...b, tags: JSON.parse(b.tags || '[]') }));
+        res.json(blogs);
+    } catch (err) { res.status(500).json({ error: 'Server error' }); }
+});
+
+app.get('/api/public/videos', async (req, res) => {
+    try {
+        const r = await pool.query('SELECT * FROM videos ORDER BY id DESC');
+        res.json(r.rows);
+    } catch (err) { res.status(500).json({ error: 'Server error' }); }
 });
 
 // ═══════════════════════════════════════

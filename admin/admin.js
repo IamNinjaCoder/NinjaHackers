@@ -72,6 +72,7 @@ function switchTab(tab) {
     case 'assignments': loadAssignments(); break;
     case 'works': loadWorks(); break;
     case 'videos': loadVideos(); break;
+    case 'settings': loadSettings(); break;
   }
 }
 
@@ -1231,3 +1232,33 @@ async function saveVideo() {
 }
 
 setInterval(checkSession, 1000 * 60);
+// ═══════════════════════════════════════
+//  SETTINGS MANAGMENT
+// ═══════════════════════════════════════
+async function loadSettings() {
+  try {
+    const res = await fetch('/api/public/stats');
+    const stats = await res.json();
+    document.getElementById('setting_stat_blogs').value = stats.stat_blogs || '0';
+    document.getElementById('setting_stat_ctf').value = stats.stat_ctf || '0';
+    document.getElementById('setting_stat_tools').value = stats.stat_tools || '0';
+    document.getElementById('setting_stat_students').value = stats.stat_students || '0';
+  } catch (e) { showToast('Failed to load settings.', true); }
+}
+
+async function saveSettings() {
+  const stat_blogs = document.getElementById('setting_stat_blogs').value;
+  const stat_ctf = document.getElementById('setting_stat_ctf').value;
+  const stat_tools = document.getElementById('setting_stat_tools').value;
+  const stat_students = document.getElementById('setting_stat_students').value;
+  try {
+    const res = await fetch('/api/admin/settings/stats', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ stat_blogs, stat_ctf, stat_tools, stat_students })
+    });
+    const data = await res.json();
+    if (data.success) showToast('Settings saved successfully!');
+    else showToast(data.error || 'Failed to save.', true);
+  } catch (e) { showToast('Connection error.', true); }
+}
