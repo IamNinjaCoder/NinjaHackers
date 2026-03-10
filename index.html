@@ -10,7 +10,7 @@
     rel="stylesheet" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
   <link rel="stylesheet" href="style.css" />
-    <link rel="icon" type="image/png" href="logo.png"/>
+  <link rel="icon" type="image/png" href="logo.png" />
 
 </head>
 
@@ -31,7 +31,8 @@
       <li><a href="work.html">Work</a></li>
       <li><a href="videos.html">Videos</a></li>
       <li><a href="contact.html">Contact</a></li>
-      <li><a href="courses.html" class="nav-cta">Courses</a></li>
+      <li><a href="courses.html">Courses</a></li>
+      <li id="auth-links"><a href="/learn" class="nav-cta">Login / Sign Up</a></li>
     </ul>
     <div class="hamburger" onclick="toggleMenu()"><span></span><span></span><span></span></div>
   </nav>
@@ -42,6 +43,7 @@
     <a href="videos.html" onclick="toggleMenu()">Videos</a>
     <a href="contact.html" onclick="toggleMenu()">Contact</a>
     <a href="courses.html" onclick="toggleMenu()">Courses</a>
+    <a href="/learn" onclick="toggleMenu()" id="mobile-auth-link">Login / Sign Up</a>
   </div>
 
   <!-- HERO -->
@@ -214,16 +216,19 @@
   <footer>
     <div class="footer-logo">
       <img src="logo.png" alt="NinjaHackers" class="footer-logo-img" onerror="this.style.display='none'" />
-      <span>Ninja<span style="color:var(--cyan)">Hackers</span>.site</span>
+      <span>bninjahacker.site</span>
     </div>
     <div class="footer-links">
       <a href="index.html">Home</a><a href="blog.html">Blog</a><a href="work.html">Work</a>
       <a href="videos.html">Videos</a><a href="courses.html">Courses</a><a href="contact.html">Contact</a>
     </div>
     <div class="social-links">
-      <a href="https://github.com/iamninjacoder" class="social-link" title="GitHub" target="_blank"><i class="fab fa-github"></i></a>
-      <a href="https://www.youtube.com/@Ninja_Hackers" class="social-link" title="YouTube" target="_blank"><i class="fab fa-youtube"></i></a>
-      <a href="https://www.linkedin.com/company/ninjahackers/" class="social-link" title="LinkedIn" target="_blank"><i class="fab fa-linkedin-in"></i></a>
+      <a href="https://github.com/iamninjacoder" class="social-link" title="GitHub" target="_blank"><i
+          class="fab fa-github"></i></a>
+      <a href="https://www.youtube.com/@Ninja_Hackers" class="social-link" title="YouTube" target="_blank"><i
+          class="fab fa-youtube"></i></a>
+      <a href="https://www.linkedin.com/company/ninjahackers/" class="social-link" title="LinkedIn" target="_blank"><i
+          class="fab fa-linkedin-in"></i></a>
       <a href="#" class="social-link" title="Twitter"><i class="fab fa-twitter"></i></a>
       <a href="#" class="social-link" title="Instagram"><i class="fab fa-instagram"></i></a>
     </div>
@@ -312,6 +317,25 @@
         }
       } catch (err) { }
     }
+    async function checkAuth() {
+      try {
+        const res = await fetch('/api/student/check');
+        const data = await res.json();
+        if (data.authenticated) {
+          const authLinks = document.getElementById('auth-links');
+          const mobileAuth = document.getElementById('mobile-auth-link');
+          if (authLinks) authLinks.innerHTML = '<a href="/learn" class="nav-cta">Dashboard</a>';
+          if (mobileAuth) {
+            mobileAuth.href = '/learn';
+            mobileAuth.textContent = 'Dashboard';
+          }
+          animateCounter('c4', data.student.count || 0, '+');
+        } else {
+          animateCounter('c4', 0, '+');
+        }
+      } catch (e) { animateCounter('c4', 0, '+'); }
+    }
+    checkAuth();
     loadFeaturedData();
   </script>
 </body>
