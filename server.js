@@ -166,7 +166,8 @@ const camelCaseMap = {
     submittedat: 'submittedAt', gradedat: 'gradedAt', filepath: 'filePath',
     filename: 'fileName', islive: 'isLive', passingpercent: 'passingPercent',
     maxattempts: 'maxAttempts', timerminutes: 'timerMinutes', correctoption: 'correctOption',
-    totalquestions: 'totalQuestions', usedat: 'usedAt', iconcolor: 'iconColor', videoid: 'videoId'
+    totalquestions: 'totalQuestions', usedat: 'usedAt', iconcolor: 'iconColor', videoid: 'videoId',
+    reminderssent: 'remindersSent'
 };
 function toCamelRow(row) {
     if (!row || typeof row !== 'object') return row;
@@ -290,6 +291,7 @@ async function initDB() {
         description TEXT DEFAULT '',
         sortOrder INTEGER NOT NULL DEFAULT 0,
         scheduledAt TEXT DEFAULT NULL,
+        remindersSent TEXT NOT NULL DEFAULT '[]',
         FOREIGN KEY (moduleId) REFERENCES course_modules(id) ON DELETE CASCADE
       );
 
@@ -460,6 +462,7 @@ async function initDB() {
         await safeAlter(`ALTER TABLE blogs ADD COLUMN featured INTEGER NOT NULL DEFAULT 0`);
         await safeAlter(`ALTER TABLE works ADD COLUMN featured INTEGER NOT NULL DEFAULT 0`);
         await safeAlter(`ALTER TABLE videos ADD COLUMN featured INTEGER NOT NULL DEFAULT 0`);
+        await safeAlter(`ALTER TABLE module_items ADD COLUMN remindersSent TEXT NOT NULL DEFAULT '[]'`);
 
         // Seed or Update Admin User
         console.log(`[SEEDER] Admin setup: Username="${process.env.ADMIN_USERNAME || "admin"}", Password length=${(process.env.ADMIN_PASSWORD || "admin").length}`);
@@ -482,7 +485,9 @@ async function initDB() {
 }
 
 // Call initDB when starting
-initDB();
+initDB().then(() => {
+    startClassReminderWorker();
+});
 
 // uploads directory is set up at top of file
 
@@ -589,6 +594,114 @@ async function sendOTPEmail(email, otp, name) {
         console.error('Email send error:', err.message);
         return false;
     }
+}
+
+async function sendClassReminderEmail(student, course, item, timing) {
+    if (!transporter) {
+        console.warn(`📩 Email not configured. Reminder for ${student.email}: ${item.title}`);
+        return true;
+    }
+    const loginUrl = `${process.env.PUBLIC_URL || 'http://localhost:3000'}/login`;
+    const subject = timing === '1h' ? `[Class Reminder] ${item.title} starts in 1 hour!` : `[IMPORTANT] ${item.title} is starting in 5 minutes!`;
+    const timingText = timing === '1h' ? 'Starts in 1 hour' : 'Starting in 5 minutes';
+
+    try {
+        await transporter.sendMail({
+            from: process.env.SMTP_FROM_NOREPLY || process.env.SMTP_FROM || process.env.SMTP_USER,
+            to: student.email,
+            subject: subject,
+            html: `<div style="font-family: 'Inter', sans-serif; background-color: #f4f7f6; padding: 40px 20px;">
+    <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.05);">
+        <div style="background: linear-gradient(135deg, #0f2027, #2c5364); padding: 40px 20px; text-align: center;">
+            <h1 style="color: #00ff88; margin: 0; font-size: 24px;">🥷 NinjaHackers Live</h1>
+            <p style="color: #c8d8e8; margin-top: 5px;">Class Start Reminder</p>
+        </div>
+        <div style="padding: 40px 30px;">
+            <h2 style="color: #1a202c; font-size: 20px; margin-bottom: 10px;">Hi ${student.name},</h2>
+            <p style="color: #4a5568; font-size: 16px; line-height: 1.6; margin-bottom: 20px;">
+                Get ready! Your scheduled live class <strong>"${item.title}"</strong> for the course <strong>"${course.title}"</strong> is about to begin.
+            </p>
+            <div style="background-color: #f0fdf4; border-left: 4px solid #00ff88; padding: 15px; margin-bottom: 25px;">
+                <p style="margin: 0; color: #166534; font-weight: 600;">⏰ ${timingText}</p>
+            </div>
+            <div style="text-align: center; margin-bottom: 30px;">
+                <a href="${loginUrl}" style="display: inline-block; background-color: #0ea5e9; color: #ffffff; text-decoration: none; padding: 14px 30px; border-radius: 8px; font-weight: 700; font-size: 16px;">
+                    Login to Join Class
+                </a>
+            </div>
+            <p style="color: #718096; font-size: 14px; line-height: 1.5;">
+                Please login to your dashboard and navigate to the course module to access the live stream link.
+            </p>
+        </div>
+        <div style="background-color: #f8fafc; padding: 20px; text-align: center; border-top: 1px solid #e2e8f0;">
+            <p style="color: #a0aec0; font-size: 12px; margin: 0;">© ${new Date().getFullYear()} NinjaHackers. All rights reserved.</p>
+        </div>
+    </div>
+</div>`
+        });
+        return true;
+    } catch (err) {
+        console.error(`❌ Failed to send class reminder to ${student.email}:`, err);
+        return false;
+    }
+}
+
+// ─── Class Reminder Worker ───
+function startClassReminderWorker() {
+    console.log('🕒 Class Reminder Worker started (running every minute)');
+    setInterval(async () => {
+        try {
+            const now = new Date();
+            // Look for live classes scheduled in the next 70 minutes
+            const upcomingClasses = await pool.query(
+                `SELECT mi.*, c.title as course_title, c.id as course_id 
+                 FROM module_items mi
+                 JOIN course_modules cm ON mi.moduleId = cm.id
+                 JOIN courses c ON cm.courseId = c.id
+                 WHERE mi.type = 'live_class' AND mi.scheduledAt IS NOT NULL`
+            );
+
+            for (const item of upcomingClasses.rows) {
+                const scheduledDate = new Date(item.scheduledAt);
+                const diffMs = scheduledDate.getTime() - now.getTime();
+                const diffMins = Math.floor(diffMs / 60000);
+
+                const sentReminders = JSON.parse(item.remindersSent || '[]');
+                let timing = null;
+
+                // 1 Hour Reminder (between 55 and 65 minutes before)
+                if (diffMins >= 55 && diffMins <= 65 && !sentReminders.includes('1h')) {
+                    timing = '1h';
+                }
+                // 5 Minute Reminder (between 0 and 7 minutes before)
+                else if (diffMins >= 0 && diffMins <= 7 && !sentReminders.includes('5m')) {
+                    timing = '5m';
+                }
+
+                if (timing) {
+                    console.log(`📡 Sending ${timing} reminder for class: ${item.title} (Starts in ${diffMins} mins)`);
+                    const enrollments = await pool.query(
+                        `SELECT s.id, s.name, s.email FROM students s
+                         JOIN enrollments e ON s.id = e.studentId
+                         WHERE e.courseId = $1`,
+                        [item.course_id]
+                    );
+
+                    for (const student of enrollments.rows) {
+                        await sendClassReminderEmail(student, { title: item.course_title }, item, timing);
+                    }
+
+                    sentReminders.push(timing);
+                    await pool.query(
+                        'UPDATE module_items SET "remindersSent" = $1 WHERE id = $2',
+                        [JSON.stringify(sentReminders), item.id]
+                    );
+                }
+            }
+        } catch (err) {
+            console.error('❌ Class Reminder Worker Error:', err);
+        }
+    }, 60000);
 }
 
 async function sendEnrollmentEmail(studentId, course, priceLabel) {
