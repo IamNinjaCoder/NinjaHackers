@@ -276,7 +276,7 @@
     async function loadFeaturedData() {
       try {
         const [worksRes, videosRes] = await Promise.all([
-          fetch('/api/works'),
+          fetch('/api/public/featured-works'),
           fetch('/api/public/videos')
         ]);
 

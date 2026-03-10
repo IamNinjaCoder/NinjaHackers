@@ -80,6 +80,10 @@
                 <h1 id="editorTitle"><i class="fas fa-edit" style="color:var(--green);margin-right:.5rem;"></i>New Blog
                     Post</h1>
                 <div style="display:flex;gap:.6rem;">
+                    <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;">
+                        <input type="checkbox" id="blogFeatured" style="width:18px;height:18px;" />
+                        <span style="font-style:italic;color:var(--green);">Featured on Home</span>
+                    </label>
                     <button class="btn-cancel" onclick="closeBlogEditor()"><i class="fas fa-times"></i> Cancel</button>
                     <button class="btn-save" onclick="saveBlog()"><i class="fas fa-save"></i> Save</button>
                 </div>
@@ -516,8 +520,15 @@
             <!-- Editor View -->
             <div id="workEditorView" style="display:none;">
                 <div class="admin-title-bar">
-                    <h1 id="workEditorTitle">New Work</h1>
-                    <button class="btn-cancel" onclick="closeWorkEditor()">Cancel</button>
+                    <h1 id="workEditorTitle">Add Project</h1>
+                    <div style="display:flex;gap:1.5rem;align-items:center;">
+                        <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;">
+                            <input type="checkbox" id="workFeatured" style="width:18px;height:18px;" />
+                            <span style="font-style:italic;color:var(--cyan);">Featured on Home</span>
+                        </label>
+                        <button class="btn-cancel" onclick="closeWorkEditor()"><i class="fas fa-times"></i>
+                            Cancel</button>
+                    </div>
                 </div>
                 <div
                     style="background:var(--surface);border:1px solid rgba(0,212,255,.15);border-radius:12px;padding:1.5rem;box-shadow:0 8px 32px rgba(0,0,0,.4);">
@@ -601,7 +612,14 @@
             <div id="videoEditorView" style="display:none;">
                 <div class="admin-title-bar">
                     <h1 id="videoEditorTitle">Add Video</h1>
-                    <button class="btn-cancel" onclick="closeVideoEditor()">Cancel</button>
+                    <div style="display:flex;gap:1.5rem;align-items:center;">
+                        <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;">
+                            <input type="checkbox" id="videoFeatured" style="width:18px;height:18px;" />
+                            <span style="font-style:italic;color:var(--red);">Featured on Site</span>
+                        </label>
+                        <button class="btn-cancel" onclick="closeVideoEditor()"><i class="fas fa-times"></i>
+                            Cancel</button>
+                    </div>
                 </div>
                 <div
                     style="background:var(--surface);border:1px solid rgba(255,0,0,.15);border-radius:12px;padding:1.5rem;box-shadow:0 8px 32px rgba(0,0,0,.4);">

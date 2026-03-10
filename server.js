@@ -186,6 +186,7 @@ async function initDB() {
         contentHtml TEXT NOT NULL DEFAULT '',
         coverImage TEXT DEFAULT '',
         published INTEGER NOT NULL DEFAULT 1,
+        featured INTEGER NOT NULL DEFAULT 0,
         createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
         updatedAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
       );
@@ -216,6 +217,7 @@ async function initDB() {
         status TEXT NOT NULL DEFAULT 'Completed',
         tags TEXT NOT NULL DEFAULT '[]',
         link TEXT DEFAULT '',
+        featured INTEGER NOT NULL DEFAULT 0,
         createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
       );
 
@@ -225,6 +227,7 @@ async function initDB() {
         title TEXT NOT NULL,
         meta TEXT NOT NULL DEFAULT '',
         tag TEXT NOT NULL DEFAULT '',
+        featured INTEGER NOT NULL DEFAULT 0,
         createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
       );
 
@@ -441,6 +444,9 @@ async function initDB() {
         await safeAlter(`ALTER TABLE students ADD COLUMN otpExpiry TEXT DEFAULT NULL`);
         await safeAlter(`ALTER TABLE courses ADD COLUMN startDate TEXT DEFAULT NULL`);
         await safeAlter(`ALTER TABLE quizzes ADD COLUMN timerMinutes INTEGER NOT NULL DEFAULT 0`);
+        await safeAlter(`ALTER TABLE blogs ADD COLUMN featured INTEGER NOT NULL DEFAULT 0`);
+        await safeAlter(`ALTER TABLE works ADD COLUMN featured INTEGER NOT NULL DEFAULT 0`);
+        await safeAlter(`ALTER TABLE videos ADD COLUMN featured INTEGER NOT NULL DEFAULT 0`);
 
         // Seed or Update Admin User
         console.log(`[SEEDER] Admin setup: Username="${process.env.ADMIN_USERNAME || "admin"}", Password length=${(process.env.ADMIN_PASSWORD || "admin").length}`);
@@ -1503,34 +1509,26 @@ app.get('/api/admin/blogs', requireAdmin, async (req, res) => {
 });
 
 app.post('/api/admin/blogs', requireAdmin, async (req, res) => {
-    const { title, author, excerpt, tags, date, readTime, content, coverImage, published } = req.body;
+    const { title, author, excerpt, tags, date, readTime, content, contentHtml, coverImage, published, featured } = req.body;
     if (!title || !content) return res.status(400).json({ error: 'Title and content required.' });
-    const now = new Date().toISOString();
     try {
         const r = await pool.query(
-            'INSERT INTO blogs (title, author, excerpt, tags, date, readTime, content, contentHtml, coverImage, published, createdAt, updatedAt) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING id',
-            [title, author || 'NinjaHacker', excerpt || '', JSON.stringify(tags || []), date || new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' }), readTime || '5 min read', content, DOMPurify.sanitize(marked(content)), coverImage || '', published !== undefined ? (published ? 1 : 0) : 1, now, now]
+            'INSERT INTO blogs (title, author, excerpt, tags, date, "readTime", content, "contentHtml", "coverImage", published, featured) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING id',
+            [title, author || 'NinjaHacker', excerpt || '', JSON.stringify(tags || []), date || new Date().toISOString().split('T')[0], readTime || '5 min read', content, contentHtml || '', coverImage || '', published === undefined ? 1 : published, featured ? 1 : 0]
         );
         res.json({ success: true, id: r.rows[0].id });
-    } catch (err) {
-        res.status(500).json({ error: 'Server error' });
-    }
+    } catch (err) { res.status(500).json({ error: 'Server error' }); }
 });
 
 app.put('/api/admin/blogs/:id', requireAdmin, async (req, res) => {
-    const { title, author, excerpt, tags, date, readTime, content, coverImage, published } = req.body;
+    const { title, author, excerpt, tags, date, readTime, content, contentHtml, coverImage, published, featured } = req.body;
     try {
-        const blogRes = await pool.query('SELECT id FROM blogs WHERE id=$1', [req.params.id]);
-        if (blogRes.rows.length === 0) return res.status(404).json({ error: 'Not found.' });
-
         await pool.query(
-            `UPDATE blogs SET title=$1, author=$2, excerpt=$3, tags=$4, date=$5, readTime=$6, content=$7, contentHtml=$8, coverImage=$9, published=$10, updatedAt=CURRENT_TIMESTAMP WHERE id=$11`,
-            [title, author || 'NinjaHacker', excerpt || '', JSON.stringify(tags || []), date || '', readTime || '5 min read', content || '', DOMPurify.sanitize(marked(content || '')), coverImage || '', published !== undefined ? (published ? 1 : 0) : 1, req.params.id]
+            'UPDATE blogs SET title=$1, author=$2, excerpt=$3, tags=$4, date=$5, "readTime"=$6, content=$7, "contentHtml"=$8, "coverImage"=$9, published=$10, featured=$11, updatedAt=CURRENT_TIMESTAMP WHERE id=$12',
+            [title, author, excerpt, JSON.stringify(tags || []), date, readTime, content, contentHtml, coverImage, published, featured ? 1 : 0, req.params.id]
         );
         res.json({ success: true });
-    } catch (err) {
-        res.status(500).json({ error: 'Server error' });
-    }
+    } catch (err) { res.status(500).json({ error: 'Server error' }); }
 });
 
 app.delete('/api/admin/blogs/:id', requireAdmin, async (req, res) => {
@@ -2520,15 +2518,23 @@ app.put('/api/admin/settings/stats', requireAdmin, async (req, res) => {
 
 app.get('/api/public/featured-blogs', async (req, res) => {
     try {
-        const r = await pool.query('SELECT id, title, author, excerpt, tags, date, "readTime", "coverImage" FROM blogs WHERE published=1 ORDER BY id DESC LIMIT 3');
+        const r = await pool.query('SELECT id, title, author, excerpt, tags, date, "readTime", "coverImage" FROM blogs WHERE published=1 AND featured=1 ORDER BY id DESC LIMIT 3');
         const blogs = r.rows.map(b => ({ ...b, tags: JSON.parse(b.tags || '[]') }));
         res.json(blogs);
     } catch (err) { res.status(500).json({ error: 'Server error' }); }
 });
 
+app.get('/api/public/featured-works', async (req, res) => {
+    try {
+        const r = await pool.query('SELECT * FROM works WHERE featured=1 ORDER BY id DESC LIMIT 3');
+        const works = r.rows.map(w => ({ ...w, tags: JSON.parse(w.tags || '[]') }));
+        res.json(works);
+    } catch (err) { res.status(500).json({ error: 'Server error' }); }
+});
+
 app.get('/api/public/videos', async (req, res) => {
     try {
-        const r = await pool.query('SELECT * FROM videos ORDER BY id DESC');
+        const r = await pool.query('SELECT * FROM videos WHERE featured=1 ORDER BY id DESC');
         res.json(r.rows);
     } catch (err) { res.status(500).json({ error: 'Server error' }); }
 });
@@ -2544,23 +2550,23 @@ app.get('/api/admin/works', requireAdmin, async (req, res) => {
 });
 
 app.post('/api/admin/works', requireAdmin, async (req, res) => {
-    const { title, description, icon, iconColor, status, tags, link } = req.body;
+    const { title, description, icon, iconColor, status, tags, link, featured } = req.body;
     if (!title) return res.status(400).json({ error: 'Title required.' });
     try {
         const r = await pool.query(
-            'INSERT INTO works (title, description, icon, iconColor, status, tags, link) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id',
-            [title, description || '', icon || 'fas fa-cog', iconColor || 'cyan', status || 'Completed', JSON.stringify(tags || []), link || '']
+            'INSERT INTO works (title, description, icon, iconColor, status, tags, link, featured) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id',
+            [title, description || '', icon || 'fas fa-cog', iconColor || 'cyan', status || 'Completed', JSON.stringify(tags || []), link || '', featured ? 1 : 0]
         );
         res.json({ success: true, id: r.rows[0].id });
     } catch (err) { res.status(500).json({ error: 'Server error' }); }
 });
 
 app.put('/api/admin/works/:id', requireAdmin, async (req, res) => {
-    const { title, description, icon, iconColor, status, tags, link } = req.body;
+    const { title, description, icon, iconColor, status, tags, link, featured } = req.body;
     try {
         await pool.query(
-            'UPDATE works SET title=$1, description=$2, icon=$3, iconColor=$4, status=$5, tags=$6, link=$7 WHERE id=$8',
-            [title, description || '', icon || 'fas fa-cog', iconColor || 'cyan', status || 'Completed', JSON.stringify(tags || []), link || '', req.params.id]
+            'UPDATE works SET title=$1, description=$2, icon=$3, iconColor=$4, status=$5, tags=$6, link=$7, featured=$8 WHERE id=$9',
+            [title, description, icon, iconColor, status, JSON.stringify(tags || []), link, featured ? 1 : 0, req.params.id]
         );
         res.json({ success: true });
     } catch (err) { res.status(500).json({ error: 'Server error' }); }
@@ -2584,23 +2590,23 @@ app.get('/api/admin/videos', requireAdmin, async (req, res) => {
 });
 
 app.post('/api/admin/videos', requireAdmin, async (req, res) => {
-    const { videoId, title, meta, tag } = req.body;
-    if (!title || !videoId) return res.status(400).json({ error: 'Title and Video ID required.' });
+    const { videoId, title, meta, tag, featured } = req.body;
+    if (!videoId || !title) return res.status(400).json({ error: 'Video ID and title required.' });
     try {
         const r = await pool.query(
-            'INSERT INTO videos (videoId, title, meta, tag) VALUES ($1, $2, $3, $4) RETURNING id',
-            [videoId, title, meta || '', tag || '']
+            'INSERT INTO videos (videoId, title, meta, tag, featured) VALUES ($1,$2,$3,$4,$5) RETURNING id',
+            [videoId, title, meta || '', tag || '', featured ? 1 : 0]
         );
         res.json({ success: true, id: r.rows[0].id });
     } catch (err) { res.status(500).json({ error: 'Server error' }); }
 });
 
 app.put('/api/admin/videos/:id', requireAdmin, async (req, res) => {
-    const { videoId, title, meta, tag } = req.body;
+    const { videoId, title, meta, tag, featured } = req.body;
     try {
         await pool.query(
-            'UPDATE videos SET videoId=$1, title=$2, meta=$3, tag=$4 WHERE id=$5',
-            [videoId, title, meta || '', tag || '', req.params.id]
+            'UPDATE videos SET videoId=$1, title=$2, meta=$3, tag=$4, featured=$5 WHERE id=$6',
+            [videoId, title, meta || '', tag || '', featured ? 1 : 0, req.params.id]
         );
         res.json({ success: true });
     } catch (err) { res.status(500).json({ error: 'Server error' }); }

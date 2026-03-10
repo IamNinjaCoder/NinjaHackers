@@ -93,6 +93,7 @@ async function loadBlogs() {
           <div class="blog-list-title">${esc(b.title)}</div>
           <div class="blog-list-meta">
             ${b.published ? '<span class="status-published"><i class="fas fa-check-circle"></i> Published</span>' : '<span class="status-draft"><i class="fas fa-eye-slash"></i> Draft</span>'}
+            ${b.featured ? '<span style="color:var(--green);"><i class="fas fa-star"></i> Featured</span>' : ''}
             <span>${esc(b.author)}</span><span>${esc(b.date)}</span>
             ${b.tags.map(t => `<span class="tag ${t.cls}">${esc(t.label)}</span>`).join('')}
           </div>
@@ -122,6 +123,7 @@ function openBlogEditor(blog = null) {
     document.getElementById('blogReadTime').value = blog.readTime;
     document.getElementById('blogDate').value = blog.date;
     document.getElementById('blogPublished').value = blog.published ? '1' : '0';
+    document.getElementById('blogFeatured').checked = !!blog.featured;
     currentCoverImage = blog.coverImage || '';
     easyMDE.value(blog.content || '');
     currentTags = blog.tags || [];
@@ -134,6 +136,7 @@ function openBlogEditor(blog = null) {
     document.getElementById('blogReadTime').value = '';
     document.getElementById('blogDate').value = '';
     document.getElementById('blogPublished').value = '1';
+    document.getElementById('blogFeatured').checked = false;
     currentCoverImage = '';
     easyMDE.value('');
     currentTags = [];
@@ -165,9 +168,10 @@ async function saveBlog() {
   const readTime = document.getElementById('blogReadTime').value.trim();
   const date = document.getElementById('blogDate').value.trim();
   const published = document.getElementById('blogPublished').value === '1';
+  const featured = document.getElementById('blogFeatured').checked;
   const content = easyMDE.value();
   if (!title || !content) { showToast('Title and content required.', true); return; }
-  const payload = { title, author, excerpt, readTime, date, published, content, tags: currentTags, coverImage: currentCoverImage };
+  const payload = { title, author, excerpt, readTime, date, published, featured, content, tags: currentTags, coverImage: currentCoverImage };
   try {
     const url = id ? `/api/admin/blogs/${id}` : '/api/admin/blogs';
     const res = await fetch(url, { method: id ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
@@ -1073,7 +1077,7 @@ async function loadWorks() {
                   <i class="${esc(w.icon)}" style="color:var(--${esc(w.iconColor)});font-size:1.1rem;"></i>
                </div>
                <div>
-                  <div style="font-family:'Rajdhani',sans-serif;font-weight:700;color:#fff;">${esc(w.title)}</div>
+                  <div style="font-family:'Rajdhani',sans-serif;font-weight:700;color:#fff;">${esc(w.title)} ${w.featured ? '<span class="status-published" style="display:inline-block;padding:2px 6px;font-size:10px;"><i class="fas fa-star"></i> FEATURED</span>' : ''}</div>
                   <div style="font-size:.65rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:200px;">${esc(w.description)}</div>
                </div>
             </div>
@@ -1096,14 +1100,29 @@ async function loadWorks() {
 
 function openWorkEditor(work = null) {
   currentWorkId = work ? work.id : null;
-  document.getElementById('workEditorTitle').textContent = work ? 'Edit Work' : 'New Work';
-  document.getElementById('workTitle').value = work ? work.title : '';
-  document.getElementById('workDescription').value = work ? work.description : '';
-  document.getElementById('workIcon').value = work ? work.icon : 'fas fa-cog';
-  document.getElementById('workIconColor').value = work ? work.iconColor : 'cyan';
-  document.getElementById('workStatus').value = work ? work.status : 'Completed';
-  document.getElementById('workTags').value = work ? (work.tags || []).join(', ') : '';
-  document.getElementById('workLink').value = work ? work.link : '';
+  if (work) {
+    document.getElementById('workEditorTitle').textContent = 'Edit Work';
+    document.getElementById('editWorkId').value = work.id;
+    document.getElementById('workTitle').value = work.title;
+    document.getElementById('workDescription').value = work.description;
+    document.getElementById('workIcon').value = work.icon;
+    document.getElementById('workIconColor').value = work.iconColor;
+    document.getElementById('workStatus').value = work.status;
+    document.getElementById('workTags').value = (work.tags || []).join(', ');
+    document.getElementById('workLink').value = work.link || '';
+    document.getElementById('workFeatured').checked = !!work.featured;
+  } else {
+    document.getElementById('workEditorTitle').textContent = 'Add Project';
+    document.getElementById('editWorkId').value = '';
+    document.getElementById('workTitle').value = '';
+    document.getElementById('workDescription').value = '';
+    document.getElementById('workIcon').value = 'fas fa-cog';
+    document.getElementById('workIconColor').value = 'cyan';
+    document.getElementById('workStatus').value = 'Completed';
+    document.getElementById('workTags').value = '';
+    document.getElementById('workLink').value = '';
+    document.getElementById('workFeatured').checked = false;
+  }
 
   document.getElementById('worksListView').style.display = 'none';
   document.getElementById('workEditorView').style.display = 'block';
@@ -1125,20 +1144,21 @@ async function saveWork() {
   const title = document.getElementById('workTitle').value.trim();
   if (!title) { showToast('Title required.', true); return; }
 
-  const payload = {
-    title,
-    description: document.getElementById('workDescription').value.trim(),
-    icon: document.getElementById('workIcon').value.trim() || 'fas fa-cog',
-    iconColor: document.getElementById('workIconColor').value,
-    status: document.getElementById('workStatus').value,
-    tags: document.getElementById('workTags').value.split(',').map(t => t.trim()).filter(Boolean),
-    link: document.getElementById('workLink').value.trim()
-  };
+  const description = document.getElementById('workDescription').value.trim();
+  const icon = document.getElementById('workIcon').value.trim() || 'fas fa-cog';
+  const iconColor = document.getElementById('workIconColor').value;
+  const status = document.getElementById('workStatus').value;
+  const tags = document.getElementById('workTags').value.split(',').map(t => t.trim()).filter(t => t);
+  const link = document.getElementById('workLink').value;
+  const featured = document.getElementById('workFeatured').checked;
+  const id = document.getElementById('editWorkId').value;
 
   try {
-    const method = currentWorkId ? 'PUT' : 'POST';
-    const url = currentWorkId ? `/api/admin/works/${currentWorkId}` : '/api/admin/works';
-    const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+    const res = await fetch(id ? `/api/admin/works/${id}` : '/api/admin/works', {
+      method: id ? 'PUT' : 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title, description, icon, iconColor, status, tags, link, featured })
+    });
     const data = await res.json();
     if (data.success) { showToast('Work saved!'); closeWorkEditor(); loadWorks(); }
     else showToast(data.error || 'Failed to save.', true);
@@ -1166,7 +1186,7 @@ async function loadVideos() {
             </div>
          </td>
          <td>
-            <div style="font-family:'Rajdhani',sans-serif;font-weight:700;color:#fff;">${esc(v.title)}</div>
+            <div style="font-family:'Rajdhani',sans-serif;font-weight:700;color:#fff;">${esc(v.title)} ${v.featured ? '<span class="status-published" style="display:inline-block;padding:2px 6px;font-size:10px;"><i class="fas fa-star"></i> FEATURED</span>' : ''}</div>
             <div style="font-size:.65rem;color:var(--muted);"><i class="fab fa-youtube" style="color:#ff0000;margin-right:4px;"></i>${esc(v.videoId || v.videoid)}</div>
          </td>
          <td>
@@ -1187,11 +1207,23 @@ async function loadVideos() {
 
 function openVideoEditor(video = null) {
   currentVideoId = video ? video.id : null;
-  document.getElementById('videoEditorTitle').textContent = video ? 'Edit Video' : 'Add Video';
-  document.getElementById('videoYtId').value = video ? (video.videoId || video.videoid) : '';
-  document.getElementById('videoTitle').value = video ? video.title : '';
-  document.getElementById('videoMeta').value = video ? video.meta : '';
-  document.getElementById('videoTag').value = video ? video.tag : '';
+  if (video) {
+    document.getElementById('videoEditorTitle').textContent = 'Edit Video';
+    document.getElementById('editVideoId').value = video.id;
+    document.getElementById('videoYtId').value = video.videoId || video.videoid;
+    document.getElementById('videoTitle').value = video.title;
+    document.getElementById('videoMeta').value = video.meta;
+    document.getElementById('videoTag').value = video.tag || '';
+    document.getElementById('videoFeatured').checked = !!video.featured;
+  } else {
+    document.getElementById('videoEditorTitle').textContent = 'Add Video';
+    document.getElementById('editVideoId').value = '';
+    document.getElementById('videoYtId').value = '';
+    document.getElementById('videoTitle').value = '';
+    document.getElementById('videoMeta').value = '';
+    document.getElementById('videoTag').value = '';
+    document.getElementById('videoFeatured').checked = false;
+  }
 
   document.getElementById('videosListView').style.display = 'none';
   document.getElementById('videoEditorView').style.display = 'block';
@@ -1218,7 +1250,8 @@ async function saveVideo() {
     title,
     videoId: videoId.replace('https://youtube.com/watch?v=', '').replace('https://youtu.be/', '').split('&')[0], // Extract just the ID if full URL pasted
     meta: document.getElementById('videoMeta').value.trim(),
-    tag: document.getElementById('videoTag').value.trim()
+    tag: document.getElementById('videoTag').value.trim(),
+    featured: document.getElementById('videoFeatured').checked
   };
 
   try {
