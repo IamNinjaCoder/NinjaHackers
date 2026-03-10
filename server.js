@@ -897,6 +897,11 @@ app.use('/admin', requireAuth, express.static(path.join(__dirname, 'admin')));
 
 // Allow the learn login page publicly, protect everything else
 app.use('/learn', express.static(path.join(__dirname, 'learn')));
+// Google Search Console Verification
+app.get('/google2ecd31909313df39.html', (req, res) => {
+    res.sendFile(path.join(__dirname, 'google2ecd31909313df39.html'));
+});
+
 app.use(express.static(__dirname, { index: 'index.html', extensions: ['html'] }));
 
 // ═══════════════════════════════════════
