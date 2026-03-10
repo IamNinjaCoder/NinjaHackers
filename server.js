@@ -52,10 +52,23 @@ const ALLOWED_DOMAINS = new Set([
 
 function isAllowedEmail(email) {
     if (!email) return false;
-    const domain = email.toLowerCase().split('@')[1];
-    if (!domain) return false;
-    // Check exact match
+    const parts = email.toLowerCase().split('@');
+    if (parts.length !== 2) return false;
+    const [local, domain] = parts;
+
+    // ⛔ Block "+" aliasing (e.g., john+extra@gmail.com)
+    // This is the most common way to create infinite accounts with one email.
+    if (local.includes('+')) return false;
+
+    // ⛔ Block "." in local part for Gmail (e.g., j.o.h.n@gmail.com)
+    // Gmail ignores dots, so scammers use this to bypass unique email checks.
+    if ((domain === 'gmail.com' || domain === 'googlemail.com') && local.includes('.')) {
+        return false;
+    }
+
+    // Check exact match in whitelist
     if (ALLOWED_DOMAINS.has(domain)) return true;
+
     // Check if domain ends with an allowed suffix (e.g. .edu, .ac.in)
     for (const allowed of ALLOWED_DOMAINS) {
         if (domain.endsWith('.' + allowed)) return true;
