@@ -31,8 +31,7 @@
   <canvas id="matrix-canvas"></canvas>
   <nav id="navbar">
     <a href="index.html" class="nav-logo">
-      <img src="logo.png" alt="NinjaHackers" class="logo-img"
-        onerror="this.style.display='none';document.getElementById('lt').style.display='flex'" />
+      <img src="logo.png" alt="NinjaHackers" class="logo-img" data-fallback="lt" />
       <span id="lt" class="logo-text-fallback" style="display:none"><i class="fas fa-terminal"></i>
         Ninja<span>Hackers</span></span>
     </a>
@@ -44,7 +43,7 @@
       <li><a href="contact.html">Contact</a></li>
       <li><a href="courses.html" class="nav-cta">Courses</a></li>
     </ul>
-    <div class="hamburger" onclick="toggleMenu()"><span></span><span></span><span></span></div>
+    <div class="hamburger" id="hamburger"><span></span><span></span><span></span></div>
   </nav>
   <div class="mobile-menu" id="mobileMenu">
     <a href="index.html">Home</a><a href="blog.html">Blog</a><a href="work.html">Work</a>
@@ -71,7 +70,7 @@
       <!-- Replace YOUR_CHANNEL_URL with your actual YouTube channel URL -->
       <a href="https://www.youtube.com/@Ninja_Hackers" target="_blank"
         style="margin-left:auto;background:#ff0000;color:#fff;font-weight:700;font-size:.85rem;padding:.6rem 1.4rem;border-radius:6px;text-decoration:none;display:flex;align-items:center;gap:.5rem;white-space:nowrap;transition:opacity .2s;"
-        onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'"><i class="fab fa-youtube"></i>
+        class="yt-subscribe-btn"><i class="fab fa-youtube"></i>
         Subscribe</a>
     </div>
   </div>
@@ -84,7 +83,7 @@
 
   <footer>
     <div class="footer-logo">
-      <img src="logo.png" alt="" class="footer-logo-img" onerror="this.style.display='none'" />
+      <img src="logo.png" alt="" class="footer-logo-img" style="display:none;" />
       <span>bninjahacker.site</span>
     </div>
     <div class="footer-links">
@@ -102,53 +101,8 @@
     <div class="footer-copy">© 2025 <span>bninjahacker.site</span> — Hack the Planet, Legally.</div>
   </footer>
 
-  <script>
-    function escapeHTML(str) {
-      return String(str || '').replace(/[&<>'"]/g,
-        tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": "&#39;", '"': "&quot;" }[tag]));
-    }
-
-    async function loadVideos() {
-      try {
-        const res = await fetch('/api/public/videos');
-        const videos = await res.json();
-        const grid = document.getElementById('videoGrid');
-
-        if (!videos.length) {
-          grid.innerHTML = '<div style="color:var(--muted);text-align:center;grid-column:1/-1;padding:2rem;">No videos found. Coming soon.</div>';
-          return;
-        }
-
-        grid.innerHTML = videos.map(v => {
-          const vid = v.videoId || v.videoid;
-          return `
-      <div class="video-card">
-        <div class="video-thumb">
-          ${vid
-              ? `<iframe src="https://www.youtube.com/embed/${escapeHTML(vid)}" allowfullscreen loading="lazy"></iframe>`
-              : `<div class="video-placeholder">
-                 <i class="fab fa-youtube"></i>
-                 <span>Coming Soon</span>
-               </div>`
-            }
-        </div>
-        <div class="video-info">
-          <div style="margin-bottom:.5rem;"><span class="tag tag-cyan" style="font-size:.65rem;">${escapeHTML(v.tag)}</span></div>
-          <div class="video-title">${escapeHTML(v.title)}</div>
-          <div class="video-meta"><i class="far fa-clock"></i> ${escapeHTML(v.meta)}</div>
-        </div>
-      </div>`;
-        }).join('');
-      } catch (err) {
-        console.error('Error loading videos:', err);
-      }
-    }
-
-    (function () { const c = document.getElementById('matrix-canvas'); if (!c) return; const x = c.getContext('2d'); c.width = window.innerWidth; c.height = window.innerHeight; const ch = '01アイウエオカキクケコサシスセソ', fs = 14; let dr = Array(Math.floor(c.width / fs)).fill(1); function d() { x.fillStyle = 'rgba(5,10,14,0.05)'; x.fillRect(0, 0, c.width, c.height); x.fillStyle = '#00ff88'; x.font = fs + 'px Share Tech Mono'; dr.forEach((y, i) => { x.fillText(ch[Math.floor(Math.random() * ch.length)], i * fs, y * fs); if (y * fs > c.height && Math.random() > 0.975) dr[i] = 0; dr[i]++; }); } setInterval(d, 50); window.addEventListener('resize', () => { c.width = window.innerWidth; c.height = window.innerHeight; dr = Array(Math.floor(c.width / fs)).fill(1); }); })();
-    function toggleMenu() { document.getElementById('mobileMenu').classList.toggle('open'); }
-    window.addEventListener('scroll', () => { const nav = document.getElementById('navbar'); if (nav) nav.style.boxShadow = window.scrollY > 20 ? '0 4px 30px rgba(0,0,0,0.4)' : ''; });
-    loadVideos();
-  </script>
+    <script src="js/videos-init.js"></script>
+</body>
 </body>
 
 </html>

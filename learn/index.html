@@ -20,9 +20,9 @@
         <a href="/" class="learn-brand"><i class="fas fa-terminal"></i> Ninja<span class="accent">Hackers</span></a>
         <div class="learn-nav-right" id="navRight">
             <span class="student-name" id="navStudentName"></span>
-            <button class="btn-nav curriculum-toggle" id="curriculumToggle" onclick="toggleModuleSidebar()"
+            <button class="btn-nav curriculum-toggle" id="curriculumToggleBtn"
                 style="display:none;" title="Toggle Curriculum"><i class="fas fa-list-ul"></i></button>
-            <button class="btn-nav" onclick="handleLogout()"><i class="fas fa-sign-out-alt"></i></button>
+            <button class="btn-nav" id="logoutBtn"><i class="fas fa-sign-out-alt"></i></button>
         </div>
     </nav>
 
@@ -34,7 +34,7 @@
             <p class="auth-sub">Access your enrolled courses and learning materials</p>
 
             <!-- Login -->
-            <form id="loginForm" onsubmit="handleLogin(event)">
+            <form id="loginForm">
                 <div class="form-group"><label><i class="fas fa-envelope"></i> Email</label>
                     <input type="email" id="loginEmail" placeholder="you@gmail.com" required />
                 </div>
@@ -44,13 +44,13 @@
                 <div class="auth-error" id="loginError"></div>
                 <button type="submit" class="btn-primary"><i class="fas fa-sign-in-alt"></i> Login</button>
                 <div style="margin-top:.8rem;text-align:right;">
-                    <button type="button" class="btn-link" onclick="showForgotForm()" style="font-size:.75rem;">Forgot
+                    <button type="button" class="btn-link" id="forgotLink" style="font-size:.75rem;">Forgot
                         Password?</button>
                 </div>
             </form>
 
             <!-- Signup -->
-            <form id="signupForm" style="display:none;" onsubmit="handleSignup(event)">
+            <form id="signupForm" style="display:none;">
                 <div class="form-group"><label><i class="fas fa-user"></i> Full Name</label>
                     <input type="text" id="signupName" placeholder="Your name" required />
                 </div>
@@ -68,7 +68,7 @@
             </form>
 
             <!-- OTP Verification -->
-            <form id="otpForm" style="display:none;" onsubmit="handleVerifyOTP(event)">
+            <form id="otpForm" style="display:none;">
                 <div style="text-align:center;margin-bottom:1rem;">
                     <i class="fas fa-envelope-open-text"
                         style="font-size:2rem;color:var(--green);margin-bottom:.5rem;display:block;"></i>
@@ -83,14 +83,14 @@
                 <div class="auth-error" id="otpError"></div>
                 <button type="submit" class="btn-primary"><i class="fas fa-check-circle"></i> Verify</button>
                 <div style="margin-top:1rem;text-align:center;">
-                    <button type="button" class="btn-link" onclick="resendOTP()">Resend Code</button>
+                    <button type="button" class="btn-link" id="resendOtpBtn">Resend Code</button>
                     <span style="color:var(--muted);margin:0 .5rem;">·</span>
-                    <button type="button" class="btn-link" onclick="showLoginForm()">Back to Login</button>
+                    <button type="button" class="btn-link" id="backToLoginOtp">Back to Login</button>
                 </div>
             </form>
 
             <!-- Forgot Password -->
-            <form id="forgotForm" style="display:none;" onsubmit="handleForgotPassword(event)">
+            <form id="forgotForm" style="display:none;">
                 <div style="text-align:center;margin-bottom:1rem;">
                     <i class="fas fa-lock-open"
                         style="font-size:2rem;color:var(--orange);margin-bottom:.5rem;display:block;"></i>
@@ -105,12 +105,12 @@
                     style="background:linear-gradient(135deg,var(--orange),#cc6a00);"><i class="fas fa-paper-plane"></i>
                     Send Reset Code</button>
                 <div style="margin-top:1rem;text-align:center;">
-                    <button type="button" class="btn-link" onclick="showLoginForm()">Back to Login</button>
+                    <button type="button" class="btn-link" id="backToLoginForgot">Back to Login</button>
                 </div>
             </form>
 
             <!-- Reset Password -->
-            <form id="resetForm" style="display:none;" onsubmit="handleResetPassword(event)">
+            <form id="resetForm" style="display:none;">
                 <div style="text-align:center;margin-bottom:1rem;">
                     <i class="fas fa-key"
                         style="font-size:2rem;color:var(--orange);margin-bottom:.5rem;display:block;"></i>
@@ -131,13 +131,13 @@
                     style="background:linear-gradient(135deg,var(--orange),#cc6a00);"><i
                         class="fas fa-check-circle"></i> Reset Password</button>
                 <div style="margin-top:1rem;text-align:center;">
-                    <button type="button" class="btn-link" onclick="showLoginForm()">Back to Login</button>
+                    <button type="button" class="btn-link" id="backToLoginReset">Back to Login</button>
                 </div>
             </form>
 
             <div class="auth-toggle" id="authToggle">
                 <span id="toggleText">Don't have an account?</span>
-                <button class="btn-link" id="toggleBtn" onclick="toggleAuthMode()">Sign Up</button>
+                <button class="btn-link" id="toggleAuthBtn">Sign Up</button>
             </div>
 
             <div style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--border);">
@@ -171,7 +171,7 @@
                         <h1 id="welcomeName">Welcome back!</h1>
                         <p class="welcome-sub">Continue learning from where you left off</p>
                     </div>
-                    <button onclick="openProfile()"
+                    <button id="openProfileBtn"
                         style="background:rgba(0,255,136,.08);border:1px solid rgba(0,255,136,.2);color:var(--green);padding:.4rem .8rem;border-radius:6px;cursor:pointer;font-size:.75rem;font-weight:600;"><i
                             class="fas fa-user-circle"></i> Profile</button>
                 </div>
@@ -180,7 +180,7 @@
             </div>
             <div id="courseViewer" style="display:none;">
                 <div class="viewer-header">
-                    <button class="btn-back" onclick="showDashboardHome()"><i class="fas fa-arrow-left"></i>
+                    <button class="btn-back" id="backToDashboardBtn"><i class="fas fa-arrow-left"></i>
                         Back</button>
                     <h1 id="viewerCourseTitle"></h1>
                     <p id="viewerCourseMeta" class="viewer-meta"></p>
@@ -198,9 +198,9 @@
         </main>
     </div>
 
-    <button class="sidebar-toggle" id="sidebarToggle" onclick="toggleSidebar()" style="display:none;"><i
+    <button class="sidebar-toggle" id="sidebarToggleBtn" style="display:none;"><i
             class="fas fa-bars"></i></button>
-    <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeAllSidebars()"></div>
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
     <div class="toast" id="toast"></div>
     <script src="learn.js"></script>
 </body>

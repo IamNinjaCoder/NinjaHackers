@@ -185,7 +185,7 @@
         <p class="auth-sub">Create your Student Account</p>
 
         <!-- Signup -->
-        <form id="signupForm" onsubmit="event.preventDefault(); handleSignup(event);">
+        <form id="signupForm">
             <div class="form-group">
                 <label><i class="fas fa-user"></i> Full Name</label>
                 <input type="text" id="signupName" placeholder="Your name" required />
@@ -204,7 +204,7 @@
         </form>
 
         <!-- OTP Verification -->
-        <form id="otpForm" style="display:none;" onsubmit="event.preventDefault(); handleVerifyOTP(event);">
+        <form id="otpForm" style="display:none;">
             <div style="text-align:center;margin-bottom:1rem;">
                 <i class="fas fa-envelope-open-text" style="font-size:2rem;color:var(--green);margin-bottom:.5rem;display:block;"></i>
                 <p style="font-size:.85rem;color:var(--text);">We sent a 6-digit code to</p>
@@ -217,7 +217,7 @@
             <div class="auth-error" id="otpError"></div>
             <button type="submit" class="btn-primary"><i class="fas fa-check-circle"></i> Verify</button>
             <div style="margin-top:1rem;text-align:center;">
-                <button type="button" class="btn-link" onclick="resendOTP()">Resend Code</button>
+                <button type="button" class="btn-link" id="resendOtpBtn">Resend Code</button>
             </div>
         </form>
 
@@ -233,105 +233,7 @@
 
     <div class="toast" id="toast"></div>
 
-    <script>
-        // Matrix Canvas Background
-        (function(){const c=document.getElementById('matrix-canvas');if(!c)return;const x=c.getContext('2d');c.width=window.innerWidth;c.height=window.innerHeight;const ch='01アイウエオカキクケコサシスセソ',fs=14;let dr=Array(Math.floor(c.width/fs)).fill(1);function d(){x.fillStyle='rgba(5,10,14,0.05)';x.fillRect(0,0,c.width,c.height);x.fillStyle='#00ff88';x.font=fs+'px Share Tech Mono';dr.forEach((y,i)=>{x.fillText(ch[Math.floor(Math.random()*ch.length)],i*fs,y*fs);if(y*fs>c.height&&Math.random()>0.975)dr[i]=0;dr[i]++;});}setInterval(d,50);window.addEventListener('resize',()=>{c.width=window.innerWidth;c.height=window.innerHeight;dr=Array(Math.floor(c.width/fs)).fill(1);});})();
-
-        function showToast(msg, err=false) { const e=document.getElementById('toast'); e.textContent=msg; e.className='toast show'+(err?' error':''); setTimeout(()=>{e.className='toast';},3000); }
-        function clearErrors() { ['signupError', 'otpError'].forEach(id => { document.getElementById(id).textContent = ''; }); }
-
-        let pendingVerifyEmail = '';
-
-        function showOTPForm(email) {
-            document.getElementById('signupForm').style.display = 'none';
-            document.getElementById('otpForm').style.display = 'block';
-            document.getElementById('otpEmailDisplay').textContent = email;
-            pendingVerifyEmail = email;
-            document.querySelector('.auth-title').textContent = 'Verify Email';
-            document.querySelector('.auth-sub').textContent = 'Please enter the verification code';
-            clearErrors();
-        }
-
-        async function handleSignup(e) {
-            const name = document.getElementById('signupName').value;
-            const email = document.getElementById('signupEmail').value;
-            const password = document.getElementById('signupPassword').value;
-            const errorEl = document.getElementById('signupError');
-            errorEl.textContent = '';
-            
-            const btn = e.target.querySelector('button[type="submit"]');
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating...';
-            btn.disabled = true;
-
-            try {
-                const res = await fetch('/api/student/signup', {
-                    method:'POST', headers:{'Content-Type':'application/json'},
-                    body: JSON.stringify({name, email, password})
-                });
-                const data = await res.json();
-                
-                if (res.ok && data.success) {
-                    if (data.requiresVerification) {
-                        showOTPForm(data.email);
-                        showToast('Check your email for the verification code! 📧');
-                    } else {
-                        showToast('Account created! Welcome aboard 🥷');
-                        setTimeout(() => { window.location.href = '/learn'; }, 1000);
-                    }
-                } else {
-                    errorEl.textContent = data.error || 'Signup failed.';
-                }
-            } catch(err) { errorEl.textContent = 'Connection error.'; }
-            btn.innerHTML = '<i class="fas fa-user-plus"></i> Create Account';
-            btn.disabled = false;
-        }
-
-        async function handleVerifyOTP(e) {
-            const otp = document.getElementById('otpInput').value.trim();
-            const errorEl = document.getElementById('otpError');
-            errorEl.textContent = '';
-            
-            const btn = e.target.querySelector('button[type="submit"]');
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Verifying...';
-            btn.disabled = true;
-
-            if (!otp || otp.length !== 6) { errorEl.textContent = 'Enter the 6-digit code.'; return; }
-
-            try {
-                const res = await fetch('/api/student/verify-otp', {
-                    method:'POST', headers:{'Content-Type':'application/json'},
-                    body: JSON.stringify({email:pendingVerifyEmail, otp})
-                });
-                const data = await res.json();
-                
-                if (res.ok && data.success) {
-                    showToast('Email verified! Redirecting to Dashboard... 🥷');
-                    setTimeout(() => { window.location.href = '/learn'; }, 1000);
-                } else {
-                    errorEl.textContent = data.error || 'Verification failed.';
-                }
-            } catch(err) { errorEl.textContent = 'Connection error.'; }
-            btn.innerHTML = '<i class="fas fa-check-circle"></i> Verify';
-            btn.disabled = false;
-        }
-
-        async function resendOTP() {
-            if (!pendingVerifyEmail) return;
-            try {
-                const res = await fetch('/api/student/resend-otp', {
-                    method:'POST', headers:{'Content-Type':'application/json'},
-                    body: JSON.stringify({email:pendingVerifyEmail})
-                });
-                const data = await res.json();
-                if (res.ok && data.success) showToast('Verification code resent! 📧');
-                else showToast(data.error || 'Failed to resend code.', true);
-            } catch(err) { showToast('Connection error.', true); }
-        }
-
-        // Auto-redirect if already logged in
-        fetch('/api/student/check').then(res => res.json()).then(data => {
-            if (data.authenticated) window.location.href = '/learn';
-        });
-    </script>
+    <script src="js/signup-init.js"></script>
+</body>
 </body>
 </html>

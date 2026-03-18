@@ -154,7 +154,7 @@
             <div class="login-logo"><i class="fas fa-terminal"></i> <span>Ninja<span
                         class="accent">Hackers</span></span></div>
             <div class="login-subtitle">Admin Panel</div>
-            <form id="loginForm" onsubmit="handleLogin(event)">
+            <form id="loginForm">
                 <div class="form-group">
                     <label for="username"><i class="fas fa-user"></i> Username</label>
                     <input type="text" id="username" placeholder="admin" required autocomplete="username" />
@@ -171,30 +171,8 @@
     </div>
 
     <!-- Minimal JS to handle the login layout correctly -->
-    <script>
-        async function handleLogin(e) {
-            e.preventDefault();
-            const username = document.getElementById('username').value;
-            const password = document.getElementById('password').value;
-            const errorEl = document.getElementById('loginError');
-            errorEl.textContent = '';
-            try {
-                const res = await fetch('/api/admin/login', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username, password })
-                });
-                const data = await res.json();
-                if (res.ok && data.success) {
-                    window.location.href = '/admin/';
-                } else {
-                    errorEl.textContent = data.error || 'Login failed.';
-                }
-            } catch (err) {
-                errorEl.textContent = 'Connection error. Please try again.';
-            }
-        }
-    </script>
+    <script src="login.js"></script>
 </body>
+
 
 </html>

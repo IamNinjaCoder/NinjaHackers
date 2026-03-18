@@ -17,6 +17,423 @@ document.addEventListener('DOMContentLoaded', async () => {
   const res = await fetch('/api/admin/check');
   const data = await res.json();
   if (data.authenticated) showDashboard();
+
+  // ─── STATIC EVENT LISTENERS ───
+  
+  // Auth
+  const loginForm = document.getElementById('loginForm');
+  if (loginForm) loginForm.addEventListener('submit', handleLogin);
+  
+  const logoutBtn = document.getElementById('logoutBtn');
+  if (logoutBtn) logoutBtn.addEventListener('click', handleLogout);
+
+  // Tabs
+  document.querySelectorAll('.tab').forEach(tab => {
+    tab.addEventListener('click', () => switchTab(tab.dataset.tab));
+  });
+
+  // Blogs
+  const newBlogBtn = document.getElementById('newBlogBtn');
+  if (newBlogBtn) newBlogBtn.addEventListener('click', () => openBlogEditor());
+  
+  const cancelBlogBtn = document.getElementById('cancelBlogBtn');
+  if (cancelBlogBtn) cancelBlogBtn.addEventListener('click', closeBlogEditor);
+  
+  const saveBlogBtn = document.getElementById('saveBlogBtn');
+  if (saveBlogBtn) saveBlogBtn.addEventListener('click', saveBlog);
+  
+  const addTagBtn = document.getElementById('addTagBtn');
+  if (addTagBtn) addTagBtn.addEventListener('click', addTag);
+  
+  const coverUploadInput = document.getElementById('coverUploadInput');
+  if (coverUploadInput) coverUploadInput.addEventListener('change', handleCoverUpload);
+  
+  const removeCoverBtn = document.getElementById('removeCoverBtn');
+  if (removeCoverBtn) removeCoverBtn.addEventListener('click', removeCover);
+  
+  const inlineUploadInput = document.getElementById('inlineUploadInput');
+  if (inlineUploadInput) inlineUploadInput.addEventListener('change', handleInlineUpload);
+
+  // Courses
+  const newCourseBtn = document.getElementById('newCourseBtn');
+  if (newCourseBtn) newCourseBtn.addEventListener('click', () => openCourseEditor());
+  
+  const cancelCourseBtn = document.getElementById('cancelCourseBtn');
+  if (cancelCourseBtn) cancelCourseBtn.addEventListener('click', closeCourseEditor);
+  
+  const saveCourseBtn = document.getElementById('saveCourseBtn');
+  if (saveCourseBtn) saveCourseBtn.addEventListener('click', saveCourse);
+  
+  const newModuleBtn = document.getElementById('newModuleBtn');
+  if (newModuleBtn) newModuleBtn.addEventListener('click', addModule);
+  
+  const courseCoverUploadInput = document.getElementById('courseCoverUploadInput');
+  if (courseCoverUploadInput) courseCoverUploadInput.addEventListener('change', handleCourseCoverUpload);
+  
+  const removeCourseCoverBtn = document.getElementById('removeCourseCoverBtn');
+  if (removeCourseCoverBtn) removeCourseCoverBtn.addEventListener('click', removeCourseCover);
+
+  // Students - search
+  const studentSearch = document.getElementById('studentSearch');
+  if (studentSearch) studentSearch.addEventListener('input', filterStudents);
+  
+  const closeStudentDetailBtn = document.getElementById('closeStudentDetailBtn');
+  if (closeStudentDetailBtn) closeStudentDetailBtn.addEventListener('click', closeStudentDetail);
+  
+  const assignCourseBtn = document.getElementById('assignCourseBtn');
+  if (assignCourseBtn) assignCourseBtn.addEventListener('click', assignCourseToStudent);
+
+  // Enrollments
+  const enrollmentFormBtn = document.getElementById('enrollmentFormBtn');
+  if (enrollmentFormBtn) enrollmentFormBtn.addEventListener('click', showManualEnrollForm);
+  
+  const manualEnrollBtn = document.getElementById('manualEnrollBtn');
+  if (manualEnrollBtn) manualEnrollBtn.addEventListener('click', manualEnroll);
+
+  // Coupons
+  const newCouponBtn = document.getElementById('newCouponBtn');
+  if (newCouponBtn) newCouponBtn.addEventListener('click', toggleCouponForm);
+  
+  const saveCouponBtn = document.getElementById('saveCouponBtn');
+  if (saveCouponBtn) saveCouponBtn.addEventListener('click', saveCoupon);
+
+  // Announcements
+  const toggleAnnouncementFormBtn = document.getElementById('toggleAnnouncementFormBtn');
+  if (toggleAnnouncementFormBtn) toggleAnnouncementFormBtn.addEventListener('click', toggleAnnouncementForm);
+  
+  const saveAnnouncementBtn = document.getElementById('saveAnnouncementBtn');
+  if (saveAnnouncementBtn) saveAnnouncementBtn.addEventListener('click', saveAnnouncement);
+
+  // Assignments
+  const assignmentCourseFilter = document.getElementById('assignmentCourseFilter');
+  if (assignmentCourseFilter) assignmentCourseFilter.addEventListener('change', filterAssignments);
+
+  // Works
+  const newWorkBtn = document.getElementById('newWorkBtn');
+  if (newWorkBtn) newWorkBtn.addEventListener('click', () => openWorkEditor());
+  
+  const cancelWorkBtn = document.getElementById('cancelWorkBtn');
+  if (cancelWorkBtn) cancelWorkBtn.addEventListener('click', closeWorkEditor);
+  
+  const saveWorkBtn = document.getElementById('saveWorkBtn');
+  if (saveWorkBtn) saveWorkBtn.addEventListener('click', saveWork);
+
+  // Videos
+  const newVideoBtn = document.getElementById('newVideoBtn');
+  if (newVideoBtn) newVideoBtn.addEventListener('click', () => openVideoEditor());
+  
+  const cancelVideoBtn = document.getElementById('cancelVideoBtn');
+  if (cancelVideoBtn) cancelVideoBtn.addEventListener('click', closeVideoEditor);
+  
+  const saveVideoBtn = document.getElementById('saveVideoBtn');
+  if (saveVideoBtn) saveVideoBtn.addEventListener('click', saveVideo);
+
+  // Jobs
+  const newJobBtn = document.getElementById('newJobBtn');
+  if (newJobBtn) newJobBtn.addEventListener('click', () => openJobEditor());
+  
+  const jobsFilterSelect = document.getElementById('jobsFilterSelect');
+  if (jobsFilterSelect) jobsFilterSelect.addEventListener('change', loadAdminJobs);
+  
+  const cancelJobBtn = document.getElementById('cancelJobBtn');
+  if (cancelJobBtn) cancelJobBtn.addEventListener('click', closeJobEditor);
+  
+  const saveJobBtn = document.getElementById('saveJobBtn');
+  if (saveJobBtn) saveJobBtn.addEventListener('click', saveJob);
+  
+  const addJobQuestionBtn = document.getElementById('addJobQuestionBtn');
+  if (addJobQuestionBtn) addJobQuestionBtn.addEventListener('click', addJobQuestion);
+  
+  const closeJobAppsBtn = document.getElementById('closeJobAppsBtn');
+  if (closeJobAppsBtn) closeJobAppsBtn.addEventListener('click', closeJobApps);
+  
+  const downloadJobAppsBtn = document.getElementById('downloadJobAppsBtn');
+  if (downloadJobAppsBtn) downloadJobAppsBtn.addEventListener('click', downloadJobAppsCSV);
+
+  // Settings
+  const saveSettingsBtn = document.getElementById('saveSettingsBtn');
+  if (saveSettingsBtn) saveSettingsBtn.addEventListener('click', saveSettings);
+
+  // Delete Modal
+  const cancelDeleteBtn = document.getElementById('cancelDeleteBtn');
+  if (cancelDeleteBtn) cancelDeleteBtn.addEventListener('click', closeDeleteModal);
+  
+  const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
+  if (confirmDeleteBtn) confirmDeleteBtn.addEventListener('click', confirmDelete);
+
+  // ─── DYNAMIC EVENT DELEGATION ───
+  
+  // Blog List Actions
+  document.getElementById('blogList').addEventListener('click', e => {
+    const editBtn = e.target.closest('.btn-edit');
+    const deleteBtn = e.target.closest('.btn-delete');
+    if (editBtn) {
+      const id = editBtn.dataset.id;
+      editBlog(id);
+    } else if (deleteBtn) {
+      const id = deleteBtn.dataset.id;
+      openDeleteModal(id, 'blog');
+    }
+  });
+
+  // Course List Actions
+  document.getElementById('courseList').addEventListener('click', e => {
+    const editBtn = e.target.closest('.btn-edit');
+    const deleteBtn = e.target.closest('.btn-delete');
+    if (editBtn) {
+      const id = editBtn.dataset.id;
+      editCourse(id);
+    } else if (deleteBtn) {
+      const id = deleteBtn.dataset.id;
+      openDeleteModal(id, 'course');
+    }
+  });
+
+  // Module List Actions
+  document.getElementById('moduleList').addEventListener('click', async e => {
+    const target = e.target;
+    const moduleId = target.closest('[data-module-id]')?.dataset.moduleId;
+    const courseId = document.getElementById('editCourseId').value;
+    
+    if (target.closest('.btn-reorder-up')) {
+      const id = target.closest('.btn-reorder-up').dataset.id;
+      reorderModule(id, 'up', courseId);
+    } else if (target.closest('.btn-reorder-down')) {
+      const id = target.closest('.btn-reorder-down').dataset.id;
+      reorderModule(id, 'down', courseId);
+    } else if (target.closest('.btn-delete-module')) {
+      const id = target.closest('.btn-delete-module').dataset.id;
+      deleteModule(id, courseId);
+    } else if (target.closest('.btn-quiz-builder')) {
+      const id = target.closest('.btn-quiz-builder').dataset.id;
+      openQuizBuilder(id);
+    } else if (target.closest('.btn-view-subs')) {
+      const id = target.closest('.btn-view-subs').dataset.id;
+      viewSubmissions(id);
+    } else if (target.closest('.btn-delete-item')) {
+      const id = target.closest('.btn-delete-item').dataset.id;
+      deleteItem(id, courseId);
+    } else if (target.closest('.btn-add-item')) {
+      const modId = target.closest('.btn-add-item').dataset.moduleId;
+      addItem(modId, courseId);
+    }
+  });
+  
+  document.getElementById('moduleList').addEventListener('change', e => {
+    if (e.target.matches('[id^="itemType-"]')) {
+      const moduleId = e.target.id.split('-')[1];
+      toggleScheduleInput(moduleId);
+    }
+  });
+
+  // Student List Actions
+  document.getElementById('studentList').addEventListener('click', e => {
+    const item = e.target.closest('.blog-list-item');
+    if (item) {
+      const id = item.dataset.id;
+      openStudentDetail(id);
+    }
+  });
+
+  // Student Detail Actions
+  document.getElementById('studentEnrolledCourses').addEventListener('click', e => {
+    const resetBtn = e.target.closest('.btn-reset-progress');
+    const removeBtn = e.target.closest('.btn-remove-course');
+    if (resetBtn) {
+      const { studentId, courseId } = resetBtn.dataset;
+      resetStudentProgress(studentId, courseId);
+    } else if (removeBtn) {
+      const { enrollmentId, studentId } = removeBtn.dataset;
+      removeCourseFromStudent(enrollmentId, studentId);
+    }
+  });
+
+  // Enrollment Body Actions
+  document.getElementById('enrollmentBody').addEventListener('click', e => {
+    const studentLink = e.target.closest('.student-link');
+    const deleteBtn = e.target.closest('.btn-delete');
+    if (studentLink) {
+      e.preventDefault();
+      const id = studentLink.dataset.id;
+      switchTab('students');
+      setTimeout(() => openStudentDetail(id), 300);
+    } else if (deleteBtn) {
+      const id = deleteBtn.dataset.id;
+      deleteEnrollment(id);
+    }
+  });
+
+  // Payment Body Actions (Tab Switching)
+  document.getElementById('paymentStats').addEventListener('click', e => {
+    const card = e.target.closest('.payment-stat-card');
+    if (card) {
+      filterPayments(card.dataset.status);
+    }
+  });
+
+  // Announcement Actions
+  document.getElementById('announcementList').addEventListener('click', e => {
+    const deleteBtn = e.target.closest('.btn-delete');
+    if (deleteBtn) {
+      deleteAnnouncement(deleteBtn.dataset.id);
+    }
+  });
+
+  // Assignment List Actions
+  document.getElementById('assignmentList').addEventListener('click', e => {
+    const saveBtn = e.target.closest('.btn-save-grade');
+    if (saveBtn) {
+      saveGrade(saveBtn.dataset.id);
+    }
+  });
+
+  // Works List Actions
+  document.getElementById('worksList').addEventListener('click', e => {
+    const editBtn = e.target.closest('.btn-edit');
+    const deleteBtn = e.target.closest('.btn-delete');
+    if (editBtn) {
+      editWork(editBtn.dataset.id);
+    } else if (deleteBtn) {
+      openDeleteModal(deleteBtn.dataset.id, 'works');
+    }
+  });
+
+  // Videos List Actions
+  document.getElementById('videosList').addEventListener('click', e => {
+    const editBtn = e.target.closest('.btn-edit');
+    const deleteBtn = e.target.closest('.btn-delete');
+    if (editBtn) {
+      editVideo(editBtn.dataset.id);
+    } else if (deleteBtn) {
+      openDeleteModal(deleteBtn.dataset.id, 'videos');
+    }
+  });
+
+  // Jobs List Actions
+  document.getElementById('jobsListAdmin').addEventListener('click', e => {
+    const editBtn = e.target.closest('.btn-edit-job');
+    const appsBtn = e.target.closest('.btn-view-apps');
+    const deleteBtn = e.target.closest('.btn-delete-job');
+    if (editBtn) {
+      editJob(editBtn.dataset.id);
+    } else if (appsBtn) {
+      const id = appsBtn.dataset.id;
+      const title = appsBtn.dataset.title;
+      openJobApps(id, title);
+    } else if (deleteBtn) {
+      openDeleteModal(deleteBtn.dataset.id, 'job');
+    }
+  });
+
+  // Global click listeners for tags and quiz buttons (which might be in modals)
+  document.addEventListener('click', e => {
+    // Tags removal
+    if (e.target.closest('.remove-tag')) {
+      const index = e.target.closest('.remove-tag').dataset.index;
+      removeTag(index);
+    }
+    
+    // Quiz Builder
+    if (e.target.closest('#quizBuilderModal .btn-close-modal')) {
+      document.getElementById('quizBuilderModal').remove();
+    } else if (e.target.closest('#quizBuilderModal .btn-add-quiz-q')) {
+      addQuizQuestion();
+    } else if (e.target.closest('#quizBuilderModal .btn-save-quiz')) {
+      const id = e.target.closest('.btn-save-quiz').dataset.id;
+      saveQuiz(id);
+    } else if (e.target.closest('.btn-remove-quiz-q')) {
+      removeQuizQuestion(e.target.closest('.btn-remove-quiz-q').dataset.index);
+    }
+    
+    // Submissions Modal
+    if (e.target.closest('#submissionsModal .btn-close-modal')) {
+      document.getElementById('submissionsModal').remove();
+    } else if (e.target.closest('.btn-grade-sub')) {
+      const subId = e.target.closest('.btn-grade-sub').dataset.subId;
+      const itemId = e.target.closest('.btn-grade-sub').dataset.itemId;
+      gradeSubmission(subId, itemId);
+    }
+    
+    // Coupon actions
+    if (e.target.closest('#couponList .btn-delete')) {
+      deleteCoupon(e.target.closest('.btn-delete').dataset.id);
+    }
+
+    // Job Question Builder actions
+    if (e.target.closest('.btn-remove-job-q')) {
+      removeJobQuestion(e.target.closest('.btn-remove-job-q').dataset.index);
+    } else if (e.target.closest('.btn-add-select-opt')) {
+      addSelectOption(e.target.closest('.btn-add-select-opt').dataset.index);
+    } else if (e.target.closest('.btn-remove-select-opt')) {
+      const qIdx = e.target.closest('.btn-remove-select-opt').dataset.qIndex;
+      const optIdx = e.target.closest('.btn-remove-select-opt').dataset.optIndex;
+      removeSelectOption(qIdx, optIdx);
+    }
+    
+    // Job Apps Actions
+    if (e.target.closest('.btn-view-answers')) {
+      viewCustomAnswers(e.target.closest('.btn-view-answers').dataset.appId);
+    } else if (e.target.closest('.btn-view-cover')) {
+      e.preventDefault();
+      const cover = e.target.closest('.btn-view-cover').dataset.cover;
+      alert('Cover Letter:\n\n' + cover);
+    } else if (e.target.closest('.btn-verify-app')) {
+      const jobId = e.target.closest('.btn-verify-app').dataset.jobId;
+      const appId = e.target.closest('.btn-verify-app').dataset.appId;
+      verifyJobApplication(jobId, appId);
+    }
+  });
+
+  // Global change listeners
+  document.addEventListener('change', e => {
+    if (e.target.matches('#quizQuestionsContainer input, #quizQuestionsContainer select')) {
+      // Logic handled within renderQuizQuestions via onchange usually, 
+      // but since we want to remove inline onchange, we handle it here.
+      const container = e.target.closest('[data-index]');
+      if (container) {
+        const index = container.dataset.index;
+        const q = quizQuestions[index];
+        if (e.target.placeholder === "Question text") q.question = e.target.value;
+        else if (e.target.placeholder === "A)") q.optionA = e.target.value;
+        else if (e.target.placeholder === "B)") q.optionB = e.target.value;
+        else if (e.target.placeholder === "C) (optional)") q.optionC = e.target.value;
+        else if (e.target.placeholder === "D) (optional)") q.optionD = e.target.value;
+        else if (e.target.tagName === "SELECT") q.correctOption = e.target.value;
+      }
+    }
+    
+    // Job Question updates
+    if (e.target.closest('.job-q-item')) {
+      const qIdx = e.target.closest('.job-q-item').dataset.index;
+      if (e.target.placeholder === "Question Text") updateJobQuestion(qIdx, 'question', e.target.value);
+      else if (e.target.matches('select.q-type')) { updateJobQuestion(qIdx, 'type', e.target.value); renderJobQuestions(); }
+      else if (e.target.matches('select.q-req')) updateJobQuestion(qIdx, 'required', e.target.value);
+    }
+    if (e.target.matches('.opt-input')) {
+      const qIdx = e.target.dataset.qIndex;
+      const optIdx = e.target.dataset.optIndex;
+      updateSelectOption(qIdx, optIdx, e.target.value);
+    }
+  });
+
+  // Global listeners for CSP compliance
+  document.addEventListener('error', e => {
+    if (e.target.tagName === 'IMG') {
+        const logoText = document.getElementById('logoText') || document.getElementById('lt');
+        if (logoText && (e.target.classList.contains('logo-img') || e.target.classList.contains('header-logo-img'))) {
+            e.target.style.display = 'none';
+            logoText.style.display = 'flex';
+        } else if (e.target.classList.contains('img-fallback')) {
+            e.target.style.display = 'none';
+        }
+    }
+  }, true);
+
+  document.addEventListener('contextmenu', e => {
+    if (e.target.closest('.no-context')) {
+        e.preventDefault();
+    }
+  });
 });
 
 // ─── AUTH ───
@@ -57,6 +474,14 @@ function switchTab(tab) {
   document.getElementById('blogEditorView').style.display = 'none';
   document.getElementById('courseEditorView').style.display = 'none';
   document.getElementById('studentDetailView').style.display = 'none';
+  document.getElementById('worksListView').style.display = 'block';
+  document.getElementById('workEditorView').style.display = 'none';
+  document.getElementById('videosListView').style.display = 'block';
+  document.getElementById('videoEditorView').style.display = 'none';
+  document.getElementById('jobAppsView').style.display = 'none';
+  document.getElementById('jobEditorView').style.display = 'none';
+  document.getElementById('jobsListView').style.display = 'block';
+
   // Load data
   switch (tab) {
     case 'blogs': loadBlogs(); break;
@@ -99,8 +524,8 @@ async function loadBlogs() {
           </div>
         </div>
         <div class="blog-list-actions">
-          <button class="btn-edit" onclick="editBlog(${b.id})"><i class="fas fa-pen"></i></button>
-          <button class="btn-delete" onclick="openDeleteModal(${b.id},'blog')"><i class="fas fa-trash-alt"></i></button>
+          <button class="btn-edit" data-id="${b.id}"><i class="fas fa-pen"></i></button>
+          <button class="btn-delete" data-id="${b.id}"><i class="fas fa-trash-alt"></i></button>
         </div>
       </div>`).join('');
   } catch (e) { showToast('Failed to load blogs.', true); }
@@ -223,7 +648,7 @@ function fileToBase64(file) { return new Promise((r, e) => { const fr = new File
 function addTag() { const i = document.getElementById('tagInput'), c = document.getElementById('tagColor').value, l = i.value.trim(); if (!l) return; currentTags.push({ label: l, cls: c }); i.value = ''; renderTags(); }
 function removeTag(i) { currentTags.splice(i, 1); renderTags(); }
 function renderTags() {
-  document.getElementById('tagsList').innerHTML = currentTags.length ? currentTags.map((t, i) => `<span class="tag-item ${t.cls}">${esc(t.label)} <span class="remove-tag" onclick="removeTag(${i})"><i class="fas fa-times"></i></span></span>`).join('') : '<span style="font-size:.75rem;color:var(--muted);">No tags</span>';
+  document.getElementById('tagsList').innerHTML = currentTags.length ? currentTags.map((t, i) => `<span class="tag-item ${t.cls}">${esc(t.label)} <span class="remove-tag" data-index="${i}"><i class="fas fa-times"></i></span></span>`).join('') : '<span style="font-size:.75rem;color:var(--muted);">No tags</span>';
 }
 
 // ═══════════════════════════════════════
@@ -249,8 +674,8 @@ async function loadCourses() {
           </div>
         </div>
         <div class="blog-list-actions">
-          <button class="btn-edit" onclick="editCourse(${c.id})" title="Edit"><i class="fas fa-pen"></i></button>
-          <button class="btn-delete" onclick="openDeleteModal(${c.id},'course')" title="Delete"><i class="fas fa-trash-alt"></i></button>
+          <button class="btn-edit" data-id="${c.id}" title="Edit"><i class="fas fa-pen"></i></button>
+          <button class="btn-delete" data-id="${c.id}" title="Delete"><i class="fas fa-trash-alt"></i></button>
         </div>
       </div>`).join('');
   } catch (e) { showToast('Failed to load courses.', true); }
@@ -369,9 +794,9 @@ function renderModules(modules, courseId) {
       <div class="module-block-header">
         <span class="module-block-title"><i class="fas fa-folder" style="margin-right:.4rem;"></i>${esc(m.title)} <span style="color:var(--muted);font-size:.65rem;font-family:'Share Tech Mono',monospace;margin-left:.4rem;">#${idx + 1}</span></span>
         <div class="module-block-actions">
-          <button class="btn-edit" onclick="reorderModule(${m.id},'up',${courseId})" style="width:24px;height:24px;font-size:.6rem;" ${idx === 0 ? 'disabled style="opacity:.3;width:24px;height:24px;font-size:.6rem;cursor:default;"' : ''} title="Move up"><i class="fas fa-chevron-up"></i></button>
-          <button class="btn-edit" onclick="reorderModule(${m.id},'down',${courseId})" style="width:24px;height:24px;font-size:.6rem;" ${idx === modules.length - 1 ? 'disabled style="opacity:.3;width:24px;height:24px;font-size:.6rem;cursor:default;"' : ''} title="Move down"><i class="fas fa-chevron-down"></i></button>
-          <button class="btn-delete" onclick="deleteModule(${m.id},${courseId})" style="width:28px;height:28px;font-size:.7rem;"><i class="fas fa-trash"></i></button>
+          <button class="btn-edit btn-reorder-up" data-id="${m.id}" style="width:24px;height:24px;font-size:.6rem;" ${idx === 0 ? 'disabled style="opacity:.3;width:24px;height:24px;font-size:.6rem;cursor:default;"' : ''} title="Move up"><i class="fas fa-chevron-up"></i></button>
+          <button class="btn-edit btn-reorder-down" data-id="${m.id}" style="width:24px;height:24px;font-size:.6rem;" ${idx === modules.length - 1 ? 'disabled style="opacity:.3;width:24px;height:24px;font-size:.6rem;cursor:default;"' : ''} title="Move down"><i class="fas fa-chevron-down"></i></button>
+          <button class="btn-delete btn-delete-module" data-id="${m.id}" style="width:28px;height:28px;font-size:.7rem;"><i class="fas fa-trash"></i></button>
         </div>
       </div>
       <div class="module-block-items">
@@ -381,17 +806,17 @@ function renderModules(modules, courseId) {
             <span class="item-title">${esc(item.title)}</span>
             ${item.scheduledAt ? `<span style="font-size:.6rem;font-family:'Share Tech Mono',monospace;color:var(--orange);margin-left:.3rem;"><i class="fas fa-clock"></i> ${new Date(item.scheduledAt).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>` : ''}
             <span class="item-link" title="${esc(item.link)}">${esc(item.link).substring(0, 40)}</span>
-            ${item.type === 'quiz' ? `<button class="btn-edit" onclick="openQuizBuilder(${item.id})" style="width:auto;height:22px;font-size:.55rem;padding:0 .4rem;" title="Build Quiz"><i class="fas fa-question-circle"></i> Quiz</button>` : ''}
-            ${item.type === 'assignment' ? `<button class="btn-edit" onclick="viewSubmissions(${item.id})" style="width:auto;height:22px;font-size:.55rem;padding:0 .4rem;" title="View Submissions"><i class="fas fa-file-upload"></i> Subs</button>` : ''}
-            <button class="btn-delete" onclick="deleteItem(${item.id},${courseId})" style="width:24px;height:24px;font-size:.65rem;"><i class="fas fa-times"></i></button>
+            ${item.type === 'quiz' ? `<button class="btn-edit btn-quiz-builder" data-id="${item.id}" style="width:auto;height:22px;font-size:.55rem;padding:0 .4rem;" title="Build Quiz"><i class="fas fa-question-circle"></i> Quiz</button>` : ''}
+            ${item.type === 'assignment' ? `<button class="btn-edit btn-view-subs" data-id="${item.id}" style="width:auto;height:22px;font-size:.55rem;padding:0 .4rem;" title="View Submissions"><i class="fas fa-file-upload"></i> Subs</button>` : ''}
+            <button class="btn-delete btn-delete-item" data-id="${item.id}" style="width:24px;height:24px;font-size:.65rem;"><i class="fas fa-times"></i></button>
           </div>
         `).join('')}
         <div class="add-item-row">
-          <select id="itemType-${m.id}" onchange="toggleScheduleInput(${m.id})"><option value="recorded_class">Recorded</option><option value="live_class">Live Class</option><option value="notes">Notes</option><option value="assignment">Assignment</option><option value="quiz">Quiz</option></select>
+          <select id="itemType-${m.id}"><option value="recorded_class">Recorded</option><option value="live_class">Live Class</option><option value="notes">Notes</option><option value="assignment">Assignment</option><option value="quiz">Quiz</option></select>
           <input type="text" id="itemTitle-${m.id}" placeholder="Item title"/>
           <input type="text" id="itemLink-${m.id}" placeholder="Link (Drive/TeamViewer)"/>
           <input type="datetime-local" id="itemSchedule-${m.id}" placeholder="Schedule" style="display:none;font-size:.7rem;padding:.3rem;background:var(--surface);color:var(--text);border:1px solid rgba(0,255,136,.2);border-radius:4px;"/>
-          <button class="btn-add-tag" onclick="addItem(${m.id},${courseId})"><i class="fas fa-plus"></i></button>
+          <button class="btn-add-tag btn-add-item" data-module-id="${m.id}"><i class="fas fa-plus"></i></button>
         </div>
       </div>
     </div>`).join('');
@@ -446,7 +871,7 @@ async function viewSubmissions(itemId) {
   modal.innerHTML = `<div style="background:var(--surface);border:1px solid rgba(0,255,136,.2);border-radius:12px;padding:1.5rem;max-width:700px;width:100%;max-height:85vh;overflow-y:auto;">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
       <h3 style="color:var(--cyan);margin:0;"><i class="fas fa-file-upload"></i> Submissions (${subs.length})</h3>
-      <button onclick="document.getElementById('submissionsModal').remove()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:1.2rem;"><i class="fas fa-times"></i></button>
+      <button class="btn-close-modal" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:1.2rem;"><i class="fas fa-times"></i></button>
     </div>
     ${subs.length ? subs.map(s => `<div style="background:var(--bg);border:1px solid rgba(0,255,136,.08);border-radius:8px;padding:.7rem;margin-bottom:.4rem;">
       <div style="display:flex;justify-content:space-between;align-items:center;">
@@ -456,7 +881,7 @@ async function viewSubmissions(itemId) {
       <div style="display:flex;gap:.5rem;align-items:center;margin-top:.4rem;">
         <input type="text" id="grade-${s.id}" value="${esc(s.grade || '')}" placeholder="Grade (A+, 85%)" style="flex:1;font-size:.7rem;"/>
         <input type="text" id="feedback-${s.id}" value="${esc(s.feedback || '')}" placeholder="Feedback" style="flex:2;font-size:.7rem;"/>
-        <button onclick="gradeSubmission(${s.id},${itemId})" class="btn-save" style="height:28px;font-size:.65rem;padding:0 .5rem;"><i class="fas fa-check"></i></button>
+        <button class="btn-save btn-grade-sub" data-sub-id="${s.id}" data-item-id="${itemId}" style="height:28px;font-size:.65rem;padding:0 .5rem;"><i class="fas fa-check"></i></button>
       </div>
       <div style="font-size:.55rem;color:var(--muted);margin-top:.3rem;font-family:'Share Tech Mono',monospace;">Submitted: ${formatDateTime(s.submittedAt)} ${s.gradedAt ? '| Graded: ' + formatDateTime(s.gradedAt) : ''}</div>
     </div>`).join('') : '<p style="color:var(--muted);text-align:center;padding:2rem;">No submissions yet</p>'}
@@ -493,7 +918,7 @@ function renderStudentList(students) {
   const el = document.getElementById('studentList');
   if (!students.length) { el.innerHTML = '<div class="empty-state"><i class="fas fa-user-graduate"></i><p>No students found.</p></div>'; return; }
   el.innerHTML = students.map(s => `
-    <div class="blog-list-item clickable" onclick="openStudentDetail(${s.id})">
+    <div class="blog-list-item clickable" data-id="${s.id}">
       <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--green),var(--cyan));display:flex;align-items:center;justify-content:center;font-weight:700;color:#000;font-size:.85rem;flex-shrink:0;">${s.name.charAt(0).toUpperCase()}</div>
       <div class="blog-list-info">
         <div class="blog-list-title">${esc(s.name)}</div>
@@ -559,8 +984,8 @@ async function loadStudentEnrollments(studentId) {
           <div class="enrolled-course-meta">Enrolled ${formatDate(e.enrolledAt)} · ${e.paidAmount !== null ? (e.paidAmount === 0 ? '<span class="status-badge source-free-tag">FREE</span>' : `<span class="status-badge source-paid">PAID ₹${e.paidAmount}</span>`) : '<span class="status-badge source-admin">ADMIN ASSIGNED</span>'}</div>
         </div>
         <div style="display:flex;gap:.5rem;">
-           <button class="btn-remove-course" onclick="resetStudentProgress(${studentId}, ${e.courseid || e.courseId})" style="background:transparent;color:var(--orange);border:1px solid rgba(255,160,0,.3);"><i class="fas fa-undo"></i> Reset Progress</button>
-           <button class="btn-remove-course" onclick="removeCourseFromStudent(${e.enrollmentId || e.enrollmentid},${studentId})"><i class="fas fa-times"></i> Remove</button>
+           <button class="btn-remove-course btn-reset-progress" data-student-id="${studentId}" data-course-id="${e.courseid || e.courseId}" style="background:transparent;color:var(--orange);border:1px solid rgba(255,160,0,.3);"><i class="fas fa-undo"></i> Reset Progress</button>
+           <button class="btn-remove-course" data-enrollment-id="${e.enrollmentId || e.enrollmentid}" data-student-id="${studentId}"><i class="fas fa-times"></i> Remove</button>
         </div>
       </div>`).join('');
   } catch (e) { }
@@ -661,12 +1086,12 @@ async function loadEnrollments() {
     document.getElementById('enrollmentCount').textContent = `${data.length} enrollments`;
     document.getElementById('enrollmentBody').innerHTML = data.length ? data.map(e => `
       <tr>
-        <td><a href="#" onclick="event.preventDefault();switchTab('students');setTimeout(()=>openStudentDetail(${e.studentId}),300);" style="color:var(--green);text-decoration:none;font-weight:600;">${esc(e.studentName)}</a></td>
+        <td><a href="#" class="student-link" data-id="${e.studentId}" style="color:var(--green);text-decoration:none;font-weight:600;">${esc(e.studentName)}</a></td>
         <td>${esc(e.studentEmail)}</td>
         <td>${esc(e.courseTitle)} <span style="color:var(--muted);font-size:.65rem;">(${esc(e.courseCode)})</span></td>
         <td>${e.paidAmount !== null ? (e.paidAmount === 0 ? '<span class="status-badge source-free-tag">FREE</span>' : `<span class="status-badge source-paid">PAID</span>`) : '<span class="status-badge source-admin">ADMIN</span>'}</td>
         <td>${formatDate(e.enrolledAt)}</td>
-        <td><button class="btn-delete" onclick="deleteEnrollment(${e.id})" style="width:24px;height:24px;font-size:.65rem;"><i class="fas fa-times"></i></button></td>
+        <td><button class="btn-delete" data-id="${e.id}" style="width:24px;height:24px;font-size:.65rem;"><i class="fas fa-times"></i></button></td>
       </tr>`).join('') : '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:2rem;">No enrollments yet.</td></tr>';
 
     // Load courses for manual enroll
@@ -709,10 +1134,10 @@ async function loadPayments() {
     const pending = allPayments.filter(p => p.status === 'pending').length;
     document.getElementById('paymentCount').textContent = `${allPayments.length} payments`;
     document.getElementById('paymentStats').innerHTML = `
-      <div class="payment-stat-card" style="cursor:pointer;" onclick="filterPayments('all')"><div class="stat-num" style="color:var(--green);">₹${total.toLocaleString()}</div><div class="stat-label">Total Revenue</div></div>
-      <div class="payment-stat-card" style="cursor:pointer;" onclick="filterPayments('completed')"><div class="stat-num" style="color:var(--cyan);">${allPayments.filter(p => p.status === 'completed').length}</div><div class="stat-label">Paid Orders</div></div>
-      <div class="payment-stat-card" style="cursor:pointer;" onclick="filterPayments('free')"><div class="stat-num" style="color:var(--cyan);">${free}</div><div class="stat-label">Free Enrolls</div></div>
-      <div class="payment-stat-card" style="cursor:pointer;" onclick="filterPayments('pending')"><div class="stat-num" style="color:#ffaa00;">${pending}</div><div class="stat-label">Pending</div></div>`;
+      <div class="payment-stat-card" style="cursor:pointer;" data-status="all"><div class="stat-num" style="color:var(--green);">₹${total.toLocaleString()}</div><div class="stat-label">Total Revenue</div></div>
+      <div class="payment-stat-card" style="cursor:pointer;" data-status="completed"><div class="stat-num" style="color:var(--cyan);">${allPayments.filter(p => p.status === 'completed').length}</div><div class="stat-label">Paid Orders</div></div>
+      <div class="payment-stat-card" style="cursor:pointer;" data-status="free"><div class="stat-num" style="color:var(--cyan);">${free}</div><div class="stat-label">Free Enrolls</div></div>
+      <div class="payment-stat-card" style="cursor:pointer;" data-status="pending"><div class="stat-num" style="color:#ffaa00;">${pending}</div><div class="stat-label">Pending</div></div>`;
 
     filterPayments('all');
   } catch (e) { showToast('Failed.', true); }
@@ -848,7 +1273,7 @@ async function loadCoupons() {
     <span style="font-size:.75rem;color:var(--text);">${c.discountType === 'percent' ? c.discountValue + '%' : '₹' + c.discountValue} off</span>
     <span style="font-size:.65rem;color:var(--muted);">${c.usedCount}/${c.maxUses} used</span>
     <span style="flex:1;"></span>
-    <button class="btn-delete" onclick="deleteCoupon(${c.id})" style="width:24px;height:24px;font-size:.65rem;"><i class="fas fa-times"></i></button>
+    <button class="btn-delete" data-id="${c.id}" style="width:24px;height:24px;font-size:.65rem;"><i class="fas fa-times"></i></button>
   </div>`).join('') || '<p style="color:var(--muted);text-align:center;padding:2rem;">No coupons yet</p>';
 }
 
@@ -886,7 +1311,7 @@ async function loadAnnouncements() {
   document.getElementById('announcementList').innerHTML = anns.map(a => `<div style="background:var(--surface);border:1px solid rgba(168,85,247,.1);border-radius:8px;padding:.8rem;margin-bottom:.5rem;">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.3rem;">
       <span style="font-weight:600;color:var(--text);font-size:.85rem;">${esc(a.title)}</span>
-      <button class="btn-delete" onclick="deleteAnnouncement(${a.id})" style="width:22px;height:22px;font-size:.6rem;"><i class="fas fa-times"></i></button>
+      <button class="btn-delete" data-id="${a.id}" style="width:22px;height:22px;font-size:.6rem;"><i class="fas fa-times"></i></button>
     </div>
     <p style="font-size:.75rem;color:var(--muted);margin:0;">${esc(a.message)}</p>
     <div style="font-size:.6rem;color:var(--muted);margin-top:.3rem;font-family:'Share Tech Mono',monospace;">${a.courseTitle ? '📚 ' + esc(a.courseTitle) : '🌐 Global'} • ${formatDate(a.createdAt)}</div>
@@ -921,7 +1346,7 @@ async function openQuizBuilder(itemId) {
   modal.innerHTML = `<div style="background:var(--surface);border:1px solid rgba(0,255,136,.2);border-radius:12px;padding:1.5rem;max-width:700px;width:100%;max-height:85vh;overflow-y:auto;">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
       <h3 style="color:var(--green);margin:0;"><i class="fas fa-question-circle"></i> Quiz Builder</h3>
-      <button onclick="document.getElementById('quizBuilderModal').remove()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:1.2rem;"><i class="fas fa-times"></i></button>
+      <button class="btn-close-modal" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:1.2rem;"><i class="fas fa-times"></i></button>
     </div>
     <div style="display:flex;gap:.5rem;margin-bottom:1rem;flex-wrap:wrap;">
       <div><label style="font-size:.65rem;color:var(--muted);">Pass %</label><input type="number" id="quizPassPercent" value="${passing}" style="width:60px;"/></div>
@@ -930,8 +1355,8 @@ async function openQuizBuilder(itemId) {
     </div>
     <div id="quizQuestionsContainer"></div>
     <div style="display:flex;gap:.5rem;margin-top:1rem;">
-      <button class="btn-add-tag" onclick="addQuizQuestion()" style="flex:1;"><i class="fas fa-plus"></i> Add Question</button>
-      <button class="btn-save" onclick="saveQuiz(${itemId})" style="flex:1;"><i class="fas fa-save"></i> Save Quiz</button>
+      <button class="btn-add-tag btn-add-quiz-q" style="flex:1;"><i class="fas fa-plus"></i> Add Question</button>
+      <button class="btn-save btn-save-quiz" data-id="${itemId}" style="flex:1;"><i class="fas fa-save"></i> Save Quiz</button>
     </div>
   </div>`;
   document.body.appendChild(modal);
@@ -939,20 +1364,20 @@ async function openQuizBuilder(itemId) {
 }
 
 function renderQuizQuestions() {
-  document.getElementById('quizQuestionsContainer').innerHTML = quizQuestions.map((q, i) => `<div style="background:var(--bg);border:1px solid rgba(0,255,136,.1);border-radius:8px;padding:.8rem;margin-bottom:.5rem;">
+  document.getElementById('quizQuestionsContainer').innerHTML = quizQuestions.map((q, i) => `<div style="background:var(--bg);border:1px solid rgba(0,255,136,.1);border-radius:8px;padding:.8rem;margin-bottom:.5rem;" data-index="${i}">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem;">
       <span style="font-size:.7rem;color:var(--green);font-weight:700;">Q${i + 1}</span>
-      ${quizQuestions.length > 1 ? `<button onclick="removeQuizQuestion(${i})" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:.7rem;"><i class="fas fa-trash"></i></button>` : ''}
+      ${quizQuestions.length > 1 ? `<button class="btn-remove-quiz-q" data-index="${i}" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:.7rem;"><i class="fas fa-trash"></i></button>` : ''}
     </div>
-    <input type="text" value="${esc(q.question)}" onchange="quizQuestions[${i}].question=this.value" placeholder="Question text" style="width:100%;margin-bottom:.4rem;font-size:.8rem;"/>
+    <input type="text" value="${esc(q.question)}" placeholder="Question text" style="width:100%;margin-bottom:.4rem;font-size:.8rem;"/>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:.3rem;">
-      <input type="text" value="${esc(q.optionA)}" onchange="quizQuestions[${i}].optionA=this.value" placeholder="A)" style="font-size:.75rem;"/>
-      <input type="text" value="${esc(q.optionB)}" onchange="quizQuestions[${i}].optionB=this.value" placeholder="B)" style="font-size:.75rem;"/>
-      <input type="text" value="${esc(q.optionC || '')}" onchange="quizQuestions[${i}].optionC=this.value" placeholder="C) (optional)" style="font-size:.75rem;"/>
-      <input type="text" value="${esc(q.optionD || '')}" onchange="quizQuestions[${i}].optionD=this.value" placeholder="D) (optional)" style="font-size:.75rem;"/>
+      <input type="text" value="${esc(q.optionA)}" placeholder="A)" style="font-size:.75rem;"/>
+      <input type="text" value="${esc(q.optionB)}" placeholder="B)" style="font-size:.75rem;"/>
+      <input type="text" value="${esc(q.optionC || '')}" placeholder="C) (optional)" style="font-size:.75rem;"/>
+      <input type="text" value="${esc(q.optionD || '')}" placeholder="D) (optional)" style="font-size:.75rem;"/>
     </div>
     <div style="margin-top:.3rem;"><label style="font-size:.6rem;color:var(--muted);">Correct:</label>
-      <select onchange="quizQuestions[${i}].correctOption=this.value" style="font-size:.7rem;">
+      <select style="font-size:.7rem;">
         <option value="A" ${q.correctOption === 'A' ? 'selected' : ''}>A</option>
         <option value="B" ${q.correctOption === 'B' ? 'selected' : ''}>B</option>
         <option value="C" ${q.correctOption === 'C' ? 'selected' : ''}>C</option>
@@ -1029,7 +1454,7 @@ function filterAssignments() {
             <div style="display:flex;gap:.5rem;align-items:center;">
                 <input type="text" id="grade-${a.id}" placeholder="Grade (e.g. A, 95/100)" style="width:140px;padding:.4rem;font-size:.75rem;border:1px solid var(--border);background:var(--bg);color:var(--text);border-radius:4px;" />
                 <input type="text" id="feedback-${a.id}" placeholder="Feedback..." style="flex:1;padding:.4rem;font-size:.75rem;border:1px solid var(--border);background:var(--bg);color:var(--text);border-radius:4px;" />
-                <button onclick="saveGrade(${a.id})" style="padding:.4rem .8rem;background:var(--cyan);color:#0B0F19;border:none;border-radius:4px;cursor:pointer;font-weight:700;font-size:.75rem;"><i class="fas fa-check"></i> Submit Grade</button>
+                <button class="btn-save-grade" data-id="${a.id}" style="padding:.4rem .8rem;background:var(--cyan);color:#0B0F19;border:none;border-radius:4px;cursor:pointer;font-weight:700;font-size:.75rem;"><i class="fas fa-check"></i> Submit Grade</button>
             </div>
          `}
       </div>
@@ -1088,8 +1513,8 @@ async function loadWorks() {
          <td><div style="display:flex;gap:.3rem;flex-wrap:wrap;">${(w.tags || []).map(t => `<span class="tag tag-cyan" style="font-size:.6rem;">${esc(t)}</span>`).join('')}</div></td>
          <td>
             <div class="action-btns">
-               <button class="btn-edit" onclick="editWork(${w.id})" title="Edit"><i class="fas fa-edit"></i></button>
-               <button class="btn-delete" onclick="openDeleteModal('works', ${w.id})" title="Delete"><i class="fas fa-trash"></i></button>
+               <button class="btn-edit" data-id="${w.id}" title="Edit"><i class="fas fa-edit"></i></button>
+               <button class="btn-delete" data-id="${w.id}" data-type="works" title="Delete"><i class="fas fa-trash"></i></button>
             </div>
          </td>
       </tr>
@@ -1195,8 +1620,8 @@ async function loadVideos() {
          </td>
          <td>
             <div class="action-btns">
-               <button class="btn-edit" onclick="editVideo(${v.id})" title="Edit"><i class="fas fa-edit"></i></button>
-               <button class="btn-delete" onclick="openDeleteModal('videos', ${v.id})" title="Delete"><i class="fas fa-trash"></i></button>
+               <button class="btn-edit" data-id="${v.id}" title="Edit"><i class="fas fa-edit"></i></button>
+               <button class="btn-delete" data-id="${v.id}" data-type="videos" title="Delete"><i class="fas fa-trash"></i></button>
             </div>
          </td>
       </tr>
@@ -1301,9 +1726,9 @@ async function loadAdminJobs() {
         <td><span class="status-badge ${j.status === 'open' ? 'status-completed' : 'status-failed'}">${j.status.toUpperCase()}</span></td>
         <td><span class="tag tag-cyan" style="font-size:0.7rem;">${(j.customQuestions || []).length} Custom</span></td>
         <td>
-          <button class="btn-edit" onclick="editJob(${j.id})" title="Edit Job"><i class="fas fa-pen"></i></button>
-          <button class="btn-edit" onclick="openJobApps(${j.id}, '${esc(j.title)}')" style="width:auto;padding:0 0.5rem;" title="View Applications"><i class="fas fa-users"></i> Apps</button>
-          <button class="btn-delete" onclick="openDeleteModal(${j.id},'job')" title="Delete Job"><i class="fas fa-trash-alt"></i></button>
+          <button class="btn-edit btn-edit-job" data-id="${j.id}" title="Edit Job"><i class="fas fa-pen"></i></button>
+          <button class="btn-edit btn-view-apps" data-id="${j.id}" data-title="${esc(j.title)}" style="width:auto;padding:0 0.5rem;" title="View Applications"><i class="fas fa-users"></i> Apps</button>
+          <button class="btn-delete btn-delete-job" data-id="${j.id}" title="Delete Job"><i class="fas fa-trash-alt"></i></button>
         </td>
       </tr>
     `).join('');
@@ -1417,11 +1842,11 @@ function renderJobQuestions() {
           <p style="font-size:0.8rem;color:var(--cyan);margin-bottom:0.3rem;">Dropdown Options:</p>
           ${opts.map((opt, oi) => `
             <div style="display:flex;gap:0.5rem;margin-bottom:0.3rem;align-items:center;">
-              <input type="text" value="${esc(opt)}" placeholder="Option ${oi + 1}" onchange="updateSelectOption(${i}, ${oi}, this.value)" style="flex:1;padding:0.3rem 0.5rem;background:var(--bg);border:1px solid rgba(255,255,255,0.1);color:var(--text);border-radius:4px;font-size:0.85rem;" />
-              <button onclick="removeSelectOption(${i}, ${oi})" style="background:transparent;border:none;color:var(--muted);cursor:pointer;font-size:0.8rem;"><i class="fas fa-times"></i></button>
+              <input type="text" value="${esc(opt)}" placeholder="Option ${oi + 1}" data-q-index="${i}" data-opt-index="${oi}" class="opt-input" style="flex:1;padding:0.3rem 0.5rem;background:var(--bg);border:1px solid rgba(255,255,255,0.1);color:var(--text);border-radius:4px;font-size:0.85rem;" />
+              <button class="btn-remove-select-opt" data-q-index="${i}" data-opt-index="${oi}" style="background:transparent;border:none;color:var(--muted);cursor:pointer;font-size:0.8rem;"><i class="fas fa-times"></i></button>
             </div>
           `).join('')}
-          <button onclick="addSelectOption(${i})" style="background:transparent;border:1px dashed rgba(0,212,255,0.3);color:var(--cyan);padding:0.2rem 0.6rem;border-radius:4px;font-size:0.75rem;cursor:pointer;margin-top:0.3rem;"><i class="fas fa-plus"></i> Add Option</button>
+          <button class="btn-add-select-opt" data-index="${i}" style="background:transparent;border:1px dashed rgba(0,212,255,0.3);color:var(--cyan);padding:0.2rem 0.6rem;border-radius:4px;font-size:0.75rem;cursor:pointer;margin-top:0.3rem;"><i class="fas fa-plus"></i> Add Option</button>
         </div>
       `;
     }
@@ -1429,10 +1854,10 @@ function renderJobQuestions() {
     return `
     <div style="background:rgba(0,0,0,0.2);border:1px solid rgba(0,212,255,0.2);padding:1rem;border-radius:6px;display:flex;gap:1rem;align-items:flex-start;">
       <div style="flex:1;">
-        <input type="text" value="${esc(q.question)}" placeholder="Question Text" onchange="updateJobQuestion(${i}, 'question', this.value)" style="width:100%;margin-bottom:0.5rem;padding:0.5rem;background:var(--bg);border:1px solid rgba(255,255,255,0.1);color:var(--text);border-radius:4px;" />
+        <input type="text" value="${esc(q.question)}" placeholder="Question Text" class="job-q-text" style="width:100%;margin-bottom:0.5rem;padding:0.5rem;background:var(--bg);border:1px solid rgba(255,255,255,0.1);color:var(--text);border-radius:4px;" />
         <div style="display:flex;gap:1.5rem;flex-wrap:wrap;">
           <label style="font-size:0.85rem;color:var(--muted);"><span style="color:var(--cyan);margin-right:0.3rem;">Type:</span>
-            <select onchange="updateJobQuestion(${i}, 'type', this.value); renderJobQuestions();" style="background:var(--bg);color:var(--text);border:1px solid rgba(255,255,255,0.1);padding:0.2rem;border-radius:4px;">
+            <select class="q-type" style="background:var(--bg);color:var(--text);border:1px solid rgba(255,255,255,0.1);padding:0.2rem;border-radius:4px;">
               <option value="text" ${q.type === 'text' ? 'selected' : ''}>Short Text</option>
               <option value="textarea" ${q.type === 'textarea' ? 'selected' : ''}>Paragraph</option>
               <option value="email" ${q.type === 'email' ? 'selected' : ''}>Email</option>
@@ -1443,7 +1868,7 @@ function renderJobQuestions() {
             </select>
           </label>
           <label style="font-size:0.85rem;color:var(--muted);"><span style="color:var(--cyan);margin-right:0.3rem;">Required:</span>
-            <select onchange="updateJobQuestion(${i}, 'required', this.value)" style="background:var(--bg);color:var(--text);border:1px solid rgba(255,255,255,0.1);padding:0.2rem;border-radius:4px;">
+            <select class="q-req" style="background:var(--bg);color:var(--text);border:1px solid rgba(255,255,255,0.1);padding:0.2rem;border-radius:4px;">
               <option value="true" ${q.required ? 'selected' : ''}>Yes</option>
               <option value="false" ${!q.required ? 'selected' : ''}>No</option>
             </select>
@@ -1451,7 +1876,7 @@ function renderJobQuestions() {
         </div>
         ${optionsHtml}
       </div>
-      <button class="btn-delete" onclick="removeJobQuestion(${i})" style="width:32px;height:32px;"><i class="fas fa-times"></i></button>
+      <button class="btn-delete btn-remove-job-q" data-index="${i}" style="width:32px;height:32px;"><i class="fas fa-times"></i></button>
     </div>
   `;
   }).join('');
@@ -1524,7 +1949,7 @@ async function openJobApps(jobId, jobTitle) {
         </td>
         <td>
           ${app.resumeLink ? `<a href="${esc(app.resumeLink)}" target="_blank" style="display:inline-block;margin-bottom:0.3rem;color:var(--green);font-size:0.8rem;text-decoration:none;"><i class="fas fa-link"></i> Resume</a><br>` : '<span style="color:var(--muted);font-size:0.8rem;">No Resume</span><br>'}
-          ${app.coverLetter ? `<a href="#" onclick="alert('Cover Letter:\\n\\n' + ${JSON.stringify(app.coverLetter).replace(/'/g, "\\'")}); return false;" style="color:var(--orange);font-size:0.8rem;text-decoration:none;"><i class="fas fa-file-alt"></i> Cover Letter</a>` : ''}
+          ${app.coverLetter ? `<a href="#" class="btn-view-cover" data-cover="${esc(app.coverLetter)}" style="color:var(--orange);font-size:0.8rem;text-decoration:none;"><i class="fas fa-file-alt"></i> Cover Letter</a>` : ''}
         </td>
         <td>
           ${app.paymentId ? `
@@ -1538,12 +1963,12 @@ async function openJobApps(jobId, jobTitle) {
         <td style="font-size:0.8rem;color:var(--muted);">${new Date(app.appliedAt).toLocaleDateString()}</td>
         <td>
           ${app.customAnswers && Object.keys(app.customAnswers).length > 0
-            ? `<button onclick="viewCustomAnswers(${app.id})" style="background:transparent;border:1px solid var(--cyan);color:var(--cyan);border-radius:4px;padding:0.2rem 0.5rem;font-size:0.75rem;cursor:pointer;">View Answers</button>`
+            ? `<button class="btn-view-answers" data-app-id="${app.id}" style="background:transparent;border:1px solid var(--cyan);color:var(--cyan);border-radius:4px;padding:0.2rem 0.5rem;font-size:0.75rem;cursor:pointer;">View Answers</button>`
             : '<span style="color:var(--muted);font-size:0.8rem;">None</span>'}
         </td>
         <td>
           ${app.paymentId && !app.paymentVerified ? `
-            <button onclick="verifyJobApplication(${jobId}, ${app.id})" style="background:rgba(0,255,136,0.1);border:1px solid var(--green);color:var(--green);border-radius:4px;padding:0.3rem 0.6rem;font-size:0.75rem;cursor:pointer;font-weight:600;" title="Verify payment & auto-enroll"><i class="fas fa-check"></i> Verify</button>
+            <button class="btn-verify-app" data-job-id="${jobId}" data-app-id="${app.id}" style="background:rgba(0,255,136,0.1);border:1px solid var(--green);color:var(--green);border-radius:4px;padding:0.3rem 0.6rem;font-size:0.75rem;cursor:pointer;font-weight:600;" title="Verify payment & auto-enroll"><i class="fas fa-check"></i> Verify</button>
           ` : app.paymentVerified ? '<span style="color:var(--green);font-size:0.8rem;"><i class="fas fa-check-circle"></i> Done</span>' : ''}
         </td>
       </tr>

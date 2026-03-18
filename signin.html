@@ -178,7 +178,7 @@
         <p class="auth-sub">Sign in to your Student Portal</p>
 
         <!-- Login -->
-        <form id="loginForm" onsubmit="event.preventDefault(); handleLogin(event);">
+        <form id="loginForm">
             <div class="form-group">
                 <label><i class="fas fa-envelope"></i> Email</label>
                 <input type="email" id="loginEmail" placeholder="you@gmail.com" required />
@@ -190,12 +190,12 @@
             <div class="auth-error" id="loginError"></div>
             <button type="submit" class="btn-primary"><i class="fas fa-sign-in-alt"></i> Login</button>
             <div style="margin-top:.8rem;text-align:right;">
-                <button type="button" class="btn-link" onclick="showForgotForm()" style="font-size:.75rem;">Forgot Password?</button>
+                <button type="button" class="btn-link" id="forgotLink" style="font-size:.75rem;">Forgot Password?</button>
             </div>
         </form>
 
         <!-- Forgot Password -->
-        <form id="forgotForm" style="display:none;" onsubmit="event.preventDefault(); handleForgotPassword(event);">
+        <form id="forgotForm" style="display:none;">
             <div style="text-align:center;margin-bottom:1rem;">
                 <i class="fas fa-lock-open" style="font-size:2rem;color:var(--orange);margin-bottom:.5rem;display:block;"></i>
                 <p style="font-size:.85rem;color:var(--text);">Enter your registered email to receive a reset code</p>
@@ -207,12 +207,12 @@
             <div class="auth-error" id="forgotError"></div>
             <button type="submit" class="btn-primary" style="background:linear-gradient(135deg,var(--orange),#cc6a00);"><i class="fas fa-paper-plane"></i> Send Reset Code</button>
             <div style="margin-top:1rem;text-align:center;">
-                <button type="button" class="btn-link" onclick="showLoginForm()">Back to Login</button>
+                <button type="button" class="btn-link" id="backToLoginForgot">Back to Login</button>
             </div>
         </form>
 
         <!-- Reset Password -->
-        <form id="resetForm" style="display:none;" onsubmit="event.preventDefault(); handleResetPassword(event);">
+        <form id="resetForm" style="display:none;">
             <div style="text-align:center;margin-bottom:1rem;">
                 <i class="fas fa-key" style="font-size:2rem;color:var(--orange);margin-bottom:.5rem;display:block;"></i>
                 <p style="font-size:.85rem;color:var(--text);">Enter the code sent to your email</p>
@@ -229,7 +229,7 @@
             <div class="auth-error" id="resetError"></div>
             <button type="submit" class="btn-primary" style="background:linear-gradient(135deg,var(--orange),#cc6a00);"><i class="fas fa-check-circle"></i> Reset Password</button>
             <div style="margin-top:1rem;text-align:center;">
-                <button type="button" class="btn-link" onclick="showLoginForm()">Back to Login</button>
+                <button type="button" class="btn-link" id="backToLoginReset">Back to Login</button>
             </div>
         </form>
 
@@ -245,127 +245,7 @@
 
     <div class="toast" id="toast"></div>
 
-    <script>
-        // Matrix Canvas Background
-        (function(){const c=document.getElementById('matrix-canvas');if(!c)return;const x=c.getContext('2d');c.width=window.innerWidth;c.height=window.innerHeight;const ch='01アイウエオカキクケコサシスセソ',fs=14;let dr=Array(Math.floor(c.width/fs)).fill(1);function d(){x.fillStyle='rgba(5,10,14,0.05)';x.fillRect(0,0,c.width,c.height);x.fillStyle='#00ff88';x.font=fs+'px Share Tech Mono';dr.forEach((y,i)=>{x.fillText(ch[Math.floor(Math.random()*ch.length)],i*fs,y*fs);if(y*fs>c.height&&Math.random()>0.975)dr[i]=0;dr[i]++;});}setInterval(d,50);window.addEventListener('resize',()=>{c.width=window.innerWidth;c.height=window.innerHeight;dr=Array(Math.floor(c.width/fs)).fill(1);});})();
-
-        function showToast(msg, err=false) { const e=document.getElementById('toast'); e.textContent=msg; e.className='toast show'+(err?' error':''); setTimeout(()=>{e.className='toast';},3000); }
-        function clearErrors() { ['loginError', 'forgotError', 'resetError'].forEach(id => { document.getElementById(id).textContent = ''; }); }
-
-        function showLoginForm() {
-            document.getElementById('loginForm').style.display = 'block';
-            document.getElementById('forgotForm').style.display = 'none';
-            document.getElementById('resetForm').style.display = 'none';
-            document.getElementById('authToggle').style.display = 'block';
-            clearErrors();
-        }
-
-        function showForgotForm() {
-            document.getElementById('loginForm').style.display = 'none';
-            document.getElementById('forgotForm').style.display = 'block';
-            document.getElementById('authToggle').style.display = 'none';
-            clearErrors();
-        }
-
-        let pendingVerifyEmail = '';
-        function showResetForm(email) {
-            document.getElementById('forgotForm').style.display = 'none';
-            document.getElementById('resetForm').style.display = 'block';
-            document.getElementById('resetEmailDisplay').textContent = email;
-            pendingVerifyEmail = email;
-            clearErrors();
-        }
-
-        async function handleLogin(e) {
-            const email = document.getElementById('loginEmail').value;
-            const password = document.getElementById('loginPassword').value;
-            const errorEl = document.getElementById('loginError');
-            errorEl.textContent = '';
-            
-            const btn = e.target.querySelector('button[type="submit"]');
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Logging in...';
-            btn.disabled = true;
-
-            try {
-                const res = await fetch('/api/student/login', {
-                    method:'POST', headers:{'Content-Type':'application/json'},
-                    body: JSON.stringify({email, password})
-                });
-                const data = await res.json();
-                
-                if (res.ok && data.success) {
-                    showToast('Welcome back! Redirecting...');
-                    setTimeout(() => { window.location.href = '/learn'; }, 1000);
-                } else {
-                    errorEl.textContent = data.error || 'Login failed.';
-                    btn.innerHTML = '<i class="fas fa-sign-in-alt"></i> Login';
-                    btn.disabled = false;
-                }
-            } catch(err) {
-                errorEl.textContent = 'Connection error.';
-                btn.innerHTML = '<i class="fas fa-sign-in-alt"></i> Login';
-                btn.disabled = false;
-            }
-        }
-
-        async function handleForgotPassword(e) {
-            const email = document.getElementById('forgotEmail').value.trim();
-            const errorEl = document.getElementById('forgotError');
-            errorEl.textContent = '';
-            
-            const btn = e.target.querySelector('button[type="submit"]');
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
-            btn.disabled = true;
-
-            try {
-                const res = await fetch('/api/student/forgot-password', {
-                    method:'POST', headers:{'Content-Type':'application/json'},
-                    body: JSON.stringify({email})
-                });
-                const data = await res.json();
-                if (res.ok && data.success) {
-                    showToast('Reset code sent to your email 📧');
-                    showResetForm(email);
-                } else {
-                    errorEl.textContent = data.error || 'Error requesting reset.';
-                }
-            } catch(err) { errorEl.textContent = 'Connection error.'; }
-            btn.innerHTML = '<i class="fas fa-paper-plane"></i> Send Reset Code';
-            btn.disabled = false;
-        }
-
-        async function handleResetPassword(e) {
-            const otp = document.getElementById('resetOtp').value.trim();
-            const newPassword = document.getElementById('resetNewPassword').value;
-            const errorEl = document.getElementById('resetError');
-            errorEl.textContent = '';
-            
-            const btn = e.target.querySelector('button[type="submit"]');
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Resetting...';
-            btn.disabled = true;
-
-            try {
-                const res = await fetch('/api/student/reset-password', {
-                    method:'POST', headers:{'Content-Type':'application/json'},
-                    body: JSON.stringify({email:pendingVerifyEmail, otp, newPassword})
-                });
-                const data = await res.json();
-                
-                if (res.ok && data.success) {
-                    showToast('Password reset! Please login.');
-                    showLoginForm();
-                } else {
-                    errorEl.textContent = data.error || 'Reset failed.';
-                }
-            } catch(err) { errorEl.textContent = 'Connection error.'; }
-            btn.innerHTML = '<i class="fas fa-check-circle"></i> Reset Password';
-            btn.disabled = false;
-        }
-        
-        // Auto-redirect if already logged in
-        fetch('/api/student/check').then(res => res.json()).then(data => {
-            if (data.authenticated) window.location.href = '/learn';
-        });
-    </script>
+    <script src="js/signin-init.js"></script>
+</body>
 </body>
 </html>

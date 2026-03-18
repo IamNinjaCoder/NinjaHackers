@@ -14,7 +14,40 @@ let quizActive = false;
 const esc = s => { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; };
 
 // ─── Init ───
-(async function init() {
+document.addEventListener('DOMContentLoaded', () => {
+    // ─── STATIC LISTENERS ───
+    const btnSubmit = document.getElementById('btnSubmit');
+    if (btnSubmit) btnSubmit.addEventListener('click', () => submitQuiz());
+
+    // ─── DELEGATION ───
+    document.addEventListener('click', e => {
+        // Option selection
+        const optionLabel = e.target.closest('.option-label');
+        if (optionLabel && quizActive) {
+            const { qid, opt } = optionLabel.dataset;
+            selectOption(qid, opt);
+        }
+
+        // Retry quiz
+        if (e.target.closest('.btn-retry-quiz')) {
+            retryQuiz();
+        }
+
+        // Go back
+        if (e.target.closest('.btn-go-back')) {
+            goBack();
+        }
+
+        // Review results
+        if (e.target.closest('.btn-review-results')) {
+            showFullReview();
+        }
+    });
+
+    init();
+});
+
+async function init() {
     const params = new URLSearchParams(window.location.search);
     const itemId = params.get('itemId');
     if (!itemId) { showError('No quiz specified.'); return; }
@@ -34,13 +67,13 @@ const esc = s => { const d = document.createElement('div'); d.textContent = s; r
     } catch (e) {
         showError('Network error. Please try again.');
     }
-})();
+}
 
 function showError(msg) {
     document.getElementById('quizLoading').innerHTML = `
         <i class="fas fa-exclamation-triangle" style="font-size:2rem;color:var(--red);"></i>
         <p style="color:var(--red);">${esc(msg)}</p>
-        <button onclick="window.history.back()" class="btn-quiz-back" style="margin-top:1rem;"><i class="fas fa-arrow-left"></i> Go Back</button>
+        <button class="btn-quiz-back btn-go-back" style="margin-top:1rem;"><i class="fas fa-arrow-left"></i> Go Back</button>
     `;
 }
 
@@ -90,7 +123,7 @@ function renderQuestions(questions) {
             <div class="question-text">${esc(q.question)}</div>
             <div class="options-list">
                 ${['A', 'B', 'C', 'D'].filter(opt => q['option' + opt]).map(opt => `
-                    <label class="option-label" id="opt-${q.id}-${opt}" onclick="selectOption(${q.id}, '${opt}')">
+                    <label class="option-label" data-qid="${q.id}" data-opt="${opt}" id="opt-${q.id}-${opt}">
                         <input type="radio" name="q_${q.id}" value="${opt}">
                         <span class="option-letter">${opt})</span>
                         <span>${esc(q['option' + opt])}</span>
@@ -261,10 +294,10 @@ function showSubmissionResult(result) {
             </div>
         </div>
         <div style="display:flex;justify-content:center;gap:1rem;flex-wrap:wrap;">
-            ${reviewResults ? `<button class="btn-quiz-submit" onclick="showFullReview()"><i class="fas fa-eye"></i> Review Answers</button>` : ''}
-            ${!passed ? `<button class="btn-quiz-retry" onclick="retryQuiz()"><i class="fas fa-redo"></i> Try Again</button>` : ''}
-            ${passed && !reviewResults ? `<button class="btn-quiz-retry" onclick="retryQuiz()"><i class="fas fa-redo"></i> Retry for Better Score</button>` : ''}
-            <button class="btn-quiz-back" onclick="goBack()"><i class="fas fa-arrow-left"></i> Back to Course</button>
+            ${reviewResults ? `<button class="btn-quiz-submit btn-review-results"><i class="fas fa-eye"></i> Review Answers</button>` : ''}
+            ${!passed ? `<button class="btn-quiz-retry btn-retry-quiz"><i class="fas fa-redo"></i> Try Again</button>` : ''}
+            ${passed && !reviewResults ? `<button class="btn-quiz-retry btn-retry-quiz"><i class="fas fa-redo"></i> Retry for Better Score</button>` : ''}
+            <button class="btn-quiz-back btn-go-back"><i class="fas fa-arrow-left"></i> Back to Course</button>
         </div>
     `;
 
@@ -304,8 +337,8 @@ function showPassedOptions(bestScore, totalQs, passingPercent, attemptsUsed, max
             </div>
         </div>
         <div style="display:flex;justify-content:center;gap:1rem;flex-wrap:wrap;margin-top:1rem;">
-            <button class="btn-quiz-retry" onclick="retryQuiz()"><i class="fas fa-redo"></i> Retry for Better Score</button>
-            <button class="btn-quiz-back" onclick="goBack()"><i class="fas fa-arrow-left"></i> Back to Course</button>
+            <button class="btn-quiz-retry btn-retry-quiz"><i class="fas fa-redo"></i> Retry for Better Score</button>
+            <button class="btn-quiz-back btn-go-back"><i class="fas fa-arrow-left"></i> Back to Course</button>
         </div>
     `;
 }
@@ -366,7 +399,7 @@ function showReviewResults(reviewResults, questions, bestScore, totalQs, hasPass
     // Add back button below questions
     const actions = document.getElementById('quizActions');
     actions.style.display = 'flex';
-    actions.innerHTML = `<button class="btn-quiz-back" onclick="goBack()"><i class="fas fa-arrow-left"></i> Back to Course</button>`;
+    actions.innerHTML = `<button class="btn-quiz-back btn-go-back"><i class="fas fa-arrow-left"></i> Back to Course</button>`;
 }
 
 // ─── Retry ───

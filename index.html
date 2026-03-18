@@ -43,8 +43,7 @@
   <!-- NAV -->
   <nav id="navbar">
     <a href="index.html" class="nav-logo">
-      <img src="logo.png" alt="NinjaHackers Logo" class="logo-img"
-        onerror="this.style.display='none';document.getElementById('logoText').style.display='flex'" />
+      <img src="logo.png" alt="NinjaHackers Logo" class="logo-img img-fallback" />
       <span id="logoText" class="logo-text-fallback" style="display:none"><i class="fas fa-terminal"></i>
         Ninja<span>Hackers</span></span>
     </a>
@@ -57,16 +56,16 @@
       <li><a href="courses.html">Courses</a></li>
       <li id="auth-links"><a href="/learn" class="nav-cta">Login / Sign Up</a></li>
     </ul>
-    <div class="hamburger" onclick="toggleMenu()"><span></span><span></span><span></span></div>
+    <div class="hamburger" id="hamburger"><span></span><span></span><span></span></div>
   </nav>
   <div class="mobile-menu" id="mobileMenu">
-    <a href="index.html" onclick="toggleMenu()">Home</a>
-    <a href="blog.html" onclick="toggleMenu()">Blog</a>
-    <a href="work.html" onclick="toggleMenu()">Work</a>
-    <a href="videos.html" onclick="toggleMenu()">Videos</a>
-    <a href="contact.html" onclick="toggleMenu()">Contact</a>
-    <a href="courses.html" onclick="toggleMenu()">Courses</a>
-    <a href="/learn" onclick="toggleMenu()" id="mobile-auth-link">Login / Sign Up</a>
+    <a href="index.html">Home</a>
+    <a href="blog.html">Blog</a>
+    <a href="work.html">Work</a>
+    <a href="videos.html">Videos</a>
+    <a href="contact.html">Contact</a>
+    <a href="courses.html">Courses</a>
+    <a href="/learn" id="mobile-auth-link">Login / Sign Up</a>
   </div>
 
   <!-- HERO -->
@@ -74,7 +73,7 @@
     <div class="hero-inner">
       <div class="hero-badge"><span class="dot"></span> ETHICAL HACKER · SECURITY RESEARCHER</div>
       <div class="hero-logo-wrap">
-        <img src="logo.png" alt="NinjaHackers" class="hero-logo" onerror="this.style.display='none'" />
+        <img src="logo.png" alt="NinjaHackers" class="hero-logo img-fallback" />
       </div>
       <h1>Breaking Into<br /><span class="accent">Cyber</span><span class="accent2">Security</span></h1>
       <div class="typed-container"><span id="typed-text"></span><span class="cursor"></span></div>
@@ -222,7 +221,7 @@
   <!-- FOOTER -->
   <footer>
     <div class="footer-logo">
-      <img src="logo.png" alt="NinjaHackers" class="footer-logo-img" onerror="this.style.display='none'" />
+      <img src="logo.png" alt="NinjaHackers" class="footer-logo-img img-fallback" />
       <span>bninjahacker.site</span>
     </div>
     <div class="footer-links">
@@ -242,146 +241,8 @@
     <div class="footer-copy">© 2025 <span>bninjahacker.site</span> — Hack the Planet, Legally.</div>
   </footer>
 
-  <script>
-    (function () { const c = document.getElementById('matrix-canvas'); if (!c) return; const x = c.getContext('2d'); c.width = window.innerWidth; c.height = window.innerHeight; const ch = '01アイウエオカキクケコサシスセソ', fs = 14; let dr = Array(Math.floor(c.width / fs)).fill(1); function d() { x.fillStyle = 'rgba(5,10,14,0.05)'; x.fillRect(0, 0, c.width, c.height); x.fillStyle = '#00ff88'; x.font = fs + 'px Share Tech Mono'; dr.forEach((y, i) => { x.fillText(ch[Math.floor(Math.random() * ch.length)], i * fs, y * fs); if (y * fs > c.height && Math.random() > 0.975) dr[i] = 0; dr[i]++; }); } setInterval(d, 50); window.addEventListener('resize', () => { c.width = window.innerWidth; c.height = window.innerHeight; dr = Array(Math.floor(c.width / fs)).fill(1); }); })();
-    function startTyped(eid, phrases) { const el = document.getElementById(eid); if (!el) return; let pi = 0, ci = 0, del = false; function t() { const cur = phrases[pi]; if (del) { el.textContent = cur.substring(0, ci--); if (ci < 0) { del = false; pi = (pi + 1) % phrases.length; } setTimeout(t, 60); } else { el.textContent = cur.substring(0, ci++); if (ci > cur.length) { del = true; setTimeout(t, 1800); return; } setTimeout(t, 80); } } t(); }
-    startTyped('typed-text', ['Ethical Hacker & Security Researcher', 'CTF Player & Challenge Creator', 'Bug Bounty Hunter', 'Web App Pentester', 'Sharing Knowledge, One Hack at a Time']);
-    function animateCounter(id, target, suffix = '') { const el = document.getElementById(id); if (!el) return; let count = 0; const step = Math.max(1, Math.ceil(target / 60)); const t = setInterval(() => { count = Math.min(count + step, target); el.textContent = count + suffix; if (count >= target) clearInterval(t); }, 30); }
-
-    async function loadStats() {
-      try {
-        const res = await fetch('/api/public/stats');
-        const stats = await res.json();
-        animateCounter('c1', parseInt(stats.stat_blogs) || 0);
-        animateCounter('c2', parseInt(stats.stat_ctf) || 0);
-        animateCounter('c3', parseInt(stats.stat_tools) || 0);
-        animateCounter('c4', parseInt(stats.stat_students) || 0, '+');
-      } catch (e) {
-        animateCounter('c1', 0); animateCounter('c2', 0); animateCounter('c3', 0); animateCounter('c4', 0, '+');
-      }
-    }
-    loadStats();
-
-    function toggleMenu() { document.getElementById('mobileMenu').classList.toggle('open'); }
-    window.addEventListener('scroll', () => { const nav = document.getElementById('navbar'); if (nav) nav.style.boxShadow = window.scrollY > 20 ? '0 4px 30px rgba(0,0,0,0.4)' : ''; });
-
-    function escapeHTML(str) {
-      return String(str || '').replace(/[&<>'"]/g,
-        tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": "&#39;", '"': "&quot;" }[tag]));
-    }
-
-    async function loadFeaturedBlogs() {
-      try {
-        const res = await fetch('/api/public/featured-blogs');
-        const blogs = await res.json();
-        const grid = document.getElementById('featuredBlogsGrid');
-        if (!grid) return;
-        if (!blogs.length) {
-          grid.innerHTML = '<div style="color:var(--muted);width:100%;text-align:center;">No published blogs yet.</div>';
-          return;
-        }
-        grid.innerHTML = blogs.map(b => `
-          <div class="preview-card" onclick="location.href='blog.html?id=${b.id}'" style="border-radius:12px;overflow:hidden;${b.coverImage ? 'padding:0;' : ''}">
-            ${b.coverImage ? `<img src="${escapeHTML(b.coverImage)}" alt="Cover" style="width:100%;height:160px;object-fit:cover;border-bottom:1px solid rgba(255,255,255,.05);">` : ''}
-            <div style="${b.coverImage ? 'padding:1.5rem;' : ''}">
-              <div class="preview-tags">
-                ${(b.tags || []).map(t => `<span class="tag tag-cyan">${escapeHTML(t)}</span>`).join('')}
-              </div>
-              <div class="preview-title" style="margin-top:.5rem;">${escapeHTML(b.title)}</div>
-              <div class="preview-meta"><i class="far fa-calendar"></i> ${escapeHTML(b.date)} · ${escapeHTML(b.readTime)}</div>
-            </div>
-          </div>
-        `).join('');
-      } catch (e) { }
-    }
-    loadFeaturedBlogs();
-
-    async function loadFeaturedData() {
-      try {
-        const [worksRes, videosRes] = await Promise.all([
-          fetch('/api/public/featured-works'),
-          fetch('/api/public/videos')
-        ]);
-
-        if (worksRes.ok) {
-          const works = await worksRes.json();
-          const wGrid = document.getElementById('featuredWorksGrid');
-          const featured = works.slice(0, 3);
-          if (featured.length) {
-            wGrid.innerHTML = featured.map(w => {
-              let statusIcon = '<i class="fas fa-check-circle"></i>';
-              let statusClass = 'tag-green';
-              if (w.status === 'In Progress') { statusIcon = '<i class="fas fa-code"></i>'; statusClass = 'tag-orange'; }
-              else if (w.status === 'Idea') { statusIcon = '<i class="fas fa-lightbulb"></i>'; statusClass = 'tag-purple'; }
-
-              return `
-            <div class="preview-card" onclick="${w.link ? `window.open('${escapeHTML(w.link)}','_blank')` : `location.href='work.html'`}">
-              <div class="preview-tags">
-                <span class="tag ${statusClass}">${statusIcon} ${escapeHTML(w.status)}</span>
-                ${(w.tags || []).slice(0, 2).map(t => `<span class="tag tag-cyan">${escapeHTML(t)}</span>`).join('')}
-              </div>
-              <div class="preview-title" style="display:flex;gap:.5rem;align-items:center;">
-                <i class="${escapeHTML(w.icon)}" style="color:var(--${escapeHTML(w.iconColor)});"></i>
-                ${escapeHTML(w.title)}
-              </div>
-              <div style="font-size:0.85rem;color:var(--muted);margin-top:0.5rem;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;">
-                ${escapeHTML(w.description)}
-              </div>
-            </div>
-          `;
-            }).join('');
-          } else {
-            wGrid.innerHTML = '<div style="color:var(--muted);text-align:center;grid-column:1/-1;">No projects added yet.</div>';
-          }
-        }
-
-        if (videosRes.ok) {
-          const videos = await videosRes.json();
-          const vGrid = document.getElementById('latestVideosGrid');
-          const latest = videos.slice(0, 3);
-          if (latest.length) {
-            vGrid.innerHTML = latest.map(v => {
-              const vid = v.videoId || v.videoid;
-              return `
-            <div class="video-card" style="cursor:pointer;" onclick="location.href='videos.html'">
-              <div class="video-thumb">
-                ${vid
-                  ? `<img src="https://img.youtube.com/vi/${escapeHTML(vid)}/mqdefault.jpg" style="width:100%;height:100%;object-fit:cover;" />`
-                  : `<div class="video-placeholder"><i class="fab fa-youtube"></i><span>Coming Soon</span></div>`
-                }
-              </div>
-              <div class="video-info">
-                <div style="margin-bottom:.5rem;"><span class="tag tag-cyan" style="font-size:.65rem;">${escapeHTML(v.tag)}</span></div>
-                <div class="video-title">${escapeHTML(v.title)}</div>
-                <div class="video-meta"><i class="far fa-clock"></i> ${escapeHTML(v.meta)}</div>
-              </div>
-            </div>
-          `;
-            }).join('');
-          } else {
-            vGrid.innerHTML = '<div style="color:var(--muted);text-align:center;grid-column:1/-1;">No videos added yet.</div>';
-          }
-        }
-      } catch (err) { }
-    }
-    async function checkAuth() {
-      try {
-        const res = await fetch('/api/student/check');
-        const data = await res.json();
-        if (data.authenticated) {
-          const authLinks = document.getElementById('auth-links');
-          const mobileAuth = document.getElementById('mobile-auth-link');
-          if (authLinks) authLinks.innerHTML = '<a href="/learn" class="nav-cta">Dashboard</a>';
-          if (mobileAuth) {
-            mobileAuth.href = '/learn';
-            mobileAuth.textContent = 'Dashboard';
-          }
-        }
-      } catch (e) { }
-    }
-    checkAuth();
-    loadFeaturedData();
-  </script>
+  <script src="js/index-init.js"></script>
+</body>
 </body>
 
 </html>
