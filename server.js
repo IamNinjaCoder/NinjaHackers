@@ -136,14 +136,14 @@ const upload = multer({
 // Determine if we should use URL or local config
 const poolConfig = process.env.DATABASE_URL
     ? {
-        connectionString: process.env.DATABASE_URL,
-        ssl: { rejectUnauthorized: false } // Required for Neon, Render, Supabase, Heroku
+        connectionString: process.env.DATABASE_URL, // Local DB, no SSL needed
     }
     : {
-        user: process.env.USER,
-        host: process.env.PGHOST || '/tmp', // Local MacOS UNIX socket fallback
+        user: 'postgres',
+        password: 'root',
+        host: 'localhost',
         database: 'ninjahackers',
-        port: 5433,
+        port: 5432,
     };
 
 const pool = new Pool(poolConfig);
@@ -167,7 +167,12 @@ const camelCaseMap = {
     filename: 'fileName', islive: 'isLive', passingpercent: 'passingPercent',
     maxattempts: 'maxAttempts', timerminutes: 'timerMinutes', correctoption: 'correctOption',
     totalquestions: 'totalQuestions', usedat: 'usedAt', iconcolor: 'iconColor', videoid: 'videoId',
-    reminderssent: 'remindersSent'
+    reminderssent: 'remindersSent',
+    jobid: 'jobId', customquestions: 'customQuestions', resumelink: 'resumeLink',
+    coverletter: 'coverLetter', appliedat: 'appliedAt',
+    linkedcourseid: 'linkedCourseId', paymentid: 'paymentId',
+    paymentscreenshot: 'paymentScreenshot', paymentverified: 'paymentVerified',
+    coursetitle: 'courseTitle'
 };
 function toCamelRow(row) {
     if (!row || typeof row !== 'object') return row;
@@ -243,6 +248,35 @@ async function initDB() {
         tag TEXT NOT NULL DEFAULT '',
         featured INTEGER NOT NULL DEFAULT 0,
         createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS job_postings (
+        id SERIAL PRIMARY KEY,
+        title TEXT NOT NULL,
+        description TEXT NOT NULL DEFAULT '',
+        status TEXT NOT NULL DEFAULT 'open',
+        customQuestions JSONB NOT NULL DEFAULT '[]',
+        linkedCourseId INTEGER DEFAULT NULL,
+        price INTEGER NOT NULL DEFAULT 0,
+        createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updatedAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (linkedCourseId) REFERENCES courses(id) ON DELETE SET NULL
+      );
+
+      CREATE TABLE IF NOT EXISTS job_applications (
+        id SERIAL PRIMARY KEY,
+        jobId INTEGER NOT NULL,
+        name TEXT NOT NULL,
+        email TEXT NOT NULL,
+        phone TEXT,
+        resumeLink TEXT,
+        coverLetter TEXT,
+        customAnswers JSONB NOT NULL DEFAULT '{}',
+        paymentId TEXT DEFAULT NULL,
+        paymentScreenshot TEXT DEFAULT NULL,
+        paymentVerified INTEGER NOT NULL DEFAULT 0,
+        appliedAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (jobId) REFERENCES job_postings(id) ON DELETE CASCADE
       );
 
       CREATE TABLE IF NOT EXISTS students (
@@ -463,6 +497,11 @@ async function initDB() {
         await safeAlter(`ALTER TABLE works ADD COLUMN featured INTEGER NOT NULL DEFAULT 0`);
         await safeAlter(`ALTER TABLE videos ADD COLUMN featured INTEGER NOT NULL DEFAULT 0`);
         await safeAlter(`ALTER TABLE module_items ADD COLUMN remindersSent TEXT NOT NULL DEFAULT '[]'`);
+        await safeAlter(`ALTER TABLE job_postings ADD COLUMN linkedCourseId INTEGER DEFAULT NULL REFERENCES courses(id) ON DELETE SET NULL`);
+        await safeAlter(`ALTER TABLE job_postings ADD COLUMN price INTEGER NOT NULL DEFAULT 0`);
+        await safeAlter(`ALTER TABLE job_applications ADD COLUMN paymentId TEXT DEFAULT NULL`);
+        await safeAlter(`ALTER TABLE job_applications ADD COLUMN paymentScreenshot TEXT DEFAULT NULL`);
+        await safeAlter(`ALTER TABLE job_applications ADD COLUMN paymentVerified INTEGER NOT NULL DEFAULT 0`);
 
         // Seed or Update Admin User
         console.log(`[SEEDER] Admin setup: Username="${process.env.ADMIN_USERNAME || "admin"}", Password length=${(process.env.ADMIN_PASSWORD || "admin").length}`);
@@ -2748,6 +2787,232 @@ app.delete('/api/admin/videos/:id', requireAdmin, async (req, res) => {
         await pool.query('DELETE FROM videos WHERE id=$1', [req.params.id]);
         res.json({ success: true });
     } catch (err) { res.status(500).json({ error: 'Server error' }); }
+});
+
+// ═══════════════════════════════════════
+//  JOBS & APPLICATIONS
+// ═══════════════════════════════════════
+
+// Public Job Listing — include linked course title + price
+app.get('/api/jobs', async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT jp.*, c.title AS courseTitle
+             FROM job_postings jp
+             LEFT JOIN courses c ON c.id = jp.linkedCourseId
+             WHERE jp.status='open' ORDER BY jp.id DESC`
+        );
+        res.json(result.rows);
+    } catch (err) {
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// Admin Jobs API — include linked course title
+app.get('/api/admin/jobs', requireAdmin, async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT jp.*, c.title AS courseTitle
+             FROM job_postings jp
+             LEFT JOIN courses c ON c.id = jp.linkedCourseId
+             ORDER BY jp.id DESC`
+        );
+        res.json(result.rows);
+    } catch (err) {
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+app.post('/api/admin/jobs', requireAdmin, async (req, res) => {
+    const { title, description, status, customQuestions, linkedCourseId, price } = req.body;
+    try {
+        const result = await pool.query(
+            'INSERT INTO job_postings (title, description, status, customQuestions, linkedCourseId, price) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id',
+            [title, description || '', status || 'open', JSON.stringify(customQuestions || []), linkedCourseId || null, price || 0]
+        );
+        res.json({ success: true, id: result.rows[0].id });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+app.put('/api/admin/jobs/:id', requireAdmin, async (req, res) => {
+    const { title, description, status, customQuestions, linkedCourseId, price } = req.body;
+    try {
+        await pool.query(
+            'UPDATE job_postings SET title=$1, description=$2, status=$3, customQuestions=$4, linkedCourseId=$5, price=$6, updatedAt=CURRENT_TIMESTAMP WHERE id=$7',
+            [title, description || '', status || 'open', JSON.stringify(customQuestions || []), linkedCourseId || null, price || 0, req.params.id]
+        );
+        res.json({ success: true });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+app.delete('/api/admin/jobs/:id', requireAdmin, async (req, res) => {
+    try {
+        await pool.query('DELETE FROM job_postings WHERE id=$1', [req.params.id]);
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// Apply for Job — multipart for file uploads (payment screenshot + image questions)
+app.post('/api/jobs/:id/apply', upload.fields([
+    { name: 'paymentScreenshot', maxCount: 1 },
+    { name: 'imageUpload', maxCount: 10 }
+]), async (req, res) => {
+    const ip = getClientIP(req);
+    if (!rateLimit(`apply-job:${ip}`, 5, 60 * 60 * 1000)) {
+        return res.status(429).json({ error: 'Too many applications. Please wait.' });
+    }
+
+    const jobId = req.params.id;
+    const { name, email, phone, resumeLink, coverLetter, paymentId } = req.body;
+
+    if (!name || !email) {
+        return res.status(400).json({ error: 'Name and email are required.' });
+    }
+
+    // Parse customAnswers (sent as JSON string in multipart)
+    let customAnswers = {};
+    try { customAnswers = JSON.parse(req.body.customAnswers || '{}'); } catch (e) { }
+
+    // Handle image uploads for custom questions — map field index to uploaded file path
+    if (req.files && req.files.imageUpload) {
+        req.files.imageUpload.forEach(file => {
+            // The fieldname prefix stores the question index
+            const match = file.originalname.match(/^img_q_(\d+)_/);
+            if (match) {
+                customAnswers[`__image_${match[1]}`] = '/uploads/' + file.filename;
+            }
+        });
+    }
+
+    // Payment screenshot path
+    let screenshotPath = '';
+    if (req.files && req.files.paymentScreenshot && req.files.paymentScreenshot[0]) {
+        screenshotPath = '/uploads/' + req.files.paymentScreenshot[0].filename;
+    }
+
+    try {
+        const insert = await pool.query(
+            'INSERT INTO job_applications (jobId, name, email, phone, resumeLink, coverLetter, customAnswers, paymentId, paymentScreenshot) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id',
+            [jobId, name, email, phone || '', resumeLink || '', coverLetter || '', JSON.stringify(customAnswers), paymentId || null, screenshotPath || null]
+        );
+        logSecurity('JOB_APPLY_OK', ip, `Job ${jobId} applied by ${email}`);
+        res.json({ success: true, id: insert.rows[0].id });
+    } catch (err) {
+        logSecurity('JOB_APPLY_ERROR', ip, err.message);
+        res.status(500).json({ error: 'Failed to submit application' });
+    }
+});
+
+// Admin View Job Applications
+app.get('/api/admin/jobs/:id/applications', requireAdmin, async (req, res) => {
+    try {
+        const result = await pool.query('SELECT * FROM job_applications WHERE jobId = $1 ORDER BY id DESC', [req.params.id]);
+        res.json(result.rows);
+    } catch (err) {
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// Admin Verify Payment — auto-enroll in linked course
+app.put('/api/admin/jobs/:jobId/applications/:appId/verify', requireAdmin, async (req, res) => {
+    try {
+        const { jobId, appId } = req.params;
+
+        // Mark as verified
+        await pool.query('UPDATE job_applications SET paymentVerified=1 WHERE id=$1 AND jobId=$2', [appId, jobId]);
+
+        // Get job to find linked course
+        const jobRes = await pool.query('SELECT linkedCourseId FROM job_postings WHERE id=$1', [jobId]);
+        const linkedCourseId = jobRes.rows[0]?.linkedCourseId;
+
+        // Get application email
+        const appRes = await pool.query('SELECT name, email FROM job_applications WHERE id=$1', [appId]);
+        const applicantEmail = appRes.rows[0]?.email;
+        const applicantName = appRes.rows[0]?.name;
+
+        // Auto-enroll if there's a linked course
+        if (linkedCourseId && applicantEmail) {
+            // Find or create student
+            let studentRes = await pool.query('SELECT id FROM students WHERE email=$1', [applicantEmail]);
+            let studentId;
+            if (studentRes.rows.length > 0) {
+                studentId = studentRes.rows[0].id;
+            } else {
+                // Create a basic student account (they can set password later via signup)
+                const tempHash = await bcrypt.hash(Math.random().toString(36).slice(2), 10);
+                const newStudent = await pool.query(
+                    'INSERT INTO students (name, email, passwordHash, emailVerified) VALUES ($1, $2, $3, 1) RETURNING id',
+                    [applicantName || 'Applicant', applicantEmail, tempHash]
+                );
+                studentId = newStudent.rows[0].id;
+            }
+
+            // Enroll (ignore duplicate)
+            try {
+                await pool.query('INSERT INTO enrollments (studentId, courseId) VALUES ($1, $2)', [studentId, linkedCourseId]);
+            } catch (dupErr) { /* already enrolled */ }
+        }
+
+        logSecurity('JOB_PAYMENT_VERIFIED', 'admin', `App #${appId} for Job #${jobId} verified`);
+        res.json({ success: true });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// Download Applications as CSV
+app.get('/api/admin/jobs/:id/applications/download', requireAdmin, async (req, res) => {
+    try {
+        const jobId = req.params.id;
+        const jobRes = await pool.query('SELECT title, customQuestions FROM job_postings WHERE id=$1', [jobId]);
+        if (jobRes.rows.length === 0) return res.status(404).send('Job not found');
+
+        const job = jobRes.rows[0];
+        const appsRes = await pool.query('SELECT * FROM job_applications WHERE jobId=$1 ORDER BY id DESC', [jobId]);
+
+        let csv = 'Applied At,Name,Email,Phone,Resume Link,Cover Letter,Payment ID,Payment Verified';
+
+        const customQ = Array.isArray(job.customQuestions) ? job.customQuestions : [];
+        customQ.forEach(q => {
+            csv += `,"${q.question ? q.question.replace(/"/g, '""') : 'Custom'}"`;
+        });
+        csv += '\n';
+
+        appsRes.rows.forEach(app => {
+            const date = new Date(app.appliedAt).toLocaleString();
+            const name = (app.name || '').replace(/"/g, '""');
+            const email = (app.email || '').replace(/"/g, '""');
+            const phone = (app.phone || '').replace(/"/g, '""');
+            const link = (app.resumeLink || '').replace(/"/g, '""');
+            const letter = (app.coverLetter || '').replace(/"/g, '""');
+            const pymtId = (app.paymentId || '').replace(/"/g, '""');
+            const pymtVerified = app.paymentVerified ? 'Yes' : 'No';
+
+            csv += `"${date}","${name}","${email}","${phone}","${link}","${letter}","${pymtId}","${pymtVerified}"`;
+
+            const answers = app.customAnswers || {};
+            customQ.forEach(q => {
+                const ans = String(answers[q.question] || '').replace(/"/g, '""');
+                csv += `,"${ans}"`;
+            });
+            csv += '\n';
+        });
+
+        res.setHeader('Content-Type', 'text/csv');
+        res.setHeader('Content-Disposition', `attachment; filename="applications_job_${jobId}.csv"`);
+        res.send(csv);
+    } catch (err) {
+        res.status(500).send('Server Error');
+    }
 });
 
 app.listen(PORT, () => {

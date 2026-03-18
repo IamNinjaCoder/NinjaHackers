@@ -58,6 +58,8 @@
                 Works</button>
             <button class="tab" data-tab="videos" onclick="switchTab('videos')"><i class="fab fa-youtube"></i>
                 Videos</button>
+            <button class="tab" data-tab="jobs" onclick="switchTab('jobs')"><i class="fas fa-briefcase"></i>
+                Jobs</button>
             <button class="tab" data-tab="settings" onclick="switchTab('settings')"><i class="fas fa-cog"></i>
                 Settings</button>
         </div>
@@ -647,6 +649,136 @@
                     </div>
                     <button class="btn-save" onclick="saveVideo()" style="width:100%;"><i class="fas fa-save"></i> Save
                         Video</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═══ JOBS TAB ═══ -->
+        <div class="admin-content tab-content" id="tab-jobs" style="display:none;">
+            <!-- List View -->
+            <div id="jobsListView">
+                <div class="admin-title-bar">
+                    <div>
+                        <h1><i class="fas fa-briefcase" style="color:var(--green);margin-right:.5rem;"></i>Job Postings</h1>
+                        <p class="admin-subtitle" id="jobsCount">Loading...</p>
+                    </div>
+                    <div style="display:flex; gap:1rem;">
+                        <button class="btn-new" onclick="openJobEditor()"><i class="fas fa-plus"></i> New Job</button>
+                        <select id="jobsFilterSelect" onchange="loadAdminJobs()" style="background:var(--bg);color:var(--text);border:1px solid rgba(0,255,136,0.3);border-radius:6px;padding:0.5rem;font-family:'Rajdhani',sans-serif;outline:none;">
+                            <option value="all">All Jobs</option>
+                            <option value="open">Open</option>
+                            <option value="closed">Closed</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="data-table-wrap">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Ref ID</th>
+                                <th>Title</th>
+                                <th>Linked Course</th>
+                                <th>Price</th>
+                                <th>Status</th>
+                                <th>Questions</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="jobsListAdmin"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Job Editor View -->
+            <div id="jobEditorView" style="display:none;">
+                <div class="admin-title-bar">
+                    <h1 id="jobEditorTitle"><i class="fas fa-edit" style="color:var(--green);margin-right:.5rem;"></i>New Job</h1>
+                    <div style="display:flex;gap:.6rem;">
+                        <button class="btn-cancel" onclick="closeJobEditor()"><i class="fas fa-times"></i> Cancel</button>
+                        <button class="btn-save" onclick="saveJob()"><i class="fas fa-save"></i> Save Job</button>
+                    </div>
+                </div>
+                <div class="editor-form">
+                    <input type="hidden" id="editJobId" />
+                    <div class="editor-row">
+                        <div class="form-group" style="flex:2;">
+                            <label>Job Title</label>
+                            <input type="text" id="jobTitle" placeholder="Cyber Security Analyst" />
+                        </div>
+                        <div class="form-group" style="flex:1;">
+                            <label>Status</label>
+                            <select id="jobStatus">
+                                <option value="open">Open (Accepting Apps)</option>
+                                <option value="closed">Closed</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Description</label>
+                        <textarea id="jobDesc" rows="4" placeholder="Brief job intro, requirements, etc..."></textarea>
+                    </div>
+
+                    <!-- Course Linking & Payment -->
+                    <div class="section-block" style="margin-top:1.5rem;background:rgba(0,255,136,0.03);border:1px solid rgba(0,255,136,0.15);padding:1.5rem;border-radius:8px;">
+                        <h3 style="margin-bottom:1rem;"><i class="fas fa-link" style="color:var(--green);margin-right:.4rem;"></i>Course / Intern Linking & Payment</h3>
+                        <p style="color:var(--muted);font-size:0.85rem;margin-bottom:1rem;">Link a course so applicants can pay and get auto-enrolled upon verification. Leave empty for no payment required.</p>
+                        <div class="editor-row">
+                            <div class="form-group" style="flex:2;">
+                                <label>Link to Course</label>
+                                <select id="jobLinkedCourse">
+                                    <option value="">— None (no payment required) —</option>
+                                    <!-- Populated by JS -->
+                                </select>
+                            </div>
+                            <div class="form-group" style="flex:1;">
+                                <label>Price (₹)</label>
+                                <input type="number" id="jobPrice" placeholder="0" min="0" value="0" />
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Custom Questions -->
+                    <div class="section-block" style="margin-top:2rem;">
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+                            <h3><i class="fas fa-clipboard-list" style="color:var(--cyan);margin-right:.4rem;"></i>Custom Application Questions</h3>
+                            <button class="btn-new" style="background:rgba(0,212,255,0.1);color:var(--cyan);border-color:rgba(0,212,255,0.3);" onclick="addJobQuestion()"><i class="fas fa-plus"></i> Add Question</button>
+                        </div>
+                        <p style="color:var(--muted);font-size:0.85rem;margin-bottom:1rem;">Name, Email, Phone, Resume Link, and Cover Letter are included automatically.</p>
+
+                        <div id="jobQuestionsList" style="display:flex;flex-direction:column;gap:1rem;">
+                            <!-- Dynamic questions will be injected here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Applications Viewer -->
+            <div id="jobAppsView" style="display:none;">
+                <div class="admin-title-bar">
+                    <div>
+                        <h1><i class="fas fa-users" style="color:var(--cyan);margin-right:.5rem;"></i><span id="appsJobTitle">Applications</span></h1>
+                        <p class="admin-subtitle" id="appsCount">Loading...</p>
+                    </div>
+                    <div style="display:flex;gap:.6rem;">
+                        <button class="btn-cancel" onclick="closeJobApps()"><i class="fas fa-arrow-left"></i> Back to Jobs</button>
+                        <button class="btn-save" style="background:rgba(0,212,255,0.1);color:var(--cyan);border-color:rgba(0,212,255,0.3);" onclick="downloadJobAppsCSV()"><i class="fas fa-download"></i> Download CSV</button>
+                    </div>
+                </div>
+                <div class="data-table-wrap">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Email / Contact</th>
+                                <th>Links</th>
+                                <th>Payment</th>
+                                <th>Applied At</th>
+                                <th>Custom Answers</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="jobAppsList"></tbody>
+                    </table>
                 </div>
             </div>
         </div>

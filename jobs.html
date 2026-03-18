@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Careers & Jobs | NinjaHackers</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #050a0e; --bg-card: rgba(10, 20, 30, 0.6); --text: #e0f2fe; --muted: #94a3b8;
+            --primary: #0ea5e9; --cyan: #00e5ff; --green: #00ff88; --dark-green: #004d26;
+            --orange: #ff3366; --glass-border: rgba(0, 255, 136, 0.15);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Rajdhani', sans-serif;
+            background: radial-gradient(circle at center, #0a1f2e 0%, var(--bg) 100%);
+            color: var(--text); min-height: 100vh;
+            background-attachment: fixed;
+        }
+        
+        /* Navbar */
+        .navbar {
+            background: rgba(5, 10, 14, 0.85);
+            backdrop-filter: blur(12px); border-bottom: 1px solid var(--glass-border);
+            padding: 1rem 2rem; display: flex; justify-content: space-between; align-items: center;
+            position: sticky; top: 0; z-index: 100;
+        }
+        .nav-brand { font-family: 'Orbitron', sans-serif; font-weight: 700; font-size: 1.5rem; color: #fff; text-decoration: none; }
+        .nav-brand span { color: var(--green); }
+        .nav-links a { color: var(--text); padding: 0.5rem 1rem; text-decoration: none; font-weight: 600; transition: color 0.3s; }
+        .nav-links a:hover { color: var(--cyan); }
+
+        /* Hero */
+        .hero { text-align: center; padding: 5rem 1rem; position: relative; overflow: hidden; }
+        .hero h1 { font-family: 'Orbitron', sans-serif; font-size: 3rem; margin-bottom: 1rem; color: #fff; text-shadow: 0 0 20px rgba(0,255,136,0.3); }
+        .hero p { color: var(--muted); font-size: 1.2rem; max-width: 600px; margin: 0 auto; }
+
+        /* Container */
+        .container { max-width: 1000px; margin: 0 auto; padding: 2rem 1rem; }
+
+        /* Job Card */
+        .job-card {
+            background: var(--bg-card); border: 1px solid var(--glass-border); border-radius: 12px;
+            padding: 2rem; margin-bottom: 1.5rem;
+            transition: transform 0.3s, box-shadow 0.3s;
+            display: flex; flex-direction: column; gap: 1rem;
+        }
+        .job-card:hover { transform: translateY(-3px); box-shadow: 0 10px 30px rgba(0, 255, 136, 0.1); border-color: rgba(0,255,136,0.4); }
+        .job-title { font-size: 1.5rem; font-weight: 700; color: #fff; font-family: 'Orbitron', sans-serif; }
+        .job-meta { display: flex; gap: 1rem; font-size: 0.9rem; color: var(--cyan); font-family: 'Share Tech Mono', monospace; }
+        .job-desc { color: var(--muted); line-height: 1.6; white-space: pre-line; }
+        .apply-btn { 
+            align-self: flex-start; margin-top: 1rem; padding: 0.8rem 2rem;
+            background: linear-gradient(90deg, var(--green), var(--cyan)); color: #000;
+            border: none; border-radius: 8px; font-weight: 700; font-family: 'Orbitron', sans-serif;
+            cursor: pointer; transition: all 0.3s ease; text-transform: uppercase;
+        }
+        .apply-btn:hover { box-shadow: 0 0 15px rgba(0,255,136,0.5); transform: scale(1.02); }
+
+        /* Modal */
+        .modal {
+            display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8);
+            backdrop-filter: blur(5px); z-index: 1000;
+            align-items: center; justify-content: center; padding: 1rem;
+        }
+        .modal-content {
+            background: #0b1116; border: 1px solid var(--glass-border);
+            border-radius: 12px; width: 100%; max-width: 600px; max-height: 90vh;
+            display: flex; flex-direction: column;
+        }
+        .modal-header {
+            padding: 1.5rem; border-bottom: 1px solid rgba(255,255,255,0.05);
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .modal-header h2 { font-family: 'Orbitron', sans-serif; color: #fff; font-size: 1.3rem; }
+        .close-btn { background: transparent; border: none; color: var(--muted); font-size: 1.5rem; cursor: pointer; }
+        .close-btn:hover { color: var(--orange); }
+        .modal-body { padding: 1.5rem; overflow-y: auto; }
+        
+        .form-group { margin-bottom: 1.2rem; }
+        .form-group label { display: block; margin-bottom: 0.5rem; color: var(--cyan); font-weight: 600; font-size: 0.95rem; }
+        .form-group input, .form-group textarea {
+            width: 100%; padding: 0.8rem; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1);
+            background: rgba(0,0,0,0.3); color: #fff; font-family: 'Rajdhani', sans-serif; font-size: 1rem;
+            transition: border-color 0.3s;
+        }
+        .form-group input:focus, .form-group textarea:focus { outline: none; border-color: var(--green); }
+        .submit-btn {
+            width: 100%; padding: 1rem; border: none; border-radius: 8px;
+            background: var(--green); color: #000; font-weight: 700; font-size: 1.1rem;
+            font-family: 'Orbitron', sans-serif; cursor: pointer; transition: all 0.3s;
+        }
+        .submit-btn:hover { box-shadow: 0 0 20px rgba(0,255,136,0.4); }
+
+        .loading { text-align: center; padding: 3rem; color: var(--cyan); font-family: 'Share Tech Mono', monospace; }
+        
+        /* Toast */
+        #toast {
+            position: fixed; bottom: 20px; right: 20px; background: rgba(0,255,136,0.1);
+            border: 1px solid var(--green); color: var(--green); padding: 1rem 1.5rem;
+            border-radius: 8px; font-weight: 600; font-family: 'Share Tech Mono', monospace;
+            z-index: 2000; display: none; backdrop-filter: blur(10px);
+        }
+        #toast.error { border-color: var(--orange); color: var(--orange); background: rgba(255,51,102,0.1); }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <a href="/" class="nav-brand">Ninja<span>Hackers</span></a>
+        <div class="nav-links">
+            <a href="/">Home</a>
+            <a href="/learn">Academy</a>
+            <a href="/jobs.html" style="color:var(--green);">Careers</a>
+        </div>
+    </nav>
+
+    <div class="hero">
+        <h1>Join the Vanguard</h1>
+        <p>Shape the future of cybersecurity. We're looking for passionate individuals to join our team or our partner networks.</p>
+    </div>
+
+    <div class="container" id="jobsList">
+        <div class="loading"><i class="fas fa-circle-notch fa-spin"></i> Loading roles...</div>
+    </div>
+
+    <!-- Application Modal -->
+    <div class="modal" id="applyModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalJobTitle">Apply for Role</h2>
+                <button class="close-btn" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="applyForm" onsubmit="submitApplication(event)">
+                    <input type="hidden" id="applyJobId">
+                    <div class="form-group">
+                        <label>Full Name *</label>
+                        <input type="text" id="appName" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Email Address *</label>
+                        <input type="email" id="appEmail" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Phone Number</label>
+                        <input type="tel" id="appPhone">
+                    </div>
+                    <div class="form-group">
+                        <label>Resume Link (Google Drive / public link)</label>
+                        <input type="url" id="appResume" placeholder="https://...">
+                    </div>
+                    <div class="form-group">
+                        <label>Cover Letter / Summary</label>
+                        <textarea id="appCover" rows="4"></textarea>
+                    </div>
+
+                    <!-- Payment Section (shown when price > 0) -->
+                    <div id="paymentSection" style="display:none; margin-top:2rem; border-top:1px solid rgba(0,255,136,0.15); padding-top:1.5rem;">
+                        <h3 style="color:var(--green);font-family:'Orbitron',sans-serif;font-size:1.1rem;margin-bottom:0.5rem;"><i class="fas fa-credit-card"></i> Payment Required</h3>
+                        <p id="paymentPriceLabel" style="color:var(--cyan);font-size:0.95rem;margin-bottom:1rem;"></p>
+                        <div class="form-group">
+                            <label>Payment / Transaction ID *</label>
+                            <input type="text" id="appPaymentId" placeholder="e.g. UTR123456789">
+                        </div>
+                        <div class="form-group">
+                            <label>Payment Screenshot</label>
+                            <input type="file" id="appPaymentScreenshot" accept="image/*" style="padding:0.5rem;">
+                        </div>
+                    </div>
+
+                    <div id="dynamicQuestions" style="margin-top:2rem; border-top:1px solid rgba(255,255,255,0.05); padding-top:1.5rem;">
+                        <!-- Custom questions injected here -->
+                    </div>
+
+                    <button type="submit" class="submit-btn" id="submitBtn"><i class="fas fa-paper-plane"></i> Submit Application</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast"></div>
+
+    <script>
+        let jobsData = [];
+
+        async function loadJobs() {
+            try {
+                const res = await fetch('/api/jobs');
+                jobsData = await res.json();
+                renderJobs();
+            } catch (err) {
+                document.getElementById('jobsList').innerHTML = '<div class="loading" style="color:var(--orange);">Failed to load jobs. Please try again later.</div>';
+            }
+        }
+
+        function renderJobs() {
+            const container = document.getElementById('jobsList');
+            if (!jobsData.length) {
+                container.innerHTML = '<div style="text-align:center;color:var(--muted);padding:3rem;">No open positions at the moment. Check back later!</div>';
+                return;
+            }
+
+            let html = '';
+            for(let i=0; i<jobsData.length; i++) {
+                const job = jobsData[i];
+                html += '<div class="job-card">';
+                html += '    <div class="job-title">' + escapeHTML(job.title) + '</div>';
+                html += '    <div class="job-meta">';
+                html += '        <span><i class="far fa-clock"></i> Posted ' + new Date(job.createdAt).toLocaleDateString() + '</span>';
+                if (job.courseTitle) {
+                    html += '        <span><i class="fas fa-graduation-cap"></i> ' + escapeHTML(job.courseTitle) + '</span>';
+                }
+                if (job.price > 0) {
+                    html += '        <span style="color:var(--green);font-weight:600;"><i class="fas fa-tag"></i> ₹' + job.price + '</span>';
+                } else {
+                    html += '        <span><i class="fas fa-briefcase"></i> Free</span>';
+                }
+                html += '    </div>';
+                html += '    <div class="job-desc">' + escapeHTML(job.description).replace(/\n/g, '<br>') + '</div>';
+                html += '    <button class="apply-btn" onclick="openModal(' + job.id + ', \'' + escapeHTML(job.title).replace(/'/g, "\\'") + '\')">Apply Now</button>';
+                html += '</div>';
+            }
+            container.innerHTML = html;
+        }
+
+        function openModal(jobId, jobTitle) {
+            const job = jobsData.find(j => j.id === jobId);
+            if (!job) return;
+
+            document.getElementById('applyJobId').value = jobId;
+            document.getElementById('modalJobTitle').textContent = 'Apply: ' + jobTitle;
+
+            // Payment section
+            const paymentSection = document.getElementById('paymentSection');
+            if (job.price > 0) {
+                paymentSection.style.display = 'block';
+                document.getElementById('paymentPriceLabel').textContent = 'Amount: ₹' + job.price + (job.courseTitle ? ' for ' + job.courseTitle : '');
+                document.getElementById('appPaymentId').required = true;
+            } else {
+                paymentSection.style.display = 'none';
+                document.getElementById('appPaymentId').required = false;
+            }
+
+            // Render custom questions
+            const dynamicContainer = document.getElementById('dynamicQuestions');
+            dynamicContainer.innerHTML = '';
+
+            if (job.customQuestions && job.customQuestions.length > 0) {
+                dynamicContainer.innerHTML = '<h3 style="color:#fff;font-family:\'Orbitron\',sans-serif;font-size:1.1rem;margin-bottom:1rem;">Additional Questions</h3>';
+                for(let index=0; index<job.customQuestions.length; index++) {
+                    const q = job.customQuestions[index];
+                    const reqStar = q.required ? '*' : '';
+                    const reqAttr = q.required ? 'required' : '';
+                    const qId = 'custom_q_' + index;
+
+                    let inputHtml = '';
+                    switch(q.type) {
+                        case 'textarea':
+                            inputHtml = '<textarea id="' + qId + '" data-idx="' + index + '" rows="3" ' + reqAttr + ' class="custom-answer"></textarea>';
+                            break;
+                        case 'email':
+                            inputHtml = '<input type="email" id="' + qId + '" data-idx="' + index + '" ' + reqAttr + ' class="custom-answer" placeholder="email@example.com">';
+                            break;
+                        case 'url':
+                            inputHtml = '<input type="url" id="' + qId + '" data-idx="' + index + '" ' + reqAttr + ' class="custom-answer" placeholder="https://...">';
+                            break;
+                        case 'number':
+                            inputHtml = '<input type="number" id="' + qId + '" data-idx="' + index + '" ' + reqAttr + ' class="custom-answer">';
+                            break;
+                        case 'image':
+                            inputHtml = '<input type="file" id="' + qId + '" data-idx="' + index + '" ' + reqAttr + ' class="custom-answer custom-image-upload" accept="image/*" style="padding:0.5rem;">';
+                            break;
+                        case 'select':
+                            var opts = (q.options || []).map(function(opt) {
+                                return '<option value="' + escapeHTML(opt) + '">' + escapeHTML(opt) + '</option>';
+                            }).join('');
+                            inputHtml = '<select id="' + qId + '" data-idx="' + index + '" ' + reqAttr + ' class="custom-answer" style="width:100%;padding:0.8rem;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:rgba(0,0,0,0.3);color:#fff;font-family:\'Rajdhani\',sans-serif;font-size:1rem;">' +
+                                '<option value="">Select...</option>' + opts + '</select>';
+                            break;
+                        default:
+                            inputHtml = '<input type="text" id="' + qId + '" data-idx="' + index + '" ' + reqAttr + ' class="custom-answer">';
+                    }
+
+                    dynamicContainer.innerHTML += '<div class="form-group">' +
+                        '<label>' + escapeHTML(q.question) + ' ' + reqStar + '</label>' +
+                        inputHtml +
+                        '</div>';
+                }
+            }
+
+            document.getElementById('applyModal').style.display = 'flex';
+        }
+
+        function closeModal() {
+            document.getElementById('applyModal').style.display = 'none';
+            document.getElementById('applyForm').reset();
+        }
+
+        async function submitApplication(e) {
+            e.preventDefault();
+            const btn = document.getElementById('submitBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Submitting...';
+
+            const jobId = document.getElementById('applyJobId').value;
+            const job = jobsData.find(j => j.id == jobId);
+
+            // Collect custom answers (text-based)
+            const customAnswers = {};
+            if (job && job.customQuestions) {
+                for(let index=0; index<job.customQuestions.length; index++) {
+                    const q = job.customQuestions[index];
+                    if (q.type !== 'image') {
+                        const val = document.getElementById('custom_q_' + index).value;
+                        customAnswers[q.question] = val;
+                    }
+                }
+            }
+
+            // Build FormData for multipart upload
+            const formData = new FormData();
+            formData.append('name', document.getElementById('appName').value);
+            formData.append('email', document.getElementById('appEmail').value);
+            formData.append('phone', document.getElementById('appPhone').value);
+            formData.append('resumeLink', document.getElementById('appResume').value);
+            formData.append('coverLetter', document.getElementById('appCover').value);
+            formData.append('customAnswers', JSON.stringify(customAnswers));
+
+            // Payment fields
+            if (job && job.price > 0) {
+                formData.append('paymentId', document.getElementById('appPaymentId').value);
+                const screenshotFile = document.getElementById('appPaymentScreenshot').files[0];
+                if (screenshotFile) {
+                    formData.append('paymentScreenshot', screenshotFile);
+                }
+            }
+
+            // Image uploads for custom questions
+            if (job && job.customQuestions) {
+                for(let index=0; index<job.customQuestions.length; index++) {
+                    const q = job.customQuestions[index];
+                    if (q.type === 'image') {
+                        const fileInput = document.getElementById('custom_q_' + index);
+                        if (fileInput && fileInput.files[0]) {
+                            const file = fileInput.files[0];
+                            const renamedFile = new File([file], 'img_q_' + index + '_' + file.name, { type: file.type });
+                            formData.append('imageUpload', renamedFile);
+                        }
+                    }
+                }
+            }
+
+            try {
+                const res = await fetch('/api/jobs/' + jobId + '/apply', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (res.ok) {
+                    showToast('Application submitted successfully! We will be in touch.');
+                    closeModal();
+                } else {
+                    const data = await res.json();
+                    showToast(data.error || 'Failed to submit application.', true);
+                }
+            } catch (err) {
+                showToast('Network error occurred.', true);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-paper-plane"></i> Submit Application';
+            }
+        }
+
+        function showToast(msg, isError = false) {
+            const toast = document.getElementById('toast');
+            toast.textContent = msg;
+            toast.className = isError ? 'error' : '';
+            toast.style.display = 'block';
+            setTimeout(() => toast.style.display = 'none', 4000);
+        }
+
+        function escapeHTML(str) {
+            const p = document.createElement('p');
+            p.textContent = str;
+            return p.innerHTML;
+        }
+
+        window.onload = loadJobs;
+    </script>
+</body>
+</html>

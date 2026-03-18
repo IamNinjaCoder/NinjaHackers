@@ -70,8 +70,8 @@ function switchTab(tab) {
     case 'coupons': loadCoupons(); break;
     case 'announcements': loadAnnouncements(); break;
     case 'assignments': loadAssignments(); break;
-    case 'works': loadWorks(); break;
     case 'videos': loadVideos(); break;
+    case 'jobs': loadAdminJobs(); break;
     case 'settings': loadSettings(); break;
   }
 }
@@ -792,9 +792,9 @@ async function confirmDelete() {
   let url = '';
   switch (deleteTargetType) {
     case 'blog': url = `/api/admin/blogs/${deleteTargetId}`; break;
-    case 'course': url = `/api/admin/courses/${deleteTargetId}`; break;
     case 'works': url = `/api/admin/works/${deleteTargetId}`; break;
     case 'videos': url = `/api/admin/videos/${deleteTargetId}`; break;
+    case 'job': url = `/api/admin/jobs/${deleteTargetId}`; break;
   }
   if (url) { await fetch(url, { method: 'DELETE' }); showToast('Deleted.'); switchTab(currentTab); }
   closeDeleteModal();
@@ -1262,6 +1262,338 @@ async function saveVideo() {
     if (data.success) { showToast('Video saved!'); closeVideoEditor(); loadVideos(); }
     else showToast(data.error || 'Failed to save.', true);
   } catch (e) { showToast('Connection error.', true); }
+}
+
+// ═══════════════════════════════════════
+//  JOBS & APPLICATIONS
+// ═══════════════════════════════════════
+
+let currentAdminJobs = [];
+let currentJobQuestions = [];
+let editJobIdValue = null;
+let allCoursesForJobs = [];
+
+async function loadAdminJobs() {
+  try {
+    const res = await fetch('/api/admin/jobs');
+    let jobs = await res.json();
+    currentAdminJobs = jobs;
+
+    const filter = document.getElementById('jobsFilterSelect').value;
+    if (filter !== 'all') {
+      jobs = jobs.filter(j => j.status === filter);
+    }
+
+    document.getElementById('jobsCount').textContent = `${jobs.length} total postings`;
+    const list = document.getElementById('jobsListAdmin');
+
+    if (!jobs.length) {
+      list.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:2rem;">No job postings found.</td></tr>';
+      return;
+    }
+
+    list.innerHTML = jobs.map(j => `
+      <tr>
+        <td style="font-family:'Share Tech Mono',monospace;color:var(--muted);">#${j.id}</td>
+        <td style="font-weight:600;color:var(--text);">${esc(j.title)}</td>
+        <td>${j.courseTitle ? `<span style="color:var(--green);font-size:0.85rem;">${esc(j.courseTitle)}</span>` : '<span style="color:var(--muted);font-size:0.8rem;">None</span>'}</td>
+        <td>${j.price > 0 ? `<span style="color:var(--green);font-weight:600;">₹${j.price}</span>` : '<span style="color:var(--muted);">Free</span>'}</td>
+        <td><span class="status-badge ${j.status === 'open' ? 'status-completed' : 'status-failed'}">${j.status.toUpperCase()}</span></td>
+        <td><span class="tag tag-cyan" style="font-size:0.7rem;">${(j.customQuestions || []).length} Custom</span></td>
+        <td>
+          <button class="btn-edit" onclick="editJob(${j.id})" title="Edit Job"><i class="fas fa-pen"></i></button>
+          <button class="btn-edit" onclick="openJobApps(${j.id}, '${esc(j.title)}')" style="width:auto;padding:0 0.5rem;" title="View Applications"><i class="fas fa-users"></i> Apps</button>
+          <button class="btn-delete" onclick="openDeleteModal(${j.id},'job')" title="Delete Job"><i class="fas fa-trash-alt"></i></button>
+        </td>
+      </tr>
+    `).join('');
+  } catch (err) {
+    showToast('Failed to load jobs.', true);
+  }
+}
+
+async function fetchCoursesForJobs() {
+  try {
+    const res = await fetch('/api/admin/courses');
+    allCoursesForJobs = await res.json();
+  } catch (e) { allCoursesForJobs = []; }
+}
+
+function populateCourseDropdown(selectedId) {
+  const sel = document.getElementById('jobLinkedCourse');
+  sel.innerHTML = '<option value="">— None (no payment required) —</option>';
+  allCoursesForJobs.forEach(c => {
+    const selected = (c.id == selectedId) ? 'selected' : '';
+    sel.innerHTML += `<option value="${c.id}" ${selected}>${esc(c.title)} (₹${c.price || 0})</option>`;
+  });
+}
+
+async function openJobEditor(job = null) {
+  document.getElementById('jobsListView').style.display = 'none';
+  document.getElementById('jobAppsView').style.display = 'none';
+  document.getElementById('jobEditorView').style.display = 'block';
+
+  await fetchCoursesForJobs();
+
+  if (job) {
+    document.getElementById('jobEditorTitle').innerHTML = '<i class="fas fa-edit" style="color:var(--green);margin-right:.5rem;"></i>Edit Job';
+    editJobIdValue = job.id;
+    document.getElementById('jobTitle').value = job.title;
+    document.getElementById('jobDesc').value = job.description;
+    document.getElementById('jobStatus').value = job.status;
+    document.getElementById('jobPrice').value = job.price || 0;
+    populateCourseDropdown(job.linkedCourseId);
+    currentJobQuestions = job.customQuestions || [];
+  } else {
+    document.getElementById('jobEditorTitle').innerHTML = '<i class="fas fa-plus" style="color:var(--green);margin-right:.5rem;"></i>New Job';
+    editJobIdValue = null;
+    document.getElementById('jobTitle').value = '';
+    document.getElementById('jobDesc').value = '';
+    document.getElementById('jobStatus').value = 'open';
+    document.getElementById('jobPrice').value = 0;
+    populateCourseDropdown(null);
+    currentJobQuestions = [];
+  }
+  renderJobQuestions();
+}
+
+function closeJobEditor() {
+  document.getElementById('jobEditorView').style.display = 'none';
+  document.getElementById('jobsListView').style.display = 'block';
+}
+
+function editJob(id) {
+  const job = currentAdminJobs.find(j => j.id == id);
+  if (job) openJobEditor(job);
+}
+
+// Job Question Builder
+function addJobQuestion() {
+  currentJobQuestions.push({ question: '', type: 'text', required: true, options: [] });
+  renderJobQuestions();
+}
+
+function removeJobQuestion(index) {
+  currentJobQuestions.splice(index, 1);
+  renderJobQuestions();
+}
+
+function updateJobQuestion(index, field, value) {
+  if (field === 'required') {
+    currentJobQuestions[index][field] = value === 'true';
+  } else {
+    currentJobQuestions[index][field] = value;
+  }
+}
+
+function addSelectOption(qIndex) {
+  if (!currentJobQuestions[qIndex].options) currentJobQuestions[qIndex].options = [];
+  currentJobQuestions[qIndex].options.push('');
+  renderJobQuestions();
+}
+
+function removeSelectOption(qIndex, optIndex) {
+  currentJobQuestions[qIndex].options.splice(optIndex, 1);
+  renderJobQuestions();
+}
+
+function updateSelectOption(qIndex, optIndex, value) {
+  currentJobQuestions[qIndex].options[optIndex] = value;
+}
+
+function renderJobQuestions() {
+  const container = document.getElementById('jobQuestionsList');
+  if (currentJobQuestions.length === 0) {
+    container.innerHTML = '<p style="color:var(--muted);font-style:italic;font-size:0.9rem;">No custom questions added.</p>';
+    return;
+  }
+
+  container.innerHTML = currentJobQuestions.map((q, i) => {
+    let optionsHtml = '';
+    if (q.type === 'select') {
+      const opts = q.options || [];
+      optionsHtml = `
+        <div style="margin-top:0.5rem;padding-left:1rem;border-left:2px solid rgba(0,212,255,0.2);">
+          <p style="font-size:0.8rem;color:var(--cyan);margin-bottom:0.3rem;">Dropdown Options:</p>
+          ${opts.map((opt, oi) => `
+            <div style="display:flex;gap:0.5rem;margin-bottom:0.3rem;align-items:center;">
+              <input type="text" value="${esc(opt)}" placeholder="Option ${oi + 1}" onchange="updateSelectOption(${i}, ${oi}, this.value)" style="flex:1;padding:0.3rem 0.5rem;background:var(--bg);border:1px solid rgba(255,255,255,0.1);color:var(--text);border-radius:4px;font-size:0.85rem;" />
+              <button onclick="removeSelectOption(${i}, ${oi})" style="background:transparent;border:none;color:var(--muted);cursor:pointer;font-size:0.8rem;"><i class="fas fa-times"></i></button>
+            </div>
+          `).join('')}
+          <button onclick="addSelectOption(${i})" style="background:transparent;border:1px dashed rgba(0,212,255,0.3);color:var(--cyan);padding:0.2rem 0.6rem;border-radius:4px;font-size:0.75rem;cursor:pointer;margin-top:0.3rem;"><i class="fas fa-plus"></i> Add Option</button>
+        </div>
+      `;
+    }
+
+    return `
+    <div style="background:rgba(0,0,0,0.2);border:1px solid rgba(0,212,255,0.2);padding:1rem;border-radius:6px;display:flex;gap:1rem;align-items:flex-start;">
+      <div style="flex:1;">
+        <input type="text" value="${esc(q.question)}" placeholder="Question Text" onchange="updateJobQuestion(${i}, 'question', this.value)" style="width:100%;margin-bottom:0.5rem;padding:0.5rem;background:var(--bg);border:1px solid rgba(255,255,255,0.1);color:var(--text);border-radius:4px;" />
+        <div style="display:flex;gap:1.5rem;flex-wrap:wrap;">
+          <label style="font-size:0.85rem;color:var(--muted);"><span style="color:var(--cyan);margin-right:0.3rem;">Type:</span>
+            <select onchange="updateJobQuestion(${i}, 'type', this.value); renderJobQuestions();" style="background:var(--bg);color:var(--text);border:1px solid rgba(255,255,255,0.1);padding:0.2rem;border-radius:4px;">
+              <option value="text" ${q.type === 'text' ? 'selected' : ''}>Short Text</option>
+              <option value="textarea" ${q.type === 'textarea' ? 'selected' : ''}>Paragraph</option>
+              <option value="email" ${q.type === 'email' ? 'selected' : ''}>Email</option>
+              <option value="url" ${q.type === 'url' ? 'selected' : ''}>URL</option>
+              <option value="number" ${q.type === 'number' ? 'selected' : ''}>Number</option>
+              <option value="image" ${q.type === 'image' ? 'selected' : ''}>Image Upload</option>
+              <option value="select" ${q.type === 'select' ? 'selected' : ''}>Dropdown</option>
+            </select>
+          </label>
+          <label style="font-size:0.85rem;color:var(--muted);"><span style="color:var(--cyan);margin-right:0.3rem;">Required:</span>
+            <select onchange="updateJobQuestion(${i}, 'required', this.value)" style="background:var(--bg);color:var(--text);border:1px solid rgba(255,255,255,0.1);padding:0.2rem;border-radius:4px;">
+              <option value="true" ${q.required ? 'selected' : ''}>Yes</option>
+              <option value="false" ${!q.required ? 'selected' : ''}>No</option>
+            </select>
+          </label>
+        </div>
+        ${optionsHtml}
+      </div>
+      <button class="btn-delete" onclick="removeJobQuestion(${i})" style="width:32px;height:32px;"><i class="fas fa-times"></i></button>
+    </div>
+  `;
+  }).join('');
+}
+
+async function saveJob() {
+  const title = document.getElementById('jobTitle').value.trim();
+  if (!title) { showToast('Job Title is required.', true); return; }
+
+  const linkedVal = document.getElementById('jobLinkedCourse').value;
+
+  const payload = {
+    title,
+    description: document.getElementById('jobDesc').value.trim(),
+    status: document.getElementById('jobStatus').value,
+    customQuestions: currentJobQuestions.filter(q => q.question.trim().length > 0),
+    linkedCourseId: linkedVal ? parseInt(linkedVal) : null,
+    price: parseInt(document.getElementById('jobPrice').value) || 0
+  };
+
+  try {
+    const url = editJobIdValue ? `/api/admin/jobs/${editJobIdValue}` : '/api/admin/jobs';
+    const method = editJobIdValue ? 'PUT' : 'POST';
+    const res = await fetch(url, {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    if (res.ok) {
+      showToast('Job saved successfully!');
+      closeJobEditor();
+      loadAdminJobs();
+    } else {
+      showToast('Failed to save job.', true);
+    }
+  } catch (err) {
+    showToast('Network error.', true);
+  }
+}
+
+// ─── APPLICATIONS VIEWER ───
+let currentViewAppsJobId = null;
+
+async function openJobApps(jobId, jobTitle) {
+  document.getElementById('jobsListView').style.display = 'none';
+  document.getElementById('jobEditorView').style.display = 'none';
+  document.getElementById('jobAppsView').style.display = 'block';
+
+  document.getElementById('appsJobTitle').textContent = `Apps: ${jobTitle}`;
+  currentViewAppsJobId = jobId;
+
+  try {
+    const res = await fetch(`/api/admin/jobs/${jobId}/applications`);
+    const apps = await res.json();
+    document.getElementById('appsCount').textContent = `${apps.length} Total Applications`;
+
+    const list = document.getElementById('jobAppsList');
+    if (!apps.length) {
+      list.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:2rem;">No applications yet for this role.</td></tr>';
+      return;
+    }
+
+    list.innerHTML = apps.map(app => `
+      <tr>
+        <td style="font-weight:600;">${esc(app.name)}</td>
+        <td>
+          <a href="mailto:${esc(app.email)}" style="color:var(--cyan);text-decoration:none;">${esc(app.email)}</a>
+          ${app.phone ? `<br><span style="font-size:0.8rem;color:var(--muted);">${esc(app.phone)}</span>` : ''}
+        </td>
+        <td>
+          ${app.resumeLink ? `<a href="${esc(app.resumeLink)}" target="_blank" style="display:inline-block;margin-bottom:0.3rem;color:var(--green);font-size:0.8rem;text-decoration:none;"><i class="fas fa-link"></i> Resume</a><br>` : '<span style="color:var(--muted);font-size:0.8rem;">No Resume</span><br>'}
+          ${app.coverLetter ? `<a href="#" onclick="alert('Cover Letter:\\n\\n' + ${JSON.stringify(app.coverLetter).replace(/'/g, "\\'")}); return false;" style="color:var(--orange);font-size:0.8rem;text-decoration:none;"><i class="fas fa-file-alt"></i> Cover Letter</a>` : ''}
+        </td>
+        <td>
+          ${app.paymentId ? `
+            <div style="font-size:0.8rem;">
+              <span style="color:var(--cyan);"><i class="fas fa-receipt"></i> ${esc(app.paymentId)}</span><br>
+              ${app.paymentScreenshot ? `<a href="${esc(app.paymentScreenshot)}" target="_blank" style="color:var(--green);font-size:0.75rem;text-decoration:none;"><i class="fas fa-image"></i> Screenshot</a><br>` : ''}
+              <span class="status-badge ${app.paymentVerified ? 'status-completed' : 'status-pending'}" style="font-size:0.65rem;margin-top:0.3rem;">${app.paymentVerified ? 'VERIFIED' : 'PENDING'}</span>
+            </div>
+          ` : '<span style="color:var(--muted);font-size:0.8rem;">N/A</span>'}
+        </td>
+        <td style="font-size:0.8rem;color:var(--muted);">${new Date(app.appliedAt).toLocaleDateString()}</td>
+        <td>
+          ${app.customAnswers && Object.keys(app.customAnswers).length > 0
+            ? `<button onclick="viewCustomAnswers(${app.id})" style="background:transparent;border:1px solid var(--cyan);color:var(--cyan);border-radius:4px;padding:0.2rem 0.5rem;font-size:0.75rem;cursor:pointer;">View Answers</button>`
+            : '<span style="color:var(--muted);font-size:0.8rem;">None</span>'}
+        </td>
+        <td>
+          ${app.paymentId && !app.paymentVerified ? `
+            <button onclick="verifyJobApplication(${jobId}, ${app.id})" style="background:rgba(0,255,136,0.1);border:1px solid var(--green);color:var(--green);border-radius:4px;padding:0.3rem 0.6rem;font-size:0.75rem;cursor:pointer;font-weight:600;" title="Verify payment & auto-enroll"><i class="fas fa-check"></i> Verify</button>
+          ` : app.paymentVerified ? '<span style="color:var(--green);font-size:0.8rem;"><i class="fas fa-check-circle"></i> Done</span>' : ''}
+        </td>
+      </tr>
+    `).join('');
+    // Store apps for viewing answers
+    window._currentApps = apps;
+  } catch (err) {
+    showToast('Failed to load apps.', true);
+  }
+}
+
+function viewCustomAnswers(appId) {
+  const app = (window._currentApps || []).find(a => a.id === appId);
+  if (!app || !app.customAnswers) return;
+  let msg = 'Custom Answers:\n\n';
+  for (const [key, val] of Object.entries(app.customAnswers)) {
+    if (key.startsWith('__image_')) {
+      msg += `[Image Upload]: ${val}\n`;
+    } else {
+      msg += `${key}: ${val}\n`;
+    }
+  }
+  alert(msg);
+}
+
+async function verifyJobApplication(jobId, appId) {
+  if (!confirm('Verify this payment and auto-enroll the applicant in the linked course?')) return;
+  try {
+    const res = await fetch(`/api/admin/jobs/${jobId}/applications/${appId}/verify`, { method: 'PUT' });
+    if (res.ok) {
+      showToast('Payment verified & applicant enrolled!');
+      openJobApps(jobId, document.getElementById('appsJobTitle').textContent.replace('Apps: ', ''));
+    } else {
+      showToast('Verification failed.', true);
+    }
+  } catch (e) {
+    showToast('Network error.', true);
+  }
+}
+
+function closeJobApps() {
+  document.getElementById('jobAppsView').style.display = 'none';
+  document.getElementById('jobsListView').style.display = 'block';
+  currentViewAppsJobId = null;
+}
+
+function downloadJobAppsCSV() {
+  if (currentViewAppsJobId) {
+    window.location.href = `/api/admin/jobs/${currentViewAppsJobId}/applications/download`;
+  }
 }
 
 setInterval(checkSession, 1000 * 60);
