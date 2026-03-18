@@ -40,6 +40,14 @@ const safeEqual = (a, b) => {
     return ba.length === bb.length && require('crypto').timingSafeEqual(ba, bb);
 };
 
+function escapeHtml(s) {
+    return (s || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+}
+
 // ─── Allowed email domains ───
 const ALLOWED_DOMAINS = new Set([
     'gmail.com', 'googlemail.com', 'outlook.com', 'hotmail.com', 'live.com',
@@ -127,9 +135,22 @@ const upload = multer({
     }),
     limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
     fileFilter: (req, file, cb) => {
-        const allowed = ['.pdf', '.zip', '.rar', '.doc', '.docx', '.txt', '.png', '.jpg', '.jpeg', '.gif'];
-        const ext = path.extname(file.originalname).toLowerCase();
-        cb(null, allowed.includes(ext));
+        const allowedExt = new Set(['.pdf', '.zip', '.rar', '.doc', '.docx', '.txt', '.png', '.jpg', '.jpeg', '.gif']);
+        const allowedMime = new Set([
+            'application/pdf',
+            'application/zip',
+            'application/x-rar-compressed',
+            'application/vnd.rar',
+            'application/msword',
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'text/plain',
+            'image/png',
+            'image/jpeg',
+            'image/gif'
+        ]);
+        const extOk  = allowedExt.has(path.extname(file.originalname).toLowerCase());
+        const mimeOk = allowedMime.has((file.mimetype || '').toLowerCase());
+        cb(null, extOk && mimeOk);
     }
 });
 
@@ -503,18 +524,21 @@ async function initDB() {
         await safeAlter(`ALTER TABLE job_applications ADD COLUMN paymentScreenshot TEXT DEFAULT NULL`);
         await safeAlter(`ALTER TABLE job_applications ADD COLUMN paymentVerified INTEGER NOT NULL DEFAULT 0`);
 
-        // Seed or Update Admin User
-        console.log(`[SEEDER] Admin setup: Username="${process.env.ADMIN_USERNAME || "admin"}", Password length=${(process.env.ADMIN_PASSWORD || "admin").length}`);
-        const adminPass = process.env.ADMIN_PASSWORD || 'admin';
-        const adminHash = await bcrypt.hash(adminPass, 10);
-
-        // Try to update existing admin, or insert if none exists
-        const adminExists = await pool.query('SELECT id FROM admin_users LIMIT 1');
-        if (adminExists.rows.length === 0) {
-            await pool.query('INSERT INTO admin_users (username, passwordHash, loginAttempts, lockedUntil) VALUES ($1, $2, 0, NULL)', [ADMIN_USERNAME, adminHash]);
+        // Seed admin ONLY if table is empty (first run). Never auto-reset on restarts.
+        const { rows: [{ c: adminCount }] } = await pool.query('SELECT COUNT(*)::int AS c FROM admin_users');
+        if (adminCount === 0) {
+            if (!process.env.ADMIN_PASSWORD) {
+                console.error('FATAL: ADMIN_PASSWORD must be set for initial admin creation.');
+                process.exit(1);
+            }
+            const adminHash = await bcrypt.hash(process.env.ADMIN_PASSWORD, 12);
+            await pool.query(
+                'INSERT INTO admin_users (username, passwordHash) VALUES ($1, $2)',
+                [process.env.ADMIN_USERNAME || 'admin', adminHash]
+            );
+            console.log('✅ Admin user created.');
         } else {
-            // Update the existing primary admin's credentials to match ENV and forcefully unlock the account on restart
-            await pool.query('UPDATE admin_users SET username = $1, passwordHash = $2, loginAttempts = 0, lockedUntil = NULL WHERE id = $3', [ADMIN_USERNAME, adminHash, adminExists.rows[0].id]);
+            console.log('✅ Admin user present — skipping credential reset.');
         }
 
         console.log('✅ PostgreSQL database schema synchronized and Admin User verified.');
@@ -590,7 +614,9 @@ function generateOTP() {
 
 async function sendOTPEmail(email, otp, name) {
     if (!transporter) {
-        console.warn(`📩 Email not configured. OTP for ${email}: ${otp}`);
+        if (process.env.NODE_ENV !== 'production') {
+            console.warn(`📩 Email not configured. OTP for ${email}: ${otp}`);
+        }
         return true;
     }
     try {
@@ -605,7 +631,7 @@ async function sendOTPEmail(email, otp, name) {
             <p style="color: #c8d8e8; margin-top: 10px; font-size: 16px;">Security & Learning Portal</p>
         </div>
         <div style="padding: 40px 30px; text-align: left;">
-            <h2 style="color: #1a202c; font-size: 22px; margin-bottom: 20px;">Hi ${name},</h2>
+            <h2 style="color: #1a202c; font-size: 22px; margin-bottom: 20px;">Hi ${escapeHtml(name)},</h2>
             <p style="color: #4a5568; font-size: 16px; line-height: 1.6; margin-bottom: 30px;">
                 Welcome to NinjaHackers! Please use the secure verification code below to verify your email address and complete your registration.
             </p>
@@ -656,9 +682,9 @@ async function sendClassReminderEmail(student, course, item, timing) {
             <p style="color: #c8d8e8; margin-top: 5px;">Class Start Reminder</p>
         </div>
         <div style="padding: 40px 30px;">
-            <h2 style="color: #1a202c; font-size: 20px; margin-bottom: 10px;">Hi ${student.name},</h2>
+            <h2 style="color: #1a202c; font-size: 20px; margin-bottom: 10px;">Hi ${escapeHtml(student.name)},</h2>
             <p style="color: #4a5568; font-size: 16px; line-height: 1.6; margin-bottom: 20px;">
-                Get ready! Your scheduled live class <strong>"${item.title}"</strong> for the course <strong>"${course.title}"</strong> is about to begin.
+                Get ready! Your scheduled live class <strong>"${escapeHtml(item.title)}"</strong> for the course <strong>"${escapeHtml(course.title)}"</strong> is about to begin.
             </p>
             <div style="background-color: #f0fdf4; border-left: 4px solid #00ff88; padding: 15px; margin-bottom: 25px;">
                 <p style="margin: 0; color: #166534; font-weight: 600;">⏰ ${timingText}</p>
@@ -748,7 +774,9 @@ async function sendEnrollmentEmail(studentId, course, priceLabel) {
     const student = result.rows[0];
     if (!student) return;
     if (!transporter) {
-        console.log(`🎓 Enrollment confirmation for ${student.email}: ${course.title} (${priceLabel}) — email not configured`);
+        if (process.env.NODE_ENV !== 'production') {
+            console.log(`🎓 Enrollment confirmation for ${student.email}: ${course.title} (${priceLabel}) — email not configured`);
+        }
         return;
     }
     try {
@@ -763,12 +791,12 @@ async function sendEnrollmentEmail(studentId, course, priceLabel) {
             <p style="color: #c8d8e8; margin-top: 10px; font-size: 16px;">Course Enrollment Successful</p>
         </div>
         <div style="padding: 40px 30px; text-align: left;">
-            <h2 style="color: #1a202c; font-size: 22px; margin-bottom: 20px;">Hi ${student.name},</h2>
+            <h2 style="color: #1a202c; font-size: 22px; margin-bottom: 20px;">Hi ${escapeHtml(student.name)},</h2>
             <p style="color: #4a5568; font-size: 16px; line-height: 1.6; margin-bottom: 25px;">
-                You have been successfully enrolled in <b>${course.title}</b>. Your journey into advanced cybersecurity continues!
+                You have been successfully enrolled in <b>${escapeHtml(course.title)}</b>. Your journey into advanced cybersecurity continues!
             </p>
             <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 25px; margin-bottom: 30px;">
-                <div style="font-size: 18px; font-weight: 700; color: #01ff88; margin-bottom: 10px;">${course.title}</div>
+                <div style="font-size: 18px; font-weight: 700; color: #01ff88; margin-bottom: 10px;">${escapeHtml(course.title)}</div>
                 <div style="font-size: 14px; color: #718096;">
                     <span style="margin-right: 20px;">💰 ${priceLabel}</span>
                     <span>📅 ${new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</span>
@@ -816,29 +844,27 @@ function getClientIP(req) {
 const app = express();
 app.set('trust proxy', 1); // Trust Render Load Balancer for HTTPS/Secure cookies
 
-const allowedOrigins = [
-    'http://localhost:3000',
-    'http://localhost:10000',
-    'http://127.0.0.1:3000',
-    'http://127.0.0.1:10000',
-    'https://bninjahacker.site',
-    'https://www.bninjahacker.site',
-    'https://ninjahackers.onrender.com'
-];
+const allowedOrigins = new Set(
+    (process.env.CORS_ORIGINS
+        ? process.env.CORS_ORIGINS.split(',').map(s => s.trim()).filter(Boolean)
+        : [
+            'http://localhost:3000',
+            'http://localhost:10000',
+            'http://127.0.0.1:3000',
+            'http://127.0.0.1:10000',
+            'https://bninjahacker.site',
+            'https://www.bninjahacker.site',
+            'https://ninjahackers.onrender.com'
+        ]
+    )
+);
 
 app.use(cors({
-    origin: function (origin, callback) {
-        // allow requests with no origin (like mobile apps, curl requests, or same-origin fallback on Render)
-        if (!origin) return callback(null, true);
-        if (allowedOrigins.indexOf(origin) === -1) {
-            // Check if it's a render dynamic URL just in case
-            if (origin.endsWith('.onrender.com')) {
-                return callback(null, true);
-            }
-            var msg = 'The CORS policy for this site does not allow access from the specified Origin: ' + origin;
-            return callback(new Error(msg), false);
+    origin: (origin, callback) => {
+        if (!origin || allowedOrigins.has(origin)) {
+            return callback(null, true);
         }
-        return callback(null, true);
+        return callback(new Error('CORS blocked: ' + origin), false);
     },
     credentials: true
 }));
@@ -848,8 +874,8 @@ app.use(helmet({
         useDefaults: true,
         directives: {
             "default-src": ["'self'"],
-            "script-src": ["'self'", "'unsafe-inline'", "https://checkout.razorpay.com", "https://cdn.jsdelivr.net", "https://cdnjs.cloudflare.com"],
-            "script-src-attr": ["'unsafe-inline'"],
+            "script-src": ["'self'", "https://checkout.razorpay.com", "https://cdn.jsdelivr.net", "https://cdnjs.cloudflare.com"],
+            "script-src-attr": ["'none'"],
             "style-src": ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net", "https://cdnjs.cloudflare.com", "https://fonts.googleapis.com"],
             "font-src": ["'self'", "https://fonts.gstatic.com", "https://cdnjs.cloudflare.com", "https://cdn.jsdelivr.net"],
             "connect-src": ["'self'", "https://checkout.razorpay.com", "https://api.razorpay.com"],
@@ -1253,7 +1279,7 @@ app.post('/api/student/forgot-password', async (req, res) => {
             <p style="color: #c8d8e8; margin-top: 10px; font-size: 16px;">Security & Learning Portal</p>
         </div>
         <div style="padding: 40px 30px; text-align: left;">
-            <h2 style="color: #1a202c; font-size: 22px; margin-bottom: 20px;">Hi ${student.name},</h2>
+            <h2 style="color: #1a202c; font-size: 22px; margin-bottom: 20px;">Hi ${escapeHtml(student.name)},</h2>
             <p style="color: #4a5568; font-size: 16px; line-height: 1.6; margin-bottom: 30px;">
                 You recently requested to reset your password for your NinjaHackers account. Please use the secure verification code below to reset your credentials.
             </p>

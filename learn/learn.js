@@ -16,6 +16,15 @@ function safeHref(url) {
   } catch { return '#'; }
 }
 
+function safeSrc(u) {
+  try {
+    const url = new URL(u, location.origin);
+    return (['http:', 'https:'].includes(url.protocol) || url.pathname.startsWith('/uploads/'))
+      ? url.href
+      : '';
+  } catch { return ''; }
+}
+
 // ─── INIT ───
 document.addEventListener('DOMContentLoaded', async () => {
   try {
@@ -299,7 +308,7 @@ function renderCourseGrid() {
   el.innerHTML = enrolledCourses.map(c => `
     <div class="course-card" onclick="openCourse(${c.id})">
       <div class="course-card-cover">
-        ${c.coverImage ? `<img src="${c.coverImage}" alt=""/>` : '<i class="fas fa-laptop-code course-card-cover-icon"></i>'}
+        ${c.coverImage ? `<img src="${safeSrc(c.coverImage)}" alt=""/>` : '<i class="fas fa-laptop-code course-card-cover-icon"></i>'}
         <span class="course-card-badge badge-enrolled">ENROLLED</span>
       </div>
       <div class="course-card-body">
@@ -337,7 +346,8 @@ function renderCourseViewer() {
   renderModuleSidebar();
   renderSidebar();
   document.getElementById('contentArea').innerHTML = '<div class="content-placeholder"><i class="fas fa-play-circle"></i><p>Select a class or resource from the sidebar to begin</p></div>';
-  closeSidebar();
+  document.getElementById('curriculumToggle').style.display = '';
+  closeAllSidebars();
   loadProgressBar(currentCourse.id);
 }
 
@@ -377,6 +387,7 @@ function openItem(itemId) {
   document.querySelectorAll('.module-item').forEach(el => el.classList.remove('active'));
   const activeEl = document.getElementById(`item-${itemId}`);
   if (activeEl) activeEl.classList.add('active');
+  closeAllSidebars();
 
   const area = document.getElementById('contentArea');
   let html = '';
@@ -634,13 +645,32 @@ function showDashboardHome() {
   document.getElementById('dashboardHome').style.display = 'block';
   document.getElementById('sidebar').style.display = 'flex';
   document.getElementById('mainContent').style.marginLeft = '260px';
+  document.getElementById('curriculumToggle').style.display = 'none';
   currentCourse = null;
   renderSidebar();
 }
 
-// ─── SIDEBAR TOGGLE ───
-function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); }
-function closeSidebar() { document.getElementById('sidebar').classList.remove('open'); }
+// ─── SIDEBAR TOGGLES ───
+function toggleSidebar() {
+  const sidebar = document.getElementById('sidebar');
+  const overlay = document.getElementById('sidebarOverlay');
+  const isOpen = sidebar.classList.toggle('open');
+  overlay.classList.toggle('open', isOpen);
+}
+
+function toggleModuleSidebar() {
+  const sidebar = document.getElementById('moduleSidebar');
+  const overlay = document.getElementById('sidebarOverlay');
+  const isOpen = sidebar.classList.toggle('open');
+  overlay.classList.toggle('open', isOpen);
+}
+
+function closeAllSidebars() {
+  document.getElementById('sidebar').classList.remove('open');
+  const mSide = document.getElementById('moduleSidebar');
+  if (mSide) mSide.classList.remove('open');
+  document.getElementById('sidebarOverlay').classList.remove('open');
+}
 
 // ─── COUNTDOWN TIMER ───
 let countdownInterval = null;

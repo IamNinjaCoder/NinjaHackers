@@ -20,6 +20,8 @@
         <a href="/" class="learn-brand"><i class="fas fa-terminal"></i> Ninja<span class="accent">Hackers</span></a>
         <div class="learn-nav-right" id="navRight">
             <span class="student-name" id="navStudentName"></span>
+            <button class="btn-nav curriculum-toggle" id="curriculumToggle" onclick="toggleModuleSidebar()"
+                style="display:none;" title="Toggle Curriculum"><i class="fas fa-list-ul"></i></button>
             <button class="btn-nav" onclick="handleLogout()"><i class="fas fa-sign-out-alt"></i></button>
         </div>
     </nav>
@@ -198,6 +200,7 @@
 
     <button class="sidebar-toggle" id="sidebarToggle" onclick="toggleSidebar()" style="display:none;"><i
             class="fas fa-bars"></i></button>
+    <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeAllSidebars()"></div>
     <div class="toast" id="toast"></div>
     <script src="learn.js"></script>
 </body>
