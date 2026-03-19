@@ -148,7 +148,7 @@ const upload = multer({
             'image/jpeg',
             'image/gif'
         ]);
-        const extOk  = allowedExt.has(path.extname(file.originalname).toLowerCase());
+        const extOk = allowedExt.has(path.extname(file.originalname).toLowerCase());
         const mimeOk = allowedMime.has((file.mimetype || '').toLowerCase());
         cb(null, extOk && mimeOk);
     }
@@ -835,7 +835,8 @@ async function logSecurity(event, ip, details) {
 }
 
 function getClientIP(req) {
-    return req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip || req.connection.remoteAddress;
+    //return req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip || req.connection.remoteAddress;
+    return Array.isArray(req.ips) && req.ips.length ? req.ips[0] : req.ip;
 }
 
 // ═══════════════════════════════════════
@@ -882,7 +883,12 @@ app.use(helmet({
             "frame-src": ["'self'", "https://checkout.razorpay.com", "https://api.razorpay.com", "https://drive.google.com", "https://www.youtube.com", "https://youtube.com"],
             "img-src": ["'self'", "data:", "https:"]
         }
-    }
+    },
+    hsts: process.env.NODE_ENV === 'production' ? {
+        maxAge: 31536000,
+        includeSubDomains: true,
+        preload: true
+    } : false
 }));
 
 // Security headers removed temporarily to unblock UI resources
@@ -2897,7 +2903,13 @@ app.post('/api/jobs/:id/apply', upload.fields([
     }
 
     const jobId = req.params.id;
-    const { name, email, phone, resumeLink, coverLetter, paymentId } = req.body;
+    // Extract and aggressively sanitize inputs using DOMPurify
+    const name = DOMPurify.sanitize((req.body.name || '').trim());
+    const email = DOMPurify.sanitize((req.body.email || '').trim());
+    const phone = DOMPurify.sanitize((req.body.phone || '').trim());
+    const resumeLink = DOMPurify.sanitize((req.body.resumeLink || '').trim());
+    const coverLetter = DOMPurify.sanitize((req.body.coverLetter || '').trim());
+    const paymentId = DOMPurify.sanitize((req.body.paymentId || '').trim());
 
     if (!name || !email) {
         return res.status(400).json({ error: 'Name and email are required.' });
@@ -2905,7 +2917,13 @@ app.post('/api/jobs/:id/apply', upload.fields([
 
     // Parse customAnswers (sent as JSON string in multipart)
     let customAnswers = {};
-    try { customAnswers = JSON.parse(req.body.customAnswers || '{}'); } catch (e) { }
+    try { 
+        const parsedAnswers = JSON.parse(req.body.customAnswers || '{}');
+        // Sanitize every custom answer key and value
+        for (const [key, val] of Object.entries(parsedAnswers)) {
+            customAnswers[DOMPurify.sanitize(key)] = DOMPurify.sanitize(val);
+        }
+    } catch (e) { }
 
     // Handle image uploads for custom questions — map field index to uploaded file path
     if (req.files && req.files.imageUpload) {

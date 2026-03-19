@@ -4,106 +4,186 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Careers & Jobs | NinjaHackers</title>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg: #050a0e; --bg-card: rgba(10, 20, 30, 0.6); --text: #e0f2fe; --muted: #94a3b8;
-            --primary: #0ea5e9; --cyan: #00e5ff; --green: #00ff88; --dark-green: #004d26;
-            --orange: #ff3366; --glass-border: rgba(0, 255, 136, 0.15);
+            --bg: #090e17; 
+            --bg-card: rgba(16, 24, 39, 0.7); 
+            --text: #f8fafc; 
+            --muted: #94a3b8;
+            --primary: #0ea5e9; 
+            --cyan: #06b6d4; 
+            --green: #10b981; 
+            --glass-border: rgba(16, 185, 129, 0.2);
+            --glass-bg: rgba(15, 23, 42, 0.6);
         }
+        
         * { margin: 0; padding: 0; box-sizing: border-box; }
+        
         body {
             font-family: 'Rajdhani', sans-serif;
-            background: radial-gradient(circle at center, #0a1f2e 0%, var(--bg) 100%);
-            color: var(--text); min-height: 100vh;
+            background: radial-gradient(circle at top, #1e293b 0%, var(--bg) 100%);
+            color: var(--text); 
+            min-height: 100vh;
             background-attachment: fixed;
+            line-height: 1.6;
         }
         
         /* Navbar */
         .navbar {
-            background: rgba(5, 10, 14, 0.85);
-            backdrop-filter: blur(12px); border-bottom: 1px solid var(--glass-border);
-            padding: 1rem 2rem; display: flex; justify-content: space-between; align-items: center;
+            background: rgba(9, 14, 23, 0.85);
+            backdrop-filter: blur(12px); 
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            padding: 1.2rem 2.5rem; 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center;
             position: sticky; top: 0; z-index: 100;
         }
-        .nav-brand { font-family: 'Orbitron', sans-serif; font-weight: 700; font-size: 1.5rem; color: #fff; text-decoration: none; }
+        .nav-brand { font-family: 'Orbitron', sans-serif; font-weight: 700; font-size: 1.6rem; color: #fff; text-decoration: none; letter-spacing: 1px; }
         .nav-brand span { color: var(--green); }
-        .nav-links a { color: var(--text); padding: 0.5rem 1rem; text-decoration: none; font-weight: 600; transition: color 0.3s; }
-        .nav-links a:hover { color: var(--cyan); }
+        .nav-links { display: flex; gap: 2rem; }
+        .nav-links a { 
+            color: var(--muted); 
+            text-decoration: none; 
+            font-weight: 600; 
+            font-size: 1.1rem;
+            transition: all 0.3s ease; 
+        }
+        .nav-links a:hover, .nav-links a.active { color: var(--green); text-shadow: 0 0 10px rgba(16, 185, 129, 0.4); }
 
         /* Hero */
-        .hero { text-align: center; padding: 5rem 1rem; position: relative; overflow: hidden; }
-        .hero h1 { font-family: 'Orbitron', sans-serif; font-size: 3rem; margin-bottom: 1rem; color: #fff; text-shadow: 0 0 20px rgba(0,255,136,0.3); }
-        .hero p { color: var(--muted); font-size: 1.2rem; max-width: 600px; margin: 0 auto; }
+        .hero { 
+            text-align: center; 
+            padding: 6rem 1rem 4rem; 
+            position: relative; 
+        }
+        .hero h1 { 
+            font-family: 'Orbitron', sans-serif; 
+            font-size: 3.5rem; 
+            margin-bottom: 1.5rem; 
+            color: #fff; 
+            text-shadow: 0 0 30px rgba(16, 185, 129, 0.2); 
+            letter-spacing: -1px;
+        }
+        .hero p { 
+            color: var(--muted); 
+            font-size: 1.3rem; 
+            max-width: 650px; 
+            margin: 0 auto; 
+            font-weight: 500;
+        }
 
         /* Container */
-        .container { max-width: 1000px; margin: 0 auto; padding: 2rem 1rem; }
+        .container { max-width: 900px; margin: 0 auto; padding: 2rem 1.5rem 5rem; }
 
         /* Job Card */
         .job-card {
-            background: var(--bg-card); border: 1px solid var(--glass-border); border-radius: 12px;
-            padding: 2rem; margin-bottom: 1.5rem;
-            transition: transform 0.3s, box-shadow 0.3s;
-            display: flex; flex-direction: column; gap: 1rem;
+            background: var(--bg-card); 
+            border: 1px solid rgba(255,255,255,0.08); 
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            padding: 2.5rem; 
+            margin-bottom: 2rem;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex; flex-direction: column; gap: 1.5rem;
+            position: relative;
+            overflow: hidden;
         }
-        .job-card:hover { transform: translateY(-3px); box-shadow: 0 10px 30px rgba(0, 255, 136, 0.1); border-color: rgba(0,255,136,0.4); }
-        .job-title { font-size: 1.5rem; font-weight: 700; color: #fff; font-family: 'Orbitron', sans-serif; }
-        .job-meta { display: flex; gap: 1rem; font-size: 0.9rem; color: var(--cyan); font-family: 'Share Tech Mono', monospace; }
-        .job-desc { color: var(--muted); line-height: 1.6; white-space: pre-line; }
+        .job-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; width: 4px; height: 100%;
+            background: linear-gradient(to bottom, var(--cyan), var(--green));
+            opacity: 0; transition: opacity 0.3s;
+        }
+        .job-card:hover { 
+            transform: translateY(-5px); 
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4); 
+            border-color: var(--glass-border); 
+        }
+        .job-card:hover::before { opacity: 1; }
+        
+        .job-header { display: flex; flex-direction: column; gap: 0.8rem; }
+        .job-title { font-size: 1.8rem; font-weight: 700; color: #fff; font-family: 'Orbitron', sans-serif; }
+        .job-meta { display: flex; flex-wrap: wrap; gap: 1.5rem; font-size: 0.95rem; color: var(--cyan); font-family: 'Share Tech Mono', monospace; }
+        .job-meta span { display: flex; align-items: center; gap: 0.5rem; background: rgba(6, 182, 212, 0.1); padding: 0.3rem 0.8rem; border-radius: 20px; }
+        .job-desc { color: var(--muted); font-size: 1.1rem; line-height: 1.7; white-space: pre-line; }
+        
         .apply-btn { 
-            align-self: flex-start; margin-top: 1rem; padding: 0.8rem 2rem;
-            background: linear-gradient(90deg, var(--green), var(--cyan)); color: #000;
-            border: none; border-radius: 8px; font-weight: 700; font-family: 'Orbitron', sans-serif;
-            cursor: pointer; transition: all 0.3s ease; text-transform: uppercase;
+            align-self: flex-start; 
+            margin-top: 0.5rem; 
+            padding: 1rem 2.5rem;
+            background: transparent; 
+            color: var(--green);
+            border: 2px solid var(--green); 
+            border-radius: 8px; 
+            font-weight: 700; 
+            font-size: 1.05rem;
+            font-family: 'Orbitron', sans-serif;
+            cursor: pointer; 
+            transition: all 0.3s ease; 
+            text-transform: uppercase;
+            letter-spacing: 1px;
         }
-        .apply-btn:hover { box-shadow: 0 0 15px rgba(0,255,136,0.5); transform: scale(1.02); }
+        .apply-btn:hover { 
+            background: var(--green); 
+            color: #000; 
+            box-shadow: 0 0 20px rgba(16, 185, 129, 0.4); 
+        }
 
         /* Modal */
         .modal {
-            display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8);
-            backdrop-filter: blur(5px); z-index: 1000;
-            align-items: center; justify-content: center; padding: 1rem;
+            display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85);
+            backdrop-filter: blur(8px); z-index: 1000;
+            align-items: center; justify-content: center; padding: 1.5rem;
         }
         .modal-content {
-            background: #0b1116; border: 1px solid var(--glass-border);
-            border-radius: 12px; width: 100%; max-width: 600px; max-height: 90vh;
+            background: #0f172a; 
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 16px; width: 100%; max-width: 650px; max-height: 90vh;
             display: flex; flex-direction: column;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
         }
         .modal-header {
-            padding: 1.5rem; border-bottom: 1px solid rgba(255,255,255,0.05);
+            padding: 2rem; border-bottom: 1px solid rgba(255,255,255,0.05);
             display: flex; justify-content: space-between; align-items: center;
         }
-        .modal-header h2 { font-family: 'Orbitron', sans-serif; color: #fff; font-size: 1.3rem; }
-        .close-btn { background: transparent; border: none; color: var(--muted); font-size: 1.5rem; cursor: pointer; }
-        .close-btn:hover { color: var(--orange); }
-        .modal-body { padding: 1.5rem; overflow-y: auto; }
+        .modal-header h2 { font-family: 'Orbitron', sans-serif; color: #fff; font-size: 1.5rem; }
+        .close-btn { background: transparent; border: none; color: var(--muted); font-size: 2rem; cursor: pointer; transition: color 0.2s; line-height: 1; }
+        .close-btn:hover { color: #f43f5e; }
         
-        .form-group { margin-bottom: 1.2rem; }
-        .form-group label { display: block; margin-bottom: 0.5rem; color: var(--cyan); font-weight: 600; font-size: 0.95rem; }
+        .modal-body { padding: 2rem; overflow-y: auto; }
+        
+        .form-group { margin-bottom: 1.5rem; }
+        .form-group label { display: block; margin-bottom: 0.6rem; color: #e2e8f0; font-weight: 600; font-size: 1.05rem; }
         .form-group input, .form-group textarea {
-            width: 100%; padding: 0.8rem; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1);
-            background: rgba(0,0,0,0.3); color: #fff; font-family: 'Rajdhani', sans-serif; font-size: 1rem;
-            transition: border-color 0.3s;
+            width: 100%; padding: 1rem; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1);
+            background: rgba(0,0,0,0.2); color: #fff; font-family: 'Rajdhani', sans-serif; font-size: 1.05rem;
+            transition: all 0.3s ease;
         }
-        .form-group input:focus, .form-group textarea:focus { outline: none; border-color: var(--green); }
+        .form-group input:focus, .form-group textarea:focus { outline: none; border-color: var(--green); box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1); background: rgba(0,0,0,0.4); }
+        
         .submit-btn {
-            width: 100%; padding: 1rem; border: none; border-radius: 8px;
-            background: var(--green); color: #000; font-weight: 700; font-size: 1.1rem;
-            font-family: 'Orbitron', sans-serif; cursor: pointer; transition: all 0.3s;
+            width: 100%; padding: 1.2rem; border: none; border-radius: 8px;
+            background: linear-gradient(135deg, var(--green), var(--cyan)); 
+            color: #000; font-weight: 700; font-size: 1.2rem;
+            font-family: 'Orbitron', sans-serif; cursor: pointer; transition: all 0.3s ease;
+            margin-top: 1rem;
         }
-        .submit-btn:hover { box-shadow: 0 0 20px rgba(0,255,136,0.4); }
+        .submit-btn:hover { box-shadow: 0 10px 25px rgba(16, 185, 129, 0.4); transform: translateY(-2px); }
 
-        .loading { text-align: center; padding: 3rem; color: var(--cyan); font-family: 'Share Tech Mono', monospace; }
+        .loading { text-align: center; padding: 4rem; color: var(--muted); font-family: 'Share Tech Mono', monospace; font-size: 1.2rem; }
         
         /* Toast */
         #toast {
-            position: fixed; bottom: 20px; right: 20px; background: rgba(0,255,136,0.1);
-            border: 1px solid var(--green); color: var(--green); padding: 1rem 1.5rem;
-            border-radius: 8px; font-weight: 600; font-family: 'Share Tech Mono', monospace;
-            z-index: 2000; display: none; backdrop-filter: blur(10px);
+            position: fixed; bottom: 30px; right: 30px; background: rgba(15, 23, 42, 0.9);
+            border-left: 4px solid var(--green); color: #fff; padding: 1.2rem 2rem;
+            border-radius: 8px; font-weight: 500; font-family: 'Rajdhani', sans-serif; font-size: 1.1rem;
+            z-index: 2000; display: none; backdrop-filter: blur(10px); box-shadow: 0 10px 25px rgba(0,0,0,0.3);
         }
-        #toast.error { border-color: var(--orange); color: var(--orange); background: rgba(255,51,102,0.1); }
+        #toast.error { border-left-color: #f43f5e; }
     </style>
 </head>
 <body>
