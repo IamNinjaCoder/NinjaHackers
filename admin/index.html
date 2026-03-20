@@ -194,16 +194,17 @@
                             style="width:160px;height:90px;border-radius:8px;border:1px dashed rgba(255,255,255,.1);background:rgba(255,255,255,.02);display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0;">
                             <i class="fas fa-image" style="color:var(--muted);opacity:.3;font-size:1.5rem;"></i>
                         </div>
-                        <div style="display:flex;flex-direction:column;gap:.4rem;">
-                            <label class="btn-upload"
-                                style="background:rgba(0,212,255,.08);color:var(--cyan);border:1px solid rgba(0,212,255,.2);padding:.4rem .8rem;border-radius:6px;cursor:pointer;font-size:.7rem;text-align:center;transition:all .2s;display:inline-block;">
-                                <i class="fas fa-cloud-upload-alt"></i> Upload Image
-                                <input type="file" id="courseCoverFileInput" accept="image/*"
-                                    style="display:none;">
-                            </label>
+                        <div style="display:flex;flex-direction:column;gap:.6rem;flex:1;">
+                            <div style="display:flex;gap:.5rem;">
+                                <label class="btn-upload" style="background:rgba(0,212,255,.08);color:var(--cyan);border:1px solid rgba(0,212,255,.2);padding:.4rem .8rem;border-radius:6px;cursor:pointer;font-size:.7rem;text-align:center;transition:all .2s;display:inline-block;white-space:nowrap;">
+                                    <i class="fas fa-cloud-upload-alt"></i> Upload
+                                    <input type="file" id="courseCoverFileInput" accept="image/*" style="display:none;">
+                                </label>
+                                <input type="text" id="courseCoverUrl" placeholder="Or paste image URL (e.g. /uploads/banner.svg)" style="flex:1;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.1);color:#fff;padding:.4rem .7rem;border-radius:6px;font-size:.75rem;outline:none;" />
+                            </div>
                             <button type="button" id="removeCourseCoverBtn"
-                                style="background:rgba(255,71,87,.06);color:var(--red);border:1px solid rgba(255,71,87,.15);padding:.3rem .6rem;border-radius:6px;cursor:pointer;font-size:.65rem;">
-                                <i class="fas fa-trash-alt"></i> Remove
+                                style="background:rgba(255,71,87,.06);color:var(--red);border:1px solid rgba(255,71,87,.15);padding:.3rem .6rem;border-radius:6px;cursor:pointer;font-size:.65rem;width:fit-content;">
+                                <i class="fas fa-trash-alt"></i> Remove Cover
                             </button>
                         </div>
                     </div>

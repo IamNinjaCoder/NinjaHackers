@@ -73,6 +73,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   const removeCourseCoverBtn = document.getElementById('removeCourseCoverBtn');
   if (removeCourseCoverBtn) removeCourseCoverBtn.addEventListener('click', removeCourseCover);
 
+  const courseCoverUrl = document.getElementById('courseCoverUrl');
+  if (courseCoverUrl) {
+    courseCoverUrl.addEventListener('input', (e) => {
+      currentCourseCover = e.target.value.trim();
+      updateCourseCoverPreview();
+    });
+  }
+
   // Students - search
   const studentSearch = document.getElementById('studentSearch');
   if (studentSearch) studentSearch.addEventListener('input', filterStudents);
@@ -712,8 +720,9 @@ function openCourseEditor(course = null) {
     document.getElementById('courseDuration').value = course.duration || '';
     document.getElementById('courseLevel').value = course.level || 'Beginner';
     document.getElementById('coursePublished').value = course.published ? '1' : '0';
-    currentCourseCover = course.coverImage || '';
+     currentCourseCover = course.coverImage || '';
     updateCourseCoverPreview();
+    if (document.getElementById('courseCoverUrl')) document.getElementById('courseCoverUrl').value = currentCourseCover;
     document.getElementById('moduleManager').style.display = 'block';
     loadModules(course.id);
   } else {
@@ -727,8 +736,9 @@ function openCourseEditor(course = null) {
     document.getElementById('courseDuration').value = '';
     document.getElementById('courseLevel').value = 'Beginner';
     document.getElementById('coursePublished').value = '1';
-    currentCourseCover = '';
+     currentCourseCover = '';
     updateCourseCoverPreview();
+    if (document.getElementById('courseCoverUrl')) document.getElementById('courseCoverUrl').value = '';
     document.getElementById('moduleManager').style.display = 'none';
     document.getElementById('moduleList').innerHTML = '';
   }
@@ -752,15 +762,21 @@ async function handleCourseCoverUpload(e) {
   try {
     const res = await fetch('/api/admin/upload', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ image: b64, filename: file.name.replace(/\.[^.]+$/, '') }) });
     const data = await res.json();
-    if (data.success) { currentCourseCover = data.url; updateCourseCoverPreview(); showToast('Cover uploaded!'); }
+     if (data.success) { 
+      currentCourseCover = data.url; 
+      updateCourseCoverPreview(); 
+      if (document.getElementById('courseCoverUrl')) document.getElementById('courseCoverUrl').value = currentCourseCover;
+      showToast('Cover uploaded!'); 
+    }
     else showToast(data.error || 'Upload failed.', true);
   } catch (err) { showToast('Upload error.', true); }
   e.target.value = '';
 }
 
 function removeCourseCover() {
-  currentCourseCover = '';
+   currentCourseCover = '';
   updateCourseCoverPreview();
+  if (document.getElementById('courseCoverUrl')) document.getElementById('courseCoverUrl').value = '';
   showToast('Cover removed.');
 }
 
