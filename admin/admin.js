@@ -74,10 +74,16 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (removeCourseCoverBtn) removeCourseCoverBtn.addEventListener('click', removeCourseCover);
 
   const courseCoverUrl = document.getElementById('courseCoverUrl');
+  let coverPreviewTimeout;
   if (courseCoverUrl) {
     courseCoverUrl.addEventListener('input', (e) => {
-      currentCourseCover = e.target.value.trim();
-      updateCourseCoverPreview();
+      const val = e.target.value.trim();
+      currentCourseCover = val;
+      clearTimeout(coverPreviewTimeout);
+      // Wait 500ms after typing stops before updating preview to avoid 404s
+      coverPreviewTimeout = setTimeout(() => {
+        updateCourseCoverPreview();
+      }, 500);
     });
   }
 
