@@ -1,0 +1,56 @@
+<svg width="800" height="450" viewBox="0 0 800 450" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0f172a;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#1e293b;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="glow" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#00ff88;stop-opacity:0" />
+      <stop offset="50%" style="stop-color:#00ff88;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#00ff88;stop-opacity:0" />
+    </linearGradient>
+    <filter id="shadow">
+      <feDropShadow dx="0" dy="0" stdDeviation="5" flood-color="#00ff88" />
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="800" height="450" fill="url(#bg)" rx="10" />
+
+  <!-- Circuit Lines -->
+  <g stroke="#00ff88" stroke-width="1" opacity="0.2">
+    <path d="M0 100 L200 100 L250 150 L400 150 L450 100 L800 100" fill="none" />
+    <path d="M0 350 L150 350 L200 300 L600 300 L650 350 L800 350" fill="none" />
+    <path d="M100 0 L100 80 L140 120 L140 450" fill="none" />
+    <path d="M700 0 L700 200 L660 240 L660 450" fill="none" />
+  </g>
+
+  <!-- Hexagon Grid Overlay -->
+  <g fill="none" stroke="#00d4ff" stroke-width="0.5" opacity="0.1">
+    <path d="M50 50 L70 50 L80 67 L70 84 L50 84 L40 67 Z" />
+    <path d="M150 150 L170 150 L180 167 L170 184 L150 184 L140 167 Z" />
+    <!-- ... more hexes would go here, simplified for now ... -->
+  </g>
+
+  <!-- Central Shield/Ninja Icon -->
+  <g transform="translate(400, 180) scale(1.5)" filter="url(#shadow)">
+    <path d="M0 -40 L35 -20 V20 Q0 50 -35 20 V -20 Z" fill="none" stroke="#00ff88" stroke-width="4" />
+    <path d="M-20 -10 L0 10 L20 -10" fill="none" stroke="#00ff88" stroke-width="3" stroke-linecap="round" />
+    <circle cx="0" cy="-15" r="5" fill="#00ff88" />
+  </g>
+
+  <!-- Main Text -->
+  <text x="400" y="340" text-anchor="middle" font-family="'Share Tech Mono', monospace" font-size="42" font-weight="bold" fill="#ffffff" letter-spacing="4" filter="url(#shadow)">
+    ETHICAL HACKING
+  </text>
+  <text x="400" y="375" text-anchor="middle" font-family="'Rajdhani', sans-serif" font-size="18" fill="#00ff88" opacity="0.8" letter-spacing="6">
+    MASTER THE ART OF DEFENSE
+  </text>
+
+  <!-- Tech Stats Accents -->
+  <g font-family="monospace" font-size="10" fill="#00ff88" opacity="0.5">
+    <text x="30" y="420">SYS_V: 1.0.4</text>
+    <text x="710" y="420">STATUS: SECURE</text>
+    <rect x="30" y="425" width="740" height="2" fill="url(#glow)" />
+  </g>
+</svg>
