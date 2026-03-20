@@ -453,14 +453,29 @@ async function handleLogin(e) {
 
 async function handleLogout() {
   await fetch('/api/admin/logout', { method: 'POST' });
-  document.getElementById('adminDashboard').style.display = 'none';
-  document.getElementById('loginScreen').style.display = 'flex';
+  const login = document.getElementById('loginScreen');
+  if (login) {
+    document.getElementById('adminDashboard').style.display = 'none';
+    login.style.display = 'flex';
+  } else {
+    window.location.href = '/admin/login.html';
+  }
 }
 
 function showDashboard() {
-  document.getElementById('loginScreen').style.display = 'none';
-  document.getElementById('adminDashboard').style.display = 'block';
+  const login = document.getElementById('loginScreen');
+  if (login) login.style.display = 'none';
+  const dash = document.getElementById('adminDashboard');
+  if (dash) dash.style.display = 'block';
   switchTab('blogs');
+}
+
+async function checkSession() {
+  try {
+    const res = await fetch('/api/admin/check');
+    const data = await res.json();
+    if (!data.authenticated) handleLogout();
+  } catch (e) {}
 }
 
 // ─── TABS ───
