@@ -107,7 +107,7 @@ function openModal(id) {
                                 ${opts}
                              </select>`;
             } else {
-                inputHtml = `<input type="${q.type === 'file' ? 'file' : 'text'}" class="app-custom-q" data-label="${escapeHTML(qTitle)}" ${q.required ? 'required' : ''}>`;
+                inputHtml = `<input type="${(q.type === 'image' || q.type === 'file') ? 'file' : 'text'}" class="app-custom-q" data-label="${escapeHTML(qTitle)}" ${q.required ? 'required' : ''}>`;
             }
 
             qHtml += `
@@ -147,26 +147,38 @@ async function submitApplication(e) {
     const paymentId = document.getElementById('appPaymentId').value.trim();
 
     // Collect custom questions
-    const questions = [];
-    document.querySelectorAll('.app-custom-q').forEach(el => {
-        questions.push({ label: el.getAttribute('data-label'), value: el.value.trim() });
-    });
-
+    const customAnswers = {};
+    const customInputs = document.querySelectorAll('.app-custom-q');
+    
     const formData = new FormData();
     formData.append('jobId', jobId);
     formData.append('name', name);
     formData.append('email', email);
     formData.append('phone', phone);
-    formData.append('resume', resume);
-    formData.append('cover', cover);
+    formData.append('resumeLink', resume); // Match backend field 'resumeLink'
+    formData.append('coverLetter', cover); // Match backend field 'coverLetter'
     formData.append('paymentId', paymentId);
-    formData.append('questions', JSON.stringify(questions));
+
+    customInputs.forEach((el, idx) => {
+        const label = el.getAttribute('data-label');
+        if (el.type === 'file' && el.files[0]) {
+            const file = el.files[0];
+            // The backend expects originalname to start with img_q_INDEX_
+            const renamedFile = new File([file], `img_q_${idx}_${file.name}`, { type: file.type });
+            formData.append('imageUpload', renamedFile);
+            customAnswers[label] = `[Image Uploaded - see attachment]`;
+        } else {
+            customAnswers[label] = el.value.trim();
+        }
+    });
+
+    formData.append('customAnswers', JSON.stringify(customAnswers));
 
     const screenshot = document.getElementById('appPaymentScreenshot').files[0];
-    if (screenshot) formData.append('screenshot', screenshot);
+    if (screenshot) formData.append('paymentScreenshot', screenshot); // Match backend field 'paymentScreenshot'
 
     try {
-        const res = await fetch('/api/jobs/apply', {
+        const res = await fetch(`/api/jobs/${jobId}/apply`, {
             method: 'POST',
             body: formData
         });
