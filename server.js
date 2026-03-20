@@ -998,6 +998,10 @@ app.get('/google2ecd31909313df39.html', (req, res) => {
     res.sendFile(path.join(__dirname, 'google2ecd31909313df39.html'));
 });
 
+// Silence favicon.ico 404
+app.get('/favicon.ico', (req, res) => res.status(204).end());
+
+
 app.use(express.static(__dirname, { index: 'index.html', extensions: ['html'] }));
 
 // ═══════════════════════════════════════

@@ -1940,6 +1940,7 @@ async function openJobApps(jobId, jobTitle) {
   document.getElementById('jobsListView').style.display = 'none';
   document.getElementById('jobEditorView').style.display = 'none';
   document.getElementById('appsJobTitle').textContent = `Apps: ${jobTitle}`;
+  document.getElementById('jobAppsView').style.display = 'block';
   currentViewAppsJobId = jobId;
 
   // Refresh courses list to ensure we have it for manual enrollment
