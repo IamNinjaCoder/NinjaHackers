@@ -1,6 +1,7 @@
 const express = require('express');
 const { Pool } = require('pg');
 const session = require('express-session');
+const pgSession = require('connect-pg-simple')(session);
 const bcrypt = require('bcryptjs');
 const { marked } = require('marked');
 const helmet = require('helmet');
@@ -214,6 +215,14 @@ pool.query = async function (...args) {
 async function initDB() {
     try {
         await pool.query(`
+      CREATE TABLE IF NOT EXISTS "session" (
+        "sid" varchar NOT NULL COLLATE "default",
+        "sess" json NOT NULL,
+        "expire" timestamp(6) NOT NULL,
+        CONSTRAINT "session_pkey" PRIMARY KEY ("sid")
+      );
+      CREATE INDEX IF NOT EXISTS "IDX_session_expire" ON "session" ("expire");
+
       CREATE TABLE IF NOT EXISTS blogs (
         id SERIAL PRIMARY KEY,
         title TEXT NOT NULL,
@@ -899,9 +908,14 @@ app.use(express.json({ limit: '5mb' }));
 app.use(express.urlencoded({ extended: true, limit: '5mb' }));
 
 app.use(session({
+    store: new pgSession({
+        pool: pool,
+        tableName: 'session'
+    }),
     secret: SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
+    rolling: true,
     name: 'ninjasid',
     cookie: {
         maxAge: 4 * 60 * 60 * 1000, // 4 hours
