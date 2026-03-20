@@ -68,7 +68,6 @@ function renderJobs(jobs) {
         </div>
     `).join('');
 }
-
 function openModal(id) {
     const job = currentJobs.find(j => j.id === id);
     if (!job) return;
@@ -80,11 +79,51 @@ function openModal(id) {
     const paySec = document.getElementById('paymentSection');
     if (job.price > 0) {
         paySec.style.display = 'block';
-        document.getElementById('paymentPriceLabel').textContent = `Requirement: This role requires an application processing fee of ₹${job.price}. Please pay to our UPI/Official Bank and share the ID below.`;
-        document.getElementById('appPaymentId').required = true;
+        paySec.innerHTML = `
+            <h3 style="color:var(--green);font-family:'Orbitron',sans-serif;font-size:1.1rem;margin-bottom:0.8rem;"><i class="fas fa-credit-card"></i> Payment Required</h3>
+            <p style="color:var(--cyan);font-size:0.95rem;margin-bottom:1.5rem;">This role requires a processing fee of <strong>₹${job.price}</strong>. Choose your payment method:</p>
+            
+            <div style="display:flex; gap:1rem; margin-bottom:1.5rem;">
+                <button type="button" id="payOnlineBtn" class="submit-btn" style="flex:1; margin-top:0; padding:0.8rem; font-size:1rem; background:linear-gradient(135deg, #2563eb, #3b82f6); color:#fff;">
+                    <i class="fas fa-bolt"></i> Pay Online & Enroll
+                </button>
+                <button type="button" id="payManualBtn" style="flex:1; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); color:#fff; border-radius:8px; cursor:pointer; font-family:'Rajdhani',sans-serif; font-weight:600;">
+                    Manual UPI
+                </button>
+            </div>
+
+            <div id="manualPayFields" style="display:none; transition:all 0.3s ease;">
+                <div class="form-group">
+                    <label>Payment / Transaction ID *</label>
+                    <input type="text" id="appPaymentId" placeholder="e.g. UTR123456789">
+                </div>
+                <div class="form-group">
+                    <label>Payment Screenshot</label>
+                    <input type="file" id="appPaymentScreenshot" accept="image/*" style="padding:0.5rem;">
+                </div>
+            </div>
+            <input type="hidden" id="paymentMethod" value="online">
+        `;
+
+        document.getElementById('payManualBtn').onclick = () => {
+            document.getElementById('manualPayFields').style.display = 'block';
+            document.getElementById('payOnlineBtn').style.opacity = '0.5';
+            document.getElementById('payManualBtn').style.background = 'rgba(0,255,136,0.1)';
+            document.getElementById('payManualBtn').style.borderColor = 'var(--green)';
+            document.getElementById('paymentMethod').value = 'manual';
+            document.getElementById('appPaymentId').required = true;
+        };
+        document.getElementById('payOnlineBtn').onclick = () => {
+            document.getElementById('manualPayFields').style.display = 'none';
+            document.getElementById('payOnlineBtn').style.opacity = '1';
+            document.getElementById('payManualBtn').style.background = 'rgba(255,255,255,0.05)';
+            document.getElementById('payManualBtn').style.borderColor = 'rgba(255,255,255,0.1)';
+            document.getElementById('paymentMethod').value = 'online';
+            document.getElementById('appPaymentId').required = false;
+        };
     } else {
         paySec.style.display = 'none';
-        document.getElementById('appPaymentId').required = false;
+        paySec.innerHTML = '<input type="hidden" id="paymentMethod" value="free">';
     }
 
     // Handle dynamic questions
@@ -131,6 +170,63 @@ function closeModal() {
 async function submitApplication(e) {
     e.preventDefault();
     const btn = document.getElementById('submitBtn');
+    const jobId = document.getElementById('applyJobId').value;
+    const paymentMethod = document.getElementById('paymentMethod').value;
+
+    // Handle Razorpay flow if it's Online path
+    if (paymentMethod === 'online') {
+        try {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Initializing Payment...';
+            
+            const orderRes = await fetch(`/api/jobs/${jobId}/order`, { method: 'POST' });
+            const orderData = await orderRes.json();
+            
+            if (!orderData.success) {
+                showToast(orderData.error || 'Payment failed to initialize.', true);
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-paper-plane"></i> Submit Application';
+                return;
+            }
+
+            const options = {
+                key: orderData.key,
+                amount: orderData.order.amount,
+                currency: orderData.order.currency,
+                name: 'NinjaHackers',
+                description: `Application Fee: ${orderData.title}`,
+                order_id: orderData.order.id,
+                handler: async function (response) {
+                    await finalizeSubmision(response);
+                },
+                prefill: {
+                    name: document.getElementById('appName').value,
+                    email: document.getElementById('appEmail').value
+                },
+                theme: { color: '#10b981' },
+                modal: { ondismiss: function() { 
+                    btn.disabled = false; 
+                    btn.innerHTML = '<i class="fas fa-paper-plane"></i> Submit Application'; 
+                }}
+            };
+            const rzp = new Razorpay(options);
+            rzp.open();
+            return; // Exit and wait for handler
+        } catch (err) {
+            console.error('Payment Error:', err);
+            showToast('Payment system error.', true);
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-paper-plane"></i> Submit Application';
+            return;
+        }
+    }
+
+    // For manual/free, call finalize directly
+    await finalizeSubmision();
+}
+
+async function finalizeSubmision(paymentDetails = null) {
+    const btn = document.getElementById('submitBtn');
     btn.disabled = true;
     btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Submitting...';
 
@@ -144,26 +240,36 @@ async function submitApplication(e) {
     const phone = phoneEl ? phoneEl.value.trim() : '';
     const resume = resumeEl ? resumeEl.value.trim() : '';
     const cover = coverEl ? coverEl.value.trim() : '';
-    const paymentId = document.getElementById('appPaymentId').value.trim();
-
-    // Collect custom questions
-    const customAnswers = {};
-    const customInputs = document.querySelectorAll('.app-custom-q');
     
     const formData = new FormData();
     formData.append('jobId', jobId);
     formData.append('name', name);
     formData.append('email', email);
     formData.append('phone', phone);
-    formData.append('resumeLink', resume); // Match backend field 'resumeLink'
-    formData.append('coverLetter', cover); // Match backend field 'coverLetter'
-    formData.append('paymentId', paymentId);
+    formData.append('resumeLink', resume);
+    formData.append('coverLetter', cover);
 
+    // If Razorpay details exist
+    if (paymentDetails) {
+        formData.append('razorpay_payment_id', paymentDetails.razorpay_payment_id);
+        formData.append('razorpay_order_id', paymentDetails.razorpay_order_id);
+        formData.append('razorpay_signature', paymentDetails.razorpay_signature);
+    } else if (document.getElementById('appPaymentId')) { // Manual payment
+        formData.append('paymentId', document.getElementById('appPaymentId').value.trim());
+        const screenshot = document.getElementById('appPaymentScreenshot');
+        if (screenshot && screenshot.files[0]) {
+            formData.append('paymentScreenshot', screenshot.files[0]);
+        }
+    }
+
+    // Collect custom questions
+    const customAnswers = {};
+    const customInputs = document.querySelectorAll('.app-custom-q');
     customInputs.forEach((el, idx) => {
         const label = el.getAttribute('data-label');
         if (el.type === 'file' && el.files[0]) {
-            const file = el.files[0];
             // The backend expects originalname to start with img_q_INDEX_
+            const file = el.files[0];
             const renamedFile = new File([file], `img_q_${idx}_${file.name}`, { type: file.type });
             formData.append('imageUpload', renamedFile);
             customAnswers[label] = `[Image Uploaded - see attachment]`;

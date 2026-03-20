@@ -2998,14 +2998,82 @@ app.post('/api/jobs/:id/apply', upload.fields([
 
     try {
         const insert = await pool.query(
-            'INSERT INTO job_applications (jobId, name, email, phone, resumeLink, coverLetter, customAnswers, paymentId, paymentScreenshot) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id',
-            [jobId, name, email, phone || '', resumeLink || '', coverLetter || '', JSON.stringify(customAnswers), paymentId || null, screenshotPath || null]
+            'INSERT INTO job_applications (jobId, name, email, phone, resumeLink, coverLetter, customAnswers, paymentId, paymentScreenshot, paymentVerified) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id',
+            [jobId, name, email, phone || '', resumeLink || '', coverLetter || '', JSON.stringify(customAnswers), paymentId || null, screenshotPath || null, (req.body.razorpay_payment_id ? 1 : 0)]
         );
+        const appId = insert.rows[0].id;
+
+        // ─── Instant Enrollment if Paid via Razorpay ───
+        if (req.body.razorpay_payment_id) {
+            const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
+            // Verification logic (similar to course verify)
+            const body = razorpay_order_id + '|' + razorpay_payment_id;
+            const expected = crypto.createHmac('sha256', process.env.RAZORPAY_KEY_SECRET).update(body).digest('hex');
+            
+            if (expected === razorpay_signature) {
+                // Get Job with linked course
+                const jobRes = await pool.query('SELECT linkedCourseId, title FROM job_postings WHERE id=$1', [jobId]);
+                const targetCourseId = jobRes.rows[0]?.linkedCourseId;
+                
+                if (targetCourseId) {
+                    // Auto-Register/Enroll (reusing the logic)
+                    let studentRes = await pool.query('SELECT id FROM students WHERE email=$1', [email]);
+                    let studentId;
+                    if (studentRes.rows.length > 0) {
+                        studentId = studentRes.rows[0].id;
+                    } else {
+                        const tempHash = await bcrypt.hash(crypto.randomBytes(16).toString('hex'), 10);
+                        const newStudent = await pool.query(
+                            'INSERT INTO students (name, email, passwordHash, emailVerified) VALUES ($1, $2, $3, 1) RETURNING id',
+                            [name || 'Applicant', email, tempHash]
+                        );
+                        studentId = newStudent.rows[0].id;
+                    }
+                    // Enroll
+                    try {
+                        await pool.query('INSERT INTO enrollments (studentId, courseId) VALUES ($1, $2)', [studentId, targetCourseId]);
+                    } catch (dup) {}
+
+                    // Optional: Notification email would go here
+                }
+            }
+        }
+
         logSecurity('JOB_APPLY_OK', ip, `Job ${jobId} applied by ${email}`);
-        res.json({ success: true, id: insert.rows[0].id });
+        res.json({ success: true, id: appId });
     } catch (err) {
         logSecurity('JOB_APPLY_ERROR', ip, err.message);
         res.status(500).json({ error: 'Failed to submit application' });
+    }
+});
+
+// New Endpoint for Job Payment Order
+app.post('/api/jobs/:id/order', async (req, res) => {
+    try {
+        const jobId = req.params.id;
+        const jobRes = await pool.query('SELECT title, price FROM job_postings WHERE id=$1', [jobId]);
+        if (jobRes.rows.length === 0) return res.status(404).json({ error: 'Job not found' });
+        const job = jobRes.rows[0];
+
+        if (!razorpayInstance) return res.status(503).json({ error: 'Payment gateway not configured.' });
+
+        const amountInPaise = job.price * 100;
+        const order = await razorpayInstance.orders.create({
+            amount: amountInPaise, currency: 'INR',
+            receipt: `job_${jobId}_${Date.now()}`,
+            notes: { jobId: String(jobId) }
+        });
+
+        res.json({ 
+            success: true, 
+            order: { id: order.id, amount: order.amount, currency: order.currency }, 
+            key: process.env.RAZORPAY_KEY_ID, 
+            title: job.title,
+            price: job.price
+        });
+    } catch (err) {
+        console.error('Job order error:', err);
+        res.status(500).json({ error: 'Failed to create payment order.' });
     }
 });
 
