@@ -64,8 +64,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   const saveCourseBtn = document.getElementById('saveCourseBtn');
   if (saveCourseBtn) saveCourseBtn.addEventListener('click', saveCourse);
   
-  const newModuleBtn = document.getElementById('newModuleBtn');
-  if (newModuleBtn) newModuleBtn.addEventListener('click', addModule);
+  const addModuleBtn = document.getElementById('addModuleBtn');
+  if (addModuleBtn) addModuleBtn.addEventListener('click', addModule);
   
   const courseCoverUploadInput = document.getElementById('courseCoverUploadInput');
   if (courseCoverUploadInput) courseCoverUploadInput.addEventListener('change', handleCourseCoverUpload);
@@ -84,15 +84,15 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (assignCourseBtn) assignCourseBtn.addEventListener('click', assignCourseToStudent);
 
   // Enrollments
-  const enrollmentFormBtn = document.getElementById('enrollmentFormBtn');
-  if (enrollmentFormBtn) enrollmentFormBtn.addEventListener('click', showManualEnrollForm);
+  const quickEnrollBtn = document.getElementById('quickEnrollBtn');
+  if (quickEnrollBtn) quickEnrollBtn.addEventListener('click', showManualEnrollForm);
   
-  const manualEnrollBtn = document.getElementById('manualEnrollBtn');
-  if (manualEnrollBtn) manualEnrollBtn.addEventListener('click', manualEnroll);
+  const manualEnrollSubmit = document.getElementById('manualEnrollSubmit');
+  if (manualEnrollSubmit) manualEnrollSubmit.addEventListener('click', manualEnroll);
 
   // Coupons
-  const newCouponBtn = document.getElementById('newCouponBtn');
-  if (newCouponBtn) newCouponBtn.addEventListener('click', toggleCouponForm);
+  const toggleCouponFormBtn = document.getElementById('toggleCouponFormBtn');
+  if (toggleCouponFormBtn) toggleCouponFormBtn.addEventListener('click', toggleCouponForm);
   
   const saveCouponBtn = document.getElementById('saveCouponBtn');
   if (saveCouponBtn) saveCouponBtn.addEventListener('click', saveCoupon);

@@ -122,7 +122,7 @@ const sendMailAsync = async (to, subject, text, html) => {
     if (!transporter) return;
     try {
         await transporter.sendMail({
-            from: `"NinjaHackers" <${process.env.SMTP_USER}>`,
+            from: process.env.SMTP_FROM_NOREPLY || process.env.SMTP_FROM || process.env.SMTP_USER,
             to,
             subject,
             text,
