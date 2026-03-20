@@ -91,18 +91,32 @@ function openModal(id) {
     const qSec = document.getElementById('dynamicQuestions');
     let qHtml = '';
     try {
-        const qs = JSON.parse(job.questions || '[]');
+        let qs = job.customQuestions || job.customquestions || job.questions || [];
+        if (typeof qs === 'string') qs = JSON.parse(qs);
+
         qs.forEach((q, idx) => {
+            const qTitle = q.question || q.label || '';
+            let inputHtml = '';
+            
+            if (q.type === 'textarea') {
+                inputHtml = `<textarea class="app-custom-q" data-label="${escapeHTML(qTitle)}" ${q.required ? 'required' : ''}></textarea>`;
+            } else if (q.type === 'select') {
+                const opts = (q.options || []).map(o => `<option value="${escapeHTML(o)}">${escapeHTML(o)}</option>`).join('');
+                inputHtml = `<select class="app-custom-q" data-label="${escapeHTML(qTitle)}" ${q.required ? 'required' : ''} style="width: 100%; padding: 1rem; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.2); color: #fff; font-family: 'Rajdhani', sans-serif; font-size: 1.05rem;">
+                                <option value="">— Select Option —</option>
+                                ${opts}
+                             </select>`;
+            } else {
+                inputHtml = `<input type="${q.type === 'file' ? 'file' : 'text'}" class="app-custom-q" data-label="${escapeHTML(qTitle)}" ${q.required ? 'required' : ''}>`;
+            }
+
             qHtml += `
                 <div class="form-group">
-                    <label>${escapeHTML(q.label)}${q.required ? ' *' : ''}</label>
-                    ${q.type === 'textarea'
-                    ? `<textarea class="app-custom-q" data-label="${escapeHTML(q.label)}" ${q.required ? 'required' : ''}></textarea>`
-                    : `<input type="text" class="app-custom-q" data-label="${escapeHTML(q.label)}" ${q.required ? 'required' : ''}>`
-                }
+                    <label>${escapeHTML(qTitle)}${q.required ? ' *' : ''}</label>
+                    ${inputHtml}
                 </div>`;
         });
-    } catch (e) { }
+    } catch (e) { console.error('Error parsing custom questions:', e); }
     qSec.innerHTML = qHtml;
 
     document.getElementById('applyModal').style.display = 'flex';
