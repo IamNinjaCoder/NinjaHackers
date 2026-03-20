@@ -1867,7 +1867,7 @@ function renderJobQuestions() {
     }
 
     return `
-    <div style="background:rgba(0,0,0,0.2);border:1px solid rgba(0,212,255,0.2);padding:1rem;border-radius:6px;display:flex;gap:1rem;align-items:flex-start;">
+    <div class="job-q-item" data-index="${i}" style="background:rgba(0,0,0,0.2);border:1px solid rgba(0,212,255,0.2);padding:1rem;border-radius:6px;display:flex;gap:1rem;align-items:flex-start;margin-bottom:1rem;">
       <div style="flex:1;">
         <input type="text" value="${esc(q.question)}" placeholder="Question Text" class="job-q-text" style="width:100%;margin-bottom:0.5rem;padding:0.5rem;background:var(--bg);border:1px solid rgba(255,255,255,0.1);color:var(--text);border-radius:4px;" />
         <div style="display:flex;gap:1.5rem;flex-wrap:wrap;">
