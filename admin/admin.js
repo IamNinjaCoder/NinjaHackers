@@ -77,7 +77,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   let coverPreviewTimeout;
   if (courseCoverUrl) {
     courseCoverUrl.addEventListener('input', (e) => {
-      const val = e.target.value.trim();
+      let val = e.target.value.trim();
+      // Auto-fix: if it starts with 'uploads/' (missing leading /)
+      if (val.startsWith('uploads/')) val = '/' + val;
+      
       currentCourseCover = val;
       clearTimeout(coverPreviewTimeout);
       // Wait 500ms after typing stops before updating preview to avoid 404s
