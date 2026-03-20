@@ -1002,7 +1002,28 @@ app.get('/google2ecd31909313df39.html', (req, res) => {
 app.get('/favicon.ico', (req, res) => res.status(204).end());
 
 
-app.use(express.static(__dirname, { index: 'index.html', extensions: ['html'] }));
+// ─── Restricted Static Serving ───
+// Only allow safe file types from the root directory
+const ALLOWED_ROOT_EXTENSIONS = new Set(['.html', '.css', '.png', '.jpg', '.jpeg', '.gif', '.ico', '.txt', '.xml', '.svg', '.webmanifest']);
+
+app.use((req, res, next) => {
+    // If the request is for a root file (no subdirectory)
+    const filePath = req.path;
+    const isRootFile = !filePath.includes('/', 1); // True if no '/' after the first one
+
+    if (isRootFile && filePath !== '/') {
+        const ext = path.extname(filePath).toLowerCase();
+        if (ext && !ALLOWED_ROOT_EXTENSIONS.has(ext)) {
+            // Block sensitive files like .js, .json, .env, .db, etc.
+            logSecurity('SENSITIVE_FILE_ACCESS_BLOCKED', getClientIP(req), filePath);
+            return res.status(403).json({ error: 'Access forbidden.' });
+        }
+    }
+    next();
+});
+
+app.use(express.static(__dirname, { index: 'index.html', extensions: ['html'], dotfiles: 'ignore' }));
+
 
 // ═══════════════════════════════════════
 //  AUTH MIDDLEWARE
