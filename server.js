@@ -118,6 +118,21 @@ try {
     console.error('❌ Email configuration error:', e.message);
 }
 
+const sendMailAsync = async (to, subject, text, html) => {
+    if (!transporter) return;
+    try {
+        await transporter.sendMail({
+            from: `"NinjaHackers" <${process.env.SMTP_USER}>`,
+            to,
+            subject,
+            text,
+            html
+        });
+    } catch (e) {
+        console.error(`❌ Failed to send email to ${to}:`, e.message);
+    }
+};
+
 marked.setOptions({ breaks: true, gfm: true });
 
 // ═══════════════════════════════════════
@@ -2979,43 +2994,87 @@ app.get('/api/admin/jobs/:id/applications', requireAdmin, async (req, res) => {
 app.put('/api/admin/jobs/:jobId/applications/:appId/verify', requireAdmin, async (req, res) => {
     try {
         const { jobId, appId } = req.params;
+        const { courseId } = req.body; // Optional manual course assignment
 
         // Mark as verified
         await pool.query('UPDATE job_applications SET paymentVerified=1 WHERE id=$1 AND jobId=$2', [appId, jobId]);
 
-        // Get job to find linked course
-        const jobRes = await pool.query('SELECT linkedCourseId FROM job_postings WHERE id=$1', [jobId]);
-        const linkedCourseId = jobRes.rows[0]?.linkedCourseId;
-
-        // Get application email
+        // Get application details
         const appRes = await pool.query('SELECT name, email FROM job_applications WHERE id=$1', [appId]);
-        const applicantEmail = appRes.rows[0]?.email;
-        const applicantName = appRes.rows[0]?.name;
+        if (appRes.rows.length === 0) return res.status(404).json({ error: 'Application not found' });
+        
+        const applicantEmail = appRes.rows[0].email;
+        const applicantName = appRes.rows[0].name;
 
-        // Auto-enroll if there's a linked course
-        if (linkedCourseId && applicantEmail) {
-            // Find or create student
-            let studentRes = await pool.query('SELECT id FROM students WHERE email=$1', [applicantEmail]);
-            let studentId;
-            if (studentRes.rows.length > 0) {
-                studentId = studentRes.rows[0].id;
-            } else {
-                // Create a basic student account (they can set password later via signup)
-                const tempHash = await bcrypt.hash(Math.random().toString(36).slice(2), 10);
-                const newStudent = await pool.query(
-                    'INSERT INTO students (name, email, passwordHash, emailVerified) VALUES ($1, $2, $3, 1) RETURNING id',
-                    [applicantName || 'Applicant', applicantEmail, tempHash]
-                );
-                studentId = newStudent.rows[0].id;
-            }
+        // Determine target course
+        let targetCourseId = courseId ? parseInt(courseId) : null;
+        let courseTitle = 'your course';
 
-            // Enroll (ignore duplicate)
+        if (!targetCourseId) {
+            const jobRes = await pool.query('SELECT linkedCourseId FROM job_postings WHERE id=$1', [jobId]);
+            targetCourseId = jobRes.rows[0]?.linkedCourseId;
+        }
+
+        if (targetCourseId) {
+            const courseRes = await pool.query('SELECT title FROM courses WHERE id=$1', [targetCourseId]);
+            if (courseRes.rows.length > 0) courseTitle = courseRes.rows[0].title;
+        }
+
+        // ─── Auto-Registration ───
+        let studentRes = await pool.query('SELECT id FROM students WHERE email=$1', [applicantEmail]);
+        let studentId;
+        let isNewStudent = false;
+
+        if (studentRes.rows.length > 0) {
+            studentId = studentRes.rows[0].id;
+        } else {
+            isNewStudent = true;
+            // Create a basic student account (they can set password later via forgot-password)
+            const tempHash = await bcrypt.hash(crypto.randomBytes(16).toString('hex'), 10);
+            const newStudent = await pool.query(
+                'INSERT INTO students (name, email, passwordHash, emailVerified) VALUES ($1, $2, $3, 1) RETURNING id',
+                [applicantName || 'Applicant', applicantEmail, tempHash]
+            );
+            studentId = newStudent.rows[0].id;
+        }
+
+        // ─── Enrollment ───
+        if (targetCourseId) {
             try {
-                await pool.query('INSERT INTO enrollments (studentId, courseId) VALUES ($1, $2)', [studentId, linkedCourseId]);
+                await pool.query('INSERT INTO enrollments (studentId, courseId) VALUES ($1, $2)', [studentId, targetCourseId]);
             } catch (dupErr) { /* already enrolled */ }
         }
 
-        logSecurity('JOB_PAYMENT_VERIFIED', 'admin', `App #${appId} for Job #${jobId} verified`);
+        // ─── Notification Email ───
+        const loginUrl = `${req.protocol}://${req.get('host')}/learn`;
+        const forgotUrl = `${req.protocol}://${req.get('host')}/learn?forgot=1`; // Assuming your login page handles this param or just direct them to login
+
+        const mailSubject = isNewStudent ? `Welcome to NinjaHackers! Account Created` : `Application Verified & Course Enrolled`;
+        const mailText = `Hi ${applicantName},\n\nYour application has been verified! \n\n${targetCourseId ? `You have been enrolled in: ${courseTitle}.` : ''}\n\n${isNewStudent ? `An account has been created for you. To access it, please go to the login page and use the "Forgot Password" option with your email (${applicantEmail}) to set your password.` : `You can now access your course in the student portal.`}\n\nLogin here: ${loginUrl}\n\nRegards,\nNinjaHackers Team`;
+        
+        const mailHtml = `
+            <div style="font-family:sans-serif; max-width:600px; margin:0 auto; padding:20px; background:#f9f9f9; border-radius:10px;">
+                <h2 style="color:#00ff88;">Hi ${applicantName},</h2>
+                <p>Your application has been verified successfully!</p>
+                ${targetCourseId ? `<p>You have been enrolled in <strong>${courseTitle}</strong>.</p>` : ''}
+                
+                <div style="background:#fff; padding:15px; border-radius:8px; border-left:4px solid #00ff88; margin:20px 0;">
+                    <p style="margin:0;"><strong>Account Access:</strong></p>
+                    ${isNewStudent 
+                        ? `<p>An account has been created for you. To set your password and log in, please click the link below and use the <strong>Forgot Password</strong> option with your email: <code>${applicantEmail}</code></p>`
+                        : `<p>You can now log in to the student portal using your existing credentials to access your course.</p>`
+                    }
+                </div>
+
+                <a href="${loginUrl}" style="display:inline-block; padding:12px 25px; background:#00ff88; color:#000; text-decoration:none; border-radius:5px; font-weight:bold;">Go to Student Portal</a>
+                
+                <p style="margin-top:30px; font-size:0.9rem; color:#666;">Regards,<br>NinjaHackers Team</p>
+            </div>
+        `;
+
+        await sendMailAsync(applicantEmail, mailSubject, mailText, mailHtml);
+
+        logSecurity('JOB_PAYMENT_VERIFIED', 'admin', `App #${appId} verified. Student #${studentId} enrolled in Course #${targetCourseId}`);
         res.json({ success: true });
     } catch (err) {
         console.error(err);

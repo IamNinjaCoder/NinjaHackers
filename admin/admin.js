@@ -1939,10 +1939,11 @@ let currentViewAppsJobId = null;
 async function openJobApps(jobId, jobTitle) {
   document.getElementById('jobsListView').style.display = 'none';
   document.getElementById('jobEditorView').style.display = 'none';
-  document.getElementById('jobAppsView').style.display = 'block';
-
   document.getElementById('appsJobTitle').textContent = `Apps: ${jobTitle}`;
   currentViewAppsJobId = jobId;
+
+  // Refresh courses list to ensure we have it for manual enrollment
+  await fetchCoursesForJobs();
 
   try {
     const res = await fetch(`/api/admin/jobs/${jobId}/applications`);
@@ -1982,9 +1983,9 @@ async function openJobApps(jobId, jobTitle) {
             : '<span style="color:var(--muted);font-size:0.8rem;">None</span>'}
         </td>
         <td>
-          ${app.paymentId && !app.paymentVerified ? `
-            <button class="btn-verify-app" data-job-id="${jobId}" data-app-id="${app.id}" style="background:rgba(0,255,136,0.1);border:1px solid var(--green);color:var(--green);border-radius:4px;padding:0.3rem 0.6rem;font-size:0.75rem;cursor:pointer;font-weight:600;" title="Verify payment & auto-enroll"><i class="fas fa-check"></i> Verify</button>
-          ` : app.paymentVerified ? '<span style="color:var(--green);font-size:0.8rem;"><i class="fas fa-check-circle"></i> Done</span>' : ''}
+          ${!app.paymentVerified ? `
+            <button class="btn-verify-app" data-job-id="${jobId}" data-app-id="${app.id}" style="background:rgba(0,255,136,0.1);border:1px solid var(--green);color:var(--green);border-radius:4px;padding:0.3rem 0.6rem;font-size:0.75rem;cursor:pointer;font-weight:600;" title="Verify & Enroll"><i class="fas fa-check"></i> Verify</button>
+          ` : '<span style="color:var(--green);font-size:0.8rem;"><i class="fas fa-check-circle"></i> Done</span>'}
         </td>
       </tr>
     `).join('');
@@ -2010,11 +2011,43 @@ function viewCustomAnswers(appId) {
 }
 
 async function verifyJobApplication(jobId, appId) {
-  if (!confirm('Verify this payment and auto-enroll the applicant in the linked course?')) return;
+  const job = currentAdminJobs.find(j => j.id == jobId);
+  let targetCourseId = job ? job.linkedCourseId : null;
+  
+  // If no course is linked, ask the admin to select one manually
+  if (!targetCourseId && allCoursesForJobs.length > 0) {
+    let msg = "This job has no linked course. Select a course to assign to the applicant:\n\n";
+    allCoursesForJobs.forEach((c, idx) => {
+      msg += `${idx + 1}. ${c.title} (ID: ${c.id})\n`;
+    });
+    msg += "\nEnter the number (e.g. 1) or '0' to skip enrollment:";
+    const choice = prompt(msg);
+    if (choice === null) return; // Cancelled
+    const idx = parseInt(choice) - 1;
+    if (idx >= 0 && idx < allCoursesForJobs.length) {
+      targetCourseId = allCoursesForJobs[idx].id;
+    } else if (choice === '0') {
+      targetCourseId = null;
+    } else {
+      showToast('Invalid choice.', true);
+      return;
+    }
+  }
+
+  const confirmMsg = targetCourseId 
+    ? `Verify this application and auto-enroll the applicant?\n\nAn account will be created (if missing) and a notification email will be sent.`
+    : `Verify this application and create an account? (No course will be assigned)`;
+
+  if (!confirm(confirmMsg)) return;
+
   try {
-    const res = await fetch(`/api/admin/jobs/${jobId}/applications/${appId}/verify`, { method: 'PUT' });
+    const res = await fetch(`/api/admin/jobs/${jobId}/applications/${appId}/verify`, { 
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ courseId: targetCourseId })
+    });
     if (res.ok) {
-      showToast('Payment verified & applicant enrolled!');
+      showToast('Applicant verified & notified!');
       openJobApps(jobId, document.getElementById('appsJobTitle').textContent.replace('Apps: ', ''));
     } else {
       showToast('Verification failed.', true);
