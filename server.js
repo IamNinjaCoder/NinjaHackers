@@ -911,19 +911,11 @@ app.use(session({
     }
 }));
 
-// ─── SESSION FINGERPRINT (anti-cookie-theft) ───
-// Binds session to IP + User-Agent. Stolen cookies fail on another device.
+// ─── SESSION TIMEOUT ───
 const SESSION_INACTIVITY_TIMEOUT = 30 * 60 * 1000; // 30 min inactivity logout
 app.use((req, res, next) => {
     if (!req.session) return next();
-    const fingerprint = `${getClientIP(req)}|${(req.headers['user-agent'] || '').substring(0, 100)}`;
-    // If session has a fingerprint, verify it matches
-    if (req.session._fingerprint && req.session._fingerprint !== fingerprint) {
-        console.log(`[SESSION] Fingerprint mismatch! Expected: ${req.session._fingerprint}, Got: ${fingerprint}`);
-        logSecurity('SESSION_HIJACK_ATTEMPT', getClientIP(req), `Expected: ${req.session._fingerprint.split('|')[0]}`);
-        req.session.destroy();
-        return res.status(401).json({ error: 'Session invalid. Please log in again.' });
-    }
+    
     // Check inactivity timeout
     if (req.session._lastActivity && (Date.now() - req.session._lastActivity > SESSION_INACTIVITY_TIMEOUT)) {
         const who = req.session.studentEmail || req.session.username || 'unknown';
@@ -1040,8 +1032,8 @@ app.post('/api/admin/login', async (req, res) => {
         // Set session data with fingerprint binding
         req.session.isAdmin = true;
         req.session.username = username;
-        req.session._fingerprint = `${ip}|${(req.headers['user-agent'] || '').substring(0, 100)}`;
         req.session._lastActivity = Date.now();
+
         logSecurity('ADMIN_LOGIN_OK', ip, username);
         res.json({ success: true });
     } catch (err) {
@@ -1229,8 +1221,8 @@ app.post('/api/student/login', async (req, res) => {
         req.session.studentId = student.id;
         req.session.studentName = student.name;
         req.session.studentEmail = student.email;
-        req.session._fingerprint = `${ip}|${(req.headers['user-agent'] || '').substring(0, 100)}`;
         req.session._lastActivity = Date.now();
+
         logSecurity('STUDENT_LOGIN_OK', ip, email);
         res.json({ success: true, student: { id: student.id, name: student.name, email: student.email } });
     } catch (err) {
