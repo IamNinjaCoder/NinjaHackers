@@ -979,7 +979,11 @@ app.use((req, res, next) => {
 // Static files
 
 app.use('/uploads', (req, res, next) => {
-    res.setHeader('Content-Disposition', 'attachment');
+    const ext = path.extname(req.path).toLowerCase();
+    const isImage = ['.png', '.jpg', '.jpeg', '.gif', '.svg', '.webp'].includes(ext);
+    if (!isImage) {
+        res.setHeader('Content-Disposition', 'attachment');
+    }
     next();
 }, express.static(uploadsDir));
 
