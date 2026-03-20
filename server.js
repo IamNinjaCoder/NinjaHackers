@@ -835,8 +835,10 @@ async function logSecurity(event, ip, details) {
 }
 
 function getClientIP(req) {
-    //return req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip || req.connection.remoteAddress;
-    return Array.isArray(req.ips) && req.ips.length ? req.ips[0] : req.ip;
+    // Support Cloudflare or standard proxy forwarded IPs
+    return req.headers['cf-connecting-ip'] || 
+           (req.headers['x-forwarded-for'] ? req.headers['x-forwarded-for'].split(',')[0].trim() : null) || 
+           (Array.isArray(req.ips) && req.ips.length ? req.ips[0] : req.ip);
 }
 
 // ═══════════════════════════════════════
@@ -964,6 +966,8 @@ const requireAuth = require('./middleware/requireAuth');
 // Allow the login page publicly, protect everything else
 app.get('/admin/login.html', (req, res) =>
     res.sendFile(path.join(__dirname, 'admin/login.html')));
+app.get('/admin/login.js', (req, res) =>
+    res.sendFile(path.join(__dirname, 'admin/login.js')));
 app.use('/admin', requireAuth, express.static(path.join(__dirname, 'admin')));
 
 // Allow the learn login page publicly, protect everything else
