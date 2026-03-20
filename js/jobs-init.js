@@ -123,9 +123,13 @@ async function submitApplication(e) {
     const jobId = document.getElementById('applyJobId').value;
     const name = document.getElementById('appName').value.trim();
     const email = document.getElementById('appEmail').value.trim();
-    const phone = document.getElementById('appPhone').value.trim();
-    const resume = document.getElementById('appResume').value.trim();
-    const cover = document.getElementById('appCover').value.trim();
+    const phoneEl = document.getElementById('appPhone');
+    const resumeEl = document.getElementById('appResume');
+    const coverEl = document.getElementById('appCover');
+    
+    const phone = phoneEl ? phoneEl.value.trim() : '';
+    const resume = resumeEl ? resumeEl.value.trim() : '';
+    const cover = coverEl ? coverEl.value.trim() : '';
     const paymentId = document.getElementById('appPaymentId').value.trim();
 
     // Collect custom questions
