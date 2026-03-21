@@ -80,50 +80,17 @@ function openModal(id) {
     if (job.price > 0) {
         paySec.style.display = 'block';
         paySec.innerHTML = `
-            <h3 style="color:var(--green);font-family:'Orbitron',sans-serif;font-size:1.1rem;margin-bottom:0.8rem;"><i class="fas fa-credit-card"></i> Payment Required</h3>
-            <p style="color:var(--cyan);font-size:0.95rem;margin-bottom:1.5rem;">This role requires a processing fee of <strong>₹${job.price}</strong>. Choose your payment method:</p>
-            
-            <div style="display:flex; gap:1rem; margin-bottom:1.5rem;">
-                <button type="button" id="payOnlineBtn" class="submit-btn" style="flex:1; margin-top:0; padding:0.8rem; font-size:1rem; background:linear-gradient(135deg, #2563eb, #3b82f6); color:#fff;">
-                    <i class="fas fa-bolt"></i> Pay Online & Enroll
-                </button>
-                <button type="button" id="payManualBtn" style="flex:1; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); color:#fff; border-radius:8px; cursor:pointer; font-family:'Rajdhani',sans-serif; font-weight:600;">
-                    Manual UPI
-                </button>
-            </div>
-
-            <div id="manualPayFields" style="display:none; transition:all 0.3s ease;">
-                <div class="form-group">
-                    <label>Payment / Transaction ID *</label>
-                    <input type="text" id="appPaymentId" placeholder="e.g. UTR123456789">
-                </div>
-                <div class="form-group">
-                    <label>Payment Screenshot</label>
-                    <input type="file" id="appPaymentScreenshot" accept="image/*" style="padding:0.5rem;">
-                </div>
+            <div style="background:rgba(0,255,136,0.05); border:1px solid rgba(0,255,136,0.2); padding:1rem; border-radius:10px; margin-bottom:1.5rem;">
+                <h3 style="color:var(--green);font-family:'Orbitron',sans-serif;font-size:1rem;margin-bottom:0.4rem;"><i class="fas fa-credit-card"></i> Application Fee</h3>
+                <p style="color:var(--cyan);font-size:0.9rem;margin:0;">This role requires a processing fee of <strong style="color:var(--green);font-size:1.1rem;">₹${job.price}</strong>. payment will be processed securely via Razorpay.</p>
             </div>
             <input type="hidden" id="paymentMethod" value="online">
         `;
-
-        document.getElementById('payManualBtn').onclick = () => {
-            document.getElementById('manualPayFields').style.display = 'block';
-            document.getElementById('payOnlineBtn').style.opacity = '0.5';
-            document.getElementById('payManualBtn').style.background = 'rgba(0,255,136,0.1)';
-            document.getElementById('payManualBtn').style.borderColor = 'var(--green)';
-            document.getElementById('paymentMethod').value = 'manual';
-            document.getElementById('appPaymentId').required = true;
-        };
-        document.getElementById('payOnlineBtn').onclick = () => {
-            document.getElementById('manualPayFields').style.display = 'none';
-            document.getElementById('payOnlineBtn').style.opacity = '1';
-            document.getElementById('payManualBtn').style.background = 'rgba(255,255,255,0.05)';
-            document.getElementById('payManualBtn').style.borderColor = 'rgba(255,255,255,0.1)';
-            document.getElementById('paymentMethod').value = 'online';
-            document.getElementById('appPaymentId').required = false;
-        };
+        document.getElementById('submitBtn').innerHTML = '<i class="fas fa-credit-card"></i> Pay & Submit';
     } else {
         paySec.style.display = 'none';
         paySec.innerHTML = '<input type="hidden" id="paymentMethod" value="free">';
+        document.getElementById('submitBtn').innerHTML = '<i class="fas fa-paper-plane"></i> Submit Application';
     }
 
     // Handle dynamic questions
@@ -172,8 +139,31 @@ async function submitApplication(e) {
     const btn = document.getElementById('submitBtn');
     const jobId = document.getElementById('applyJobId').value;
     const paymentMethod = document.getElementById('paymentMethod').value;
+    
+    // 1. Basic Validation First
+    const name = document.getElementById('appName').value.trim();
+    const email = document.getElementById('appEmail').value.trim();
+    if (!name || !email) {
+        showToast('Please fill in your name and email.', true);
+        return;
+    }
 
-    // Handle Razorpay flow if it's Online path
+    // 2. Validate Custom Questions
+    let allValid = true;
+    document.querySelectorAll('.app-custom-q').forEach(el => {
+        if (el.hasAttribute('required') && !el.value.trim() && el.type !== 'file') {
+            allValid = false;
+        } else if (el.hasAttribute('required') && el.type === 'file' && !el.files[0]) {
+            allValid = false;
+        }
+    });
+
+    if (!allValid) {
+        showToast('Please answer all required questions.', true);
+        return;
+    }
+
+    // 3. Handle Payment / Submission
     if (paymentMethod === 'online') {
         try {
             btn.disabled = true;
@@ -199,10 +189,7 @@ async function submitApplication(e) {
                 handler: async function (response) {
                     await finalizeSubmision(response);
                 },
-                prefill: {
-                    name: document.getElementById('appName').value,
-                    email: document.getElementById('appEmail').value
-                },
+                prefill: { name, email },
                 theme: { color: '#10b981' },
                 modal: { ondismiss: function() { 
                     btn.disabled = false; 
@@ -211,7 +198,7 @@ async function submitApplication(e) {
             };
             const rzp = new Razorpay(options);
             rzp.open();
-            return; // Exit and wait for handler
+            return; 
         } catch (err) {
             console.error('Payment Error:', err);
             showToast('Payment system error.', true);
@@ -221,7 +208,6 @@ async function submitApplication(e) {
         }
     }
 
-    // For manual/free, call finalize directly
     await finalizeSubmision();
 }
 
@@ -237,6 +223,14 @@ async function finalizeSubmision(paymentDetails = null) {
     const resumeEl = document.getElementById('appResume');
     const coverEl = document.getElementById('appCover');
     
+    // Check required fields
+    if (!name || !email) {
+        showToast('Name and Email are required.', true);
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-paper-plane"></i> Submit Application';
+        return;
+    }
+
     const phone = phoneEl ? phoneEl.value.trim() : '';
     const resume = resumeEl ? resumeEl.value.trim() : '';
     const cover = coverEl ? coverEl.value.trim() : '';
@@ -249,17 +243,11 @@ async function finalizeSubmision(paymentDetails = null) {
     formData.append('resumeLink', resume);
     formData.append('coverLetter', cover);
 
-    // If Razorpay details exist
+    // If Razorpay details exist (Online path)
     if (paymentDetails) {
         formData.append('razorpay_payment_id', paymentDetails.razorpay_payment_id);
         formData.append('razorpay_order_id', paymentDetails.razorpay_order_id);
         formData.append('razorpay_signature', paymentDetails.razorpay_signature);
-    } else if (document.getElementById('appPaymentId')) { // Manual payment
-        formData.append('paymentId', document.getElementById('appPaymentId').value.trim());
-        const screenshot = document.getElementById('appPaymentScreenshot');
-        if (screenshot && screenshot.files[0]) {
-            formData.append('paymentScreenshot', screenshot.files[0]);
-        }
     }
 
     // Collect custom questions
@@ -268,7 +256,6 @@ async function finalizeSubmision(paymentDetails = null) {
     customInputs.forEach((el, idx) => {
         const label = el.getAttribute('data-label');
         if (el.type === 'file' && el.files[0]) {
-            // The backend expects originalname to start with img_q_INDEX_
             const file = el.files[0];
             const renamedFile = new File([file], `img_q_${idx}_${file.name}`, { type: file.type });
             formData.append('imageUpload', renamedFile);
@@ -280,9 +267,6 @@ async function finalizeSubmision(paymentDetails = null) {
 
     formData.append('customAnswers', JSON.stringify(customAnswers));
 
-    const screenshot = document.getElementById('appPaymentScreenshot').files[0];
-    if (screenshot) formData.append('paymentScreenshot', screenshot); // Match backend field 'paymentScreenshot'
-
     try {
         const res = await fetch(`/api/jobs/${jobId}/apply`, {
             method: 'POST',
@@ -290,14 +274,18 @@ async function finalizeSubmision(paymentDetails = null) {
         });
         const data = await res.json();
         if (data.success) {
-            showToast('Application submitted successfully!');
-            closeModal();
-            document.getElementById('applyForm').reset();
+            showToast('Application submitted! Please check your email for next steps.');
+            // Add a brief delay before closing so they can read the toast
+            setTimeout(() => {
+                closeModal();
+                loadJobs();
+            }, 3000);
         } else {
-            showToast(data.error || 'Submission failed.', true);
+            showToast(data.error || 'Submission failed. Please try again.', true);
         }
     } catch (err) {
-        showToast('Error submitting application.', true);
+        console.error('Finalize error:', err);
+        showToast('Connection error. Please check your internet.', true);
     } finally {
         btn.disabled = false;
         btn.innerHTML = '<i class="fas fa-paper-plane"></i> Submit Application';

@@ -1996,6 +1996,9 @@ async function openJobApps(jobId, jobTitle) {
         <td>
           ${app.paymentId ? `
             <div style="font-size:0.8rem;">
+              <span class="status-badge ${app.paymentId.startsWith('pay_') ? 'source-paid' : 'source-free-tag'}" style="font-size:0.55rem;margin-bottom:0.2rem;display:inline-block;">
+                ${app.paymentId.startsWith('pay_') ? 'ONLINE' : 'MANUAL'}
+              </span><br>
               <span style="color:var(--cyan);"><i class="fas fa-receipt"></i> ${esc(app.paymentId)}</span><br>
               ${app.paymentScreenshot ? `<a href="${esc(app.paymentScreenshot)}" target="_blank" style="color:var(--green);font-size:0.75rem;text-decoration:none;"><i class="fas fa-image"></i> Screenshot</a><br>` : ''}
               <span class="status-badge ${app.paymentVerified ? 'status-completed' : 'status-pending'}" style="font-size:0.65rem;margin-top:0.3rem;">${app.paymentVerified ? 'VERIFIED' : 'PENDING'}</span>

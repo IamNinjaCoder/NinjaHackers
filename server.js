@@ -905,9 +905,14 @@ app.use(helmet({
             "script-src-attr": ["'none'"],
             "style-src": ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net", "https://cdnjs.cloudflare.com", "https://fonts.googleapis.com"],
             "font-src": ["'self'", "https://fonts.gstatic.com", "https://cdnjs.cloudflare.com", "https://cdn.jsdelivr.net"],
-            "connect-src": ["'self'", "https://checkout.razorpay.com", "https://api.razorpay.com"],
-            "frame-src": ["'self'", "https://checkout.razorpay.com", "https://api.razorpay.com", "https://drive.google.com", "https://www.youtube.com", "https://youtube.com"],
+            "connect-src": ["'self'", "https://checkout.razorpay.com", "https://api.razorpay.com", "https://lumberjack.razorpay.com", "https://lumberjack-cx.razorpay.com"],
+            "frame-src": ["'self'", "https://checkout.razorpay.com", "https://api.razorpay.com", "https://tds.razorpay.com", "https://drive.google.com", "https://www.youtube.com", "https://youtube.com"],
             "img-src": ["'self'", "data:", "https:"]
+        }
+    },
+    permissionsPolicy: {
+        features: {
+            "otp-credentials": ["'self'", "https://checkout.razorpay.com"]
         }
     },
     hsts: process.env.NODE_ENV === 'production' ? {
@@ -2102,7 +2107,7 @@ app.get('/api/admin/students/:id/payments', requireAdmin, async (req, res) => {
 // Payments
 app.get('/api/admin/payments', requireAdmin, async (req, res) => {
     try {
-        const paymentsRes = await pool.query('SELECT p.*, s.name as studentName, s.email as studentEmail, c.title as courseTitle FROM payments p JOIN students s ON s.id=p.studentId JOIN courses c ON c.id=p.courseId ORDER BY p.createdAt DESC');
+        const paymentsRes = await pool.query('SELECT p.*, s.name as studentName, s.email as studentEmail, c.title as courseTitle FROM payments p JOIN students s ON s.id=p.studentId LEFT JOIN courses c ON c.id=p.courseId ORDER BY p.createdAt DESC');
         res.json(paymentsRes.rows.map(p => ({
             ...p,
             studentName: p.studentname || p.studentName,
@@ -2964,86 +2969,142 @@ app.post('/api/jobs/:id/apply', upload.fields([
     const resumeLink = DOMPurify.sanitize((req.body.resumeLink || '').trim());
     const coverLetter = DOMPurify.sanitize((req.body.coverLetter || '').trim());
     const paymentId = DOMPurify.sanitize((req.body.paymentId || '').trim());
+    const paymentMethod = DOMPurify.sanitize((req.body.paymentMethod || '').trim());
 
     if (!name || !email) {
         return res.status(400).json({ error: 'Name and email are required.' });
     }
 
-    // Parse customAnswers (sent as JSON string in multipart)
-    let customAnswers = {};
-    try { 
-        const parsedAnswers = JSON.parse(req.body.customAnswers || '{}');
-        // Sanitize every custom answer key and value
-        for (const [key, val] of Object.entries(parsedAnswers)) {
-            customAnswers[DOMPurify.sanitize(key)] = DOMPurify.sanitize(val);
-        }
-    } catch (e) { }
-
-    // Handle image uploads for custom questions — map field index to uploaded file path
-    if (req.files && req.files.imageUpload) {
-        req.files.imageUpload.forEach(file => {
-            // The fieldname prefix stores the question index
-            const match = file.originalname.match(/^img_q_(\d+)_/);
-            if (match) {
-                customAnswers[`__image_${match[1]}`] = '/uploads/' + file.filename;
-            }
-        });
-    }
-
-    // Payment screenshot path
-    let screenshotPath = '';
-    if (req.files && req.files.paymentScreenshot && req.files.paymentScreenshot[0]) {
-        screenshotPath = '/uploads/' + req.files.paymentScreenshot[0].filename;
-    }
-
+    // 1. Get Job Details First to check price
+    let job;
     try {
-        const insert = await pool.query(
-            'INSERT INTO job_applications (jobId, name, email, phone, resumeLink, coverLetter, customAnswers, paymentId, paymentScreenshot, paymentVerified) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id',
-            [jobId, name, email, phone || '', resumeLink || '', coverLetter || '', JSON.stringify(customAnswers), paymentId || null, screenshotPath || null, (req.body.razorpay_payment_id ? 1 : 0)]
-        );
-        const appId = insert.rows[0].id;
+        const jobsRes = await pool.query('SELECT * FROM job_postings WHERE id=$1', [jobId]);
+        if (jobsRes.rows.length === 0) return res.status(404).json({ error: 'Job not found' });
+        job = jobsRes.rows[0];
+    } catch (dbErr) {
+        return res.status(500).json({ error: 'Database error' });
+    }
 
-        // ─── Instant Enrollment if Paid via Razorpay ───
+    // 2. Strict Payment Validation for Paid Jobs
+    let paymentVerified = 0;
+    let isRazorpaySuccess = false;
+
+    if (job.price > 0) {
         if (req.body.razorpay_payment_id) {
+            // Online Path: MUST verify signature
             const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
-            // Verification logic (similar to course verify)
+            if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
+                return res.status(400).json({ error: 'Incomplete Razorpay details.' });
+            }
             const body = razorpay_order_id + '|' + razorpay_payment_id;
             const expected = crypto.createHmac('sha256', process.env.RAZORPAY_KEY_SECRET).update(body).digest('hex');
             
             if (expected === razorpay_signature) {
-                // Get Job with linked course
-                const jobRes = await pool.query('SELECT linkedCourseId, title FROM job_postings WHERE id=$1', [jobId]);
-                const targetCourseId = jobRes.rows[0]?.linkedCourseId;
-                
-                if (targetCourseId) {
-                    // Auto-Register/Enroll (reusing the logic)
-                    let studentRes = await pool.query('SELECT id FROM students WHERE email=$1', [email]);
-                    let studentId;
-                    if (studentRes.rows.length > 0) {
-                        studentId = studentRes.rows[0].id;
-                    } else {
-                        const tempHash = await bcrypt.hash(crypto.randomBytes(16).toString('hex'), 10);
-                        const newStudent = await pool.query(
-                            'INSERT INTO students (name, email, passwordHash, emailVerified) VALUES ($1, $2, $3, 1) RETURNING id',
-                            [name || 'Applicant', email, tempHash]
-                        );
-                        studentId = newStudent.rows[0].id;
-                    }
-                    // Enroll
-                    try {
-                        await pool.query('INSERT INTO enrollments (studentId, courseId) VALUES ($1, $2)', [studentId, targetCourseId]);
-                    } catch (dup) {}
-
-                    // Optional: Notification email would go here
-                }
+                paymentVerified = 1;
+                isRazorpaySuccess = true;
+            } else {
+                logSecurity('JOB_PAY_FORGERY', ip, `Forced sig mismatch for Job ${jobId} by ${email}`);
+                return res.status(403).json({ error: 'Invalid payment signature.' });
             }
+        } else if (paymentId) {
+            // Manual Path: Just mark as unverified (requires admin check)
+            paymentVerified = 0;
+        } else {
+            // NO PAYMENT PROVIDED FOR PAID JOB
+            return res.status(400).json({ error: 'Payment is required for this role.' });
+        }
+    }
+
+    try {
+        // Parse customAnswers (sent as JSON string in multipart)
+        let customAnswers = {};
+        try { 
+            const parsedAnswers = JSON.parse(req.body.customAnswers || '{}');
+            for (const [key, val] of Object.entries(parsedAnswers)) {
+                customAnswers[DOMPurify.sanitize(key)] = DOMPurify.sanitize(val);
+            }
+        } catch (e) { }
+
+        // Handle image uploads for custom questions
+        if (req.files && req.files.imageUpload) {
+            req.files.imageUpload.forEach(file => {
+                const match = file.originalname.match(/^img_q_(\d+)_/);
+                if (match) customAnswers[`__image_${match[1]}`] = '/uploads/' + file.filename;
+            });
         }
 
-        logSecurity('JOB_APPLY_OK', ip, `Job ${jobId} applied by ${email}`);
+        // Payment screenshot path
+        let screenshotPath = '';
+        if (req.files && req.files.paymentScreenshot && req.files.paymentScreenshot[0]) {
+            screenshotPath = '/uploads/' + req.files.paymentScreenshot[0].filename;
+        }
+
+        // 3. Insert Application with correct verification status
+        const finalPaymentId = isRazorpaySuccess ? req.body.razorpay_payment_id : (paymentId || null);
+        const insert = await pool.query(
+            'INSERT INTO job_applications (jobId, name, email, phone, resumeLink, coverLetter, customAnswers, paymentId, paymentScreenshot, paymentVerified) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id',
+            [jobId, name, email, phone || '', resumeLink || '', coverLetter || '', JSON.stringify(customAnswers), finalPaymentId, screenshotPath || null, paymentVerified]
+        );
+        const appId = insert.rows[0].id;
+
+        // 4. Student Registration & Enrollment (for Online) OR Email Confirmation (for Manual)
+        let studentRes = await pool.query('SELECT id FROM students WHERE email=$1', [email]);
+        let studentId;
+        let isNewStudent = false;
+
+        if (studentRes.rows.length > 0) {
+            studentId = studentRes.rows[0].id;
+        } else if (isRazorpaySuccess) {
+            // Auto-register only for verified online payments
+            isNewStudent = true;
+            const tempHash = await bcrypt.hash(crypto.randomBytes(16).toString('hex'), 10);
+            const newStudent = await pool.query(
+                'INSERT INTO students (name, email, passwordHash, emailVerified) VALUES ($1, $2, $3, 1) RETURNING id',
+                [name || 'Applicant', email, tempHash]
+            );
+            studentId = newStudent.rows[0].id;
+        }
+
+        if (isRazorpaySuccess) {
+            // A. Log to global payments table
+            try {
+                await pool.query(
+                    'INSERT INTO payments (studentId, courseId, razorpayPaymentId, amount, status) VALUES ($1, $2, $3, $4, $5)',
+                    [studentId, job.linkedCourseId || null, req.body.razorpay_payment_id, job.price, 'completed']
+                );
+            } catch (pErr) { console.error('Error logging global payment:', pErr); }
+
+            // B. Auto-enroll
+            if (job.linkedCourseId) {
+                try {
+                    await pool.query('INSERT INTO enrollments (studentId, courseId) VALUES ($1, $2)', [studentId, job.linkedCourseId]);
+                } catch (dup) {}
+            }
+
+            // C. Send Success Email
+            const loginUrl = `${req.protocol}://${req.get('host')}/learn`;
+            const mailSubject = `Payment Successful! Application for ${job.title}`;
+            const mailText = `Hi ${name},\n\nThank you! Your payment of ₹${job.price} for the ${job.title} application was successful.\n\n${job.linkedCourseId ? "You have been automatically enrolled in the associated training course. " : ""}${isNewStudent ? `An account has been created for you. Use "Forgot Password" with your email (${email}) at the login page to set your password.` : "You can access your materials in the student portal."}\n\nLogin: ${loginUrl}\n\nRegards,\nNinjaHackers Team`;
+            const mailHtml = `
+                <div style="font-family:sans-serif; max-width:600px; margin:0 auto; padding:20px; border:1px solid #eee; border-radius:10px;">
+                    <h2 style="color:#00ff88;">Payment Successful!</h2>
+                    <p>Hi ${name}, your application for <strong>${job.title}</strong> has been received with a successful payment of <strong>₹${job.price}</strong>.</p>
+                    <div style="background:#f9f9f9; padding:15px; border-radius:8px; margin:20px 0;">
+                        ${job.linkedCourseId ? `<p>✅ <strong>Enrolled:</strong> Training course access granted.</p>` : ""}
+                        <p>🔑 <strong>Account:</strong> ${isNewStudent ? `A new account was created. Use "Forgot Password" with <code>${email}</code> to set your password.` : `Use your existing credentials to log in.`}</p>
+                    </div>
+                    <a href="${loginUrl}" style="display:inline-block; padding:10px 20px; background:#00ff88; color:#000; text-decoration:none; border-radius:5px; font-weight:bold;">Go to Portal</a>
+                </div>
+            `;
+            await sendMailAsync(email, mailSubject, mailText, mailHtml);
+        }
+
+        logSecurity('JOB_APPLY_OK', ip, `Job ${jobId} applied by ${email} (${paymentMethod})`);
         res.json({ success: true, id: appId });
     } catch (err) {
+        console.error('❌ JOB_APPLY_FATAL:', err);
         logSecurity('JOB_APPLY_ERROR', ip, err.message);
-        res.status(500).json({ error: 'Failed to submit application' });
+        res.status(500).json({ error: 'System error. However, your application might have been partially processed. Please check your email before trying again.' });
     }
 });
 
@@ -3097,20 +3158,19 @@ app.put('/api/admin/jobs/:jobId/applications/:appId/verify', requireAdmin, async
         await pool.query('UPDATE job_applications SET paymentVerified=1 WHERE id=$1 AND jobId=$2', [appId, jobId]);
 
         // Get application details
-        const appRes = await pool.query('SELECT name, email FROM job_applications WHERE id=$1', [appId]);
+        const appRes = await pool.query('SELECT name, email, paymentId FROM job_applications WHERE id=$1', [appId]);
         if (appRes.rows.length === 0) return res.status(404).json({ error: 'Application not found' });
         
-        const applicantEmail = appRes.rows[0].email;
-        const applicantName = appRes.rows[0].name;
+        const { name: applicantName, email: applicantEmail, paymentId: appPaymentId } = appRes.rows[0];
+
+        // Get Job details for pricing/logging
+        const jobRes = await pool.query('SELECT title, price, linkedCourseId FROM job_postings WHERE id=$1', [jobId]);
+        if (jobRes.rows.length === 0) return res.status(404).json({ error: 'Job not found' });
+        const job = jobRes.rows[0];
 
         // Determine target course
-        let targetCourseId = courseId ? parseInt(courseId) : null;
+        let targetCourseId = courseId ? parseInt(courseId) : job.linkedCourseId;
         let courseTitle = 'your course';
-
-        if (!targetCourseId) {
-            const jobRes = await pool.query('SELECT linkedCourseId FROM job_postings WHERE id=$1', [jobId]);
-            targetCourseId = jobRes.rows[0]?.linkedCourseId;
-        }
 
         if (targetCourseId) {
             const courseRes = await pool.query('SELECT title FROM courses WHERE id=$1', [targetCourseId]);
@@ -3140,6 +3200,17 @@ app.put('/api/admin/jobs/:jobId/applications/:appId/verify', requireAdmin, async
             try {
                 await pool.query('INSERT INTO enrollments (studentId, courseId) VALUES ($1, $2)', [studentId, targetCourseId]);
             } catch (dupErr) { /* already enrolled */ }
+        }
+
+        // ─── Global Payment Logging (Manual) ───
+        if (job.price > 0) {
+            try {
+                // We use the app's manual paymentId as razorpayPaymentId for display in the admin table
+                await pool.query(
+                    'INSERT INTO payments (studentId, courseId, razorpayPaymentId, amount, status) VALUES ($1, $2, $3, $4, $5)',
+                    [studentId, targetCourseId || null, appPaymentId || 'MANUAL', job.price, 'completed']
+                );
+            } catch (pErr) { console.error('Error logging global payment:', pErr); }
         }
 
         // ─── Notification Email ───
