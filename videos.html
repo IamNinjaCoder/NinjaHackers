@@ -1,145 +1,108 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-  <meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Videos | NinjaHackers</title>
-  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;500;600;700&family=Exo+2:wght@300;400;600;700&display=swap" rel="stylesheet"/>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
-  <link rel="stylesheet" href="style.css"/>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cybersecurity Videos | NinjaHackers Tutorials</title>
+  <meta name="description"
+    content="Watch technical cybersecurity tutorials, live hacking sessions, and tool demonstrations on the NinjaHackers video portal." />
+  <meta name="keywords" content="cybersecurity videos, hacking tutorials, live hacking, security demonstrations" />
+  <link rel="canonical" href="https://bninjahacker.site/videos.html" />
+
+  <!-- Open Graph / Facebook -->
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://bninjahacker.site/videos.html" />
+  <meta property="og:title" content="Cybersecurity Videos | NinjaHackers Tutorials" />
+  <meta property="og:description"
+    content="Learn cybersecurity visually with technical tutorials and live sessions from NinjaHackers." />
+  <meta property="og:image" content="https://bninjahacker.site/logo.png" />
+
+  <link
+    href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;500;600;700&family=Exo+2:wght@300;400;600;700&display=swap"
+    rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <link rel="stylesheet" href="style.css" />
+  <link rel="icon" type="image/png" href="logo.png" />
+
 </head>
+
 <body>
-<canvas id="matrix-canvas"></canvas>
-<nav id="navbar">
-  <a href="index.html" class="nav-logo">
-    <img src="logo.png" alt="NinjaHackers" class="logo-img" onerror="this.style.display='none';document.getElementById('lt').style.display='flex'"/>
-    <span id="lt" class="logo-text-fallback" style="display:none"><i class="fas fa-terminal"></i> Ninja<span>Hackers</span></span>
-  </a>
-  <ul class="nav-links">
-    <li><a href="index.html">Home</a></li><li><a href="blog.html">Blog</a></li>
-    <li><a href="work.html">Work</a></li><li><a href="videos.html" class="active">Videos</a></li>
-    <li><a href="contact.html">Contact</a></li><li><a href="courses.html" class="nav-cta">Courses</a></li>
-  </ul>
-  <div class="hamburger" onclick="toggleMenu()"><span></span><span></span><span></span></div>
-</nav>
-<div class="mobile-menu" id="mobileMenu">
-  <a href="index.html">Home</a><a href="blog.html">Blog</a><a href="work.html">Work</a>
-  <a href="videos.html">Videos</a><a href="contact.html">Contact</a><a href="courses.html">Courses</a>
-</div>
-
-<div class="page-header">
-  <div class="section-tag">// WATCH & LEARN</div>
-  <h1>Video <span>Content</span></h1>
-  <p>Tutorials, CTF walkthroughs and cybersecurity breakdowns on YouTube.</p>
-</div>
-
-<!-- YouTube Banner -->
-<div style="position:relative;z-index:1;padding:2rem 2rem 0;max-width:1100px;margin:0 auto;">
-  <div style="background:linear-gradient(135deg,rgba(255,0,0,0.08),rgba(255,0,0,0.03));border:1px solid rgba(255,0,0,0.2);border-radius:12px;padding:1.5rem;display:flex;align-items:center;gap:1.2rem;flex-wrap:wrap;">
-    <i class="fab fa-youtube" style="font-size:2.5rem;color:#ff0000;"></i>
-    <div>
-      <div style="font-family:'Rajdhani',sans-serif;font-size:1.2rem;font-weight:700;color:#fff;margin-bottom:.2rem;">Subscribe on YouTube</div>
-      <div style="font-size:.85rem;color:var(--muted);">New videos every week — tutorials, CTF walkthroughs, tool demos.</div>
-    </div>
-    <!-- Replace YOUR_CHANNEL_URL with your actual YouTube channel URL -->
-    <a href="https://youtube.com/@YOUR_CHANNEL" target="_blank" style="margin-left:auto;background:#ff0000;color:#fff;font-weight:700;font-size:.85rem;padding:.6rem 1.4rem;border-radius:6px;text-decoration:none;display:flex;align-items:center;gap:.5rem;white-space:nowrap;transition:opacity .2s;" onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'"><i class="fab fa-youtube"></i> Subscribe</a>
-  </div>
-</div>
-
-<section class="videos-section">
-  <div class="container">
-    <div class="video-grid" id="videoGrid"></div>
-  </div>
-</section>
-
-<footer>
-  <div class="footer-logo">
-    <img src="logo.png" alt="" class="footer-logo-img" onerror="this.style.display='none'"/>
-    <span>Ninja<span style="color:var(--cyan)">Hackers</span>.site</span>
-  </div>
-  <div class="footer-links">
+  <canvas id="matrix-canvas"></canvas>
+  <nav id="navbar">
+    <a href="index.html" class="nav-logo">
+      <img src="logo.png" alt="NinjaHackers" class="logo-img" data-fallback="lt" />
+      <span id="lt" class="logo-text-fallback" style="display:none"><i class="fas fa-terminal"></i>
+        Ninja<span>Hackers</span></span>
+    </a>
+    <ul class="nav-links">
+      <li><a href="index.html">Home</a></li>
+      <li><a href="blog.html">Blog</a></li>
+      <li><a href="work.html">Work</a></li>
+      <li><a href="videos.html" class="active">Videos</a></li>
+      <li><a href="contact.html">Contact</a></li>
+      <li><a href="courses.html" class="nav-cta">Courses</a></li>
+    </ul>
+    <div class="hamburger" id="hamburger"><span></span><span></span><span></span></div>
+  </nav>
+  <div class="mobile-menu" id="mobileMenu">
     <a href="index.html">Home</a><a href="blog.html">Blog</a><a href="work.html">Work</a>
-    <a href="videos.html">Videos</a><a href="courses.html">Courses</a><a href="contact.html">Contact</a>
+    <a href="videos.html">Videos</a><a href="contact.html">Contact</a><a href="courses.html">Courses</a>
   </div>
-  <div class="social-links">
-    <a href="#" class="social-link"><i class="fab fa-github"></i></a>
-    <a href="#" class="social-link"><i class="fab fa-youtube"></i></a>
-    <a href="#" class="social-link"><i class="fab fa-linkedin-in"></i></a>
-    <a href="#" class="social-link"><i class="fab fa-twitter"></i></a>
+
+  <div class="page-header">
+    <div class="section-tag">// WATCH & LEARN</div>
+    <h1>Video <span>Content</span></h1>
+    <p>Tutorials, CTF walkthroughs and cybersecurity breakdowns on YouTube.</p>
   </div>
-  <div class="footer-copy">© 2025 <span>NinjaHackers.site</span> — Hack the Planet, Legally.</div>
-</footer>
 
-<script>
-// =============================================
-// ADD YOUR VIDEOS HERE
-// To embed a YouTube video, replace VIDEO_ID
-// with the ID from your YouTube URL
-// e.g. youtube.com/watch?v=dQw4w9WgXcQ
-// VIDEO_ID = dQw4w9WgXcQ
-// =============================================
-const videos = [
-  {
-    videoId: "",  // ← Paste YouTube Video ID here
-    title: "How to Set Up Your Hacking Lab (Kali Linux)",
-    meta: "Beginner · Coming Soon",
-    tag: "Beginner"
-  },
-  {
-    videoId: "",
-    title: "Nmap Full Tutorial for Beginners",
-    meta: "Beginner · Coming Soon",
-    tag: "Tutorial"
-  },
-  {
-    videoId: "",
-    title: "CTF Walkthrough: TryHackMe Rooms",
-    meta: "Intermediate · Coming Soon",
-    tag: "CTF"
-  },
-  {
-    videoId: "",
-    title: "Web App Pentesting with Burp Suite",
-    meta: "Intermediate · Coming Soon",
-    tag: "Web Security"
-  },
-  {
-    videoId: "",
-    title: "OSINT Masterclass: Find Anyone Online",
-    meta: "All Levels · Coming Soon",
-    tag: "OSINT"
-  },
-  {
-    videoId: "",
-    title: "Python Scripting for Hackers",
-    meta: "Beginner · Coming Soon",
-    tag: "Tutorial"
-  }
-];
-
-function renderVideos() {
-  document.getElementById('videoGrid').innerHTML = videos.map(v => `
-    <div class="video-card">
-      <div class="video-thumb">
-        ${v.videoId
-          ? `<iframe src="https://www.youtube.com/embed/${v.videoId}" allowfullscreen loading="lazy"></iframe>`
-          : `<div class="video-placeholder">
-               <i class="fab fa-youtube"></i>
-               <span>Coming Soon</span>
-             </div>`
-        }
+  <!-- YouTube Banner -->
+  <div style="position:relative;z-index:1;padding:2rem 2rem 0;max-width:1100px;margin:0 auto;">
+    <div
+      style="background:linear-gradient(135deg,rgba(255,0,0,0.08),rgba(255,0,0,0.03));border:1px solid rgba(255,0,0,0.2);border-radius:12px;padding:1.5rem;display:flex;align-items:center;gap:1.2rem;flex-wrap:wrap;">
+      <i class="fab fa-youtube" style="font-size:2.5rem;color:#ff0000;"></i>
+      <div>
+        <div style="font-family:'Rajdhani',sans-serif;font-size:1.2rem;font-weight:700;color:#fff;margin-bottom:.2rem;">
+          Subscribe on YouTube</div>
+        <div style="font-size:.85rem;color:var(--muted);">New videos every week — tutorials, CTF walkthroughs, tool
+          demos.</div>
       </div>
-      <div class="video-info">
-        <div style="margin-bottom:.5rem;"><span class="tag tag-cyan" style="font-size:.65rem;">${v.tag}</span></div>
-        <div class="video-title">${v.title}</div>
-        <div class="video-meta"><i class="far fa-clock"></i> ${v.meta}</div>
-      </div>
-    </div>`).join('');
-}
+      <!-- Replace YOUR_CHANNEL_URL with your actual YouTube channel URL -->
+      <a href="https://www.youtube.com/@Ninja_Hackers" target="_blank"
+        style="margin-left:auto;background:#ff0000;color:#fff;font-weight:700;font-size:.85rem;padding:.6rem 1.4rem;border-radius:6px;text-decoration:none;display:flex;align-items:center;gap:.5rem;white-space:nowrap;transition:opacity .2s;"
+        class="yt-subscribe-btn"><i class="fab fa-youtube"></i>
+        Subscribe</a>
+    </div>
+  </div>
 
-(function(){const c=document.getElementById('matrix-canvas');if(!c)return;const x=c.getContext('2d');c.width=window.innerWidth;c.height=window.innerHeight;const ch='01アイウエオカキクケコサシスセソ',fs=14;let dr=Array(Math.floor(c.width/fs)).fill(1);function d(){x.fillStyle='rgba(5,10,14,0.05)';x.fillRect(0,0,c.width,c.height);x.fillStyle='#00ff88';x.font=fs+'px Share Tech Mono';dr.forEach((y,i)=>{x.fillText(ch[Math.floor(Math.random()*ch.length)],i*fs,y*fs);if(y*fs>c.height&&Math.random()>0.975)dr[i]=0;dr[i]++;});}setInterval(d,50);window.addEventListener('resize',()=>{c.width=window.innerWidth;c.height=window.innerHeight;dr=Array(Math.floor(c.width/fs)).fill(1);});})();
-function toggleMenu(){document.getElementById('mobileMenu').classList.toggle('open');}
-window.addEventListener('scroll',()=>{const nav=document.getElementById('navbar');if(nav)nav.style.boxShadow=window.scrollY>20?'0 4px 30px rgba(0,0,0,0.4)':'';});
-renderVideos();
-</script>
+  <section class="videos-section">
+    <div class="container">
+      <div class="video-grid" id="videoGrid"></div>
+    </div>
+  </section>
+
+  <footer>
+    <div class="footer-logo">
+      <img src="logo.png" alt="" class="footer-logo-img" style="display:none;" />
+      <span>bninjahacker.site</span>
+    </div>
+    <div class="footer-links">
+      <a href="index.html">Home</a><a href="blog.html">Blog</a><a href="work.html">Work</a>
+      <a href="videos.html">Videos</a><a href="courses.html">Courses</a><a href="contact.html">Contact</a>
+    </div>
+    <div class="social-links">
+      <a href="https://github.com/iamninjacoder" class="social-link" target="_blank"><i class="fab fa-github"></i></a>
+      <a href="https://www.youtube.com/@Ninja_Hackers" class="social-link" target="_blank"><i
+          class="fab fa-youtube"></i></a>
+      <a href="https://www.linkedin.com/company/ninjahackers/" class="social-link" target="_blank"><i
+          class="fab fa-linkedin-in"></i></a>
+      <a href="#" class="social-link"><i class="fab fa-twitter"></i></a>
+    </div>
+    <div class="footer-copy">© 2025 <span>bninjahacker.site</span> — Hack the Planet, Legally.</div>
+  </footer>
+
+    <script src="js/videos-init.js"></script>
 </body>
+</body>
+
 </html>

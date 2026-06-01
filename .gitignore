@@ -5,3 +5,9 @@ database.db
 database.db.migrated
 uploads/
 *.db
+test-*.js
+test_*.js
+dev.log
+server_logs.txt
+migrate_db.js
+run_migrate.js

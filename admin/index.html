@@ -15,30 +15,8 @@
 
 <body>
 
-    <!-- LOGIN SCREEN -->
-    <div class="login-screen" id="loginScreen">
-        <div class="login-card">
-            <div class="login-logo"><i class="fas fa-terminal"></i> <span>Ninja<span
-                        class="accent">Hackers</span></span></div>
-            <div class="login-subtitle">Admin Panel</div>
-            <form id="loginForm" onsubmit="handleLogin(event)">
-                <div class="form-group">
-                    <label for="username"><i class="fas fa-user"></i> Username</label>
-                    <input type="text" id="username" placeholder="admin" required autocomplete="username" />
-                </div>
-                <div class="form-group">
-                    <label for="password"><i class="fas fa-lock"></i> Password</label>
-                    <input type="password" id="password" placeholder="••••••••" required
-                        autocomplete="current-password" />
-                </div>
-                <div class="login-error" id="loginError"></div>
-                <button type="submit" class="btn-login"><i class="fas fa-sign-in-alt"></i> Login</button>
-            </form>
-        </div>
-    </div>
-
     <!-- ADMIN DASHBOARD -->
-    <div class="admin-dashboard" id="adminDashboard" style="display:none;">
+    <div class="admin-dashboard" id="adminDashboard">
 
         <!-- TOP BAR -->
         <header class="admin-header">
@@ -47,33 +25,43 @@
             <div class="admin-actions">
                 <a href="/" class="btn-view-site" target="_blank"><i class="fas fa-external-link-alt"></i> Site</a>
                 <a href="/learn" class="btn-view-site" target="_blank"><i class="fas fa-graduation-cap"></i> LMS</a>
-                <button class="btn-logout" onclick="handleLogout()"><i class="fas fa-sign-out-alt"></i></button>
+                <button class="btn-logout" id="adminLogoutBtn"><i class="fas fa-sign-out-alt"></i></button>
             </div>
         </header>
 
         <!-- TABS -->
-        <div class="admin-tabs">
-            <button class="tab active" data-tab="blogs" onclick="switchTab('blogs')"><i class="fas fa-newspaper"></i>
+        <div class="admin-tabs" id="adminTabs">
+            <button class="tab active" data-tab="blogs"><i class="fas fa-newspaper"></i>
                 Blogs</button>
-            <button class="tab" data-tab="courses" onclick="switchTab('courses')"><i class="fas fa-graduation-cap"></i>
+            <button class="tab" data-tab="courses"><i class="fas fa-graduation-cap"></i>
                 Courses</button>
-            <button class="tab" data-tab="students" onclick="switchTab('students')"><i class="fas fa-user-graduate"></i>
+            <button class="tab" data-tab="students"><i class="fas fa-user-graduate"></i>
                 Students</button>
-            <button class="tab" data-tab="enrollments" onclick="switchTab('enrollments')"><i class="fas fa-link"></i>
+            <button class="tab" data-tab="enrollments"><i class="fas fa-link"></i>
                 Enrollments</button>
-            <button class="tab" data-tab="payments" onclick="switchTab('payments')"><i class="fas fa-credit-card"></i>
+            <button class="tab" data-tab="payments"><i class="fas fa-credit-card"></i>
                 Payments</button>
-            <button class="tab" data-tab="messages" onclick="switchTab('messages')"><i class="fas fa-envelope"></i>
+            <button class="tab" data-tab="messages"><i class="fas fa-envelope"></i>
                 Messages</button>
-            <button class="tab" data-tab="security" onclick="switchTab('security')"><i class="fas fa-shield-alt"></i>
+            <button class="tab" data-tab="security"><i class="fas fa-shield-alt"></i>
                 Security</button>
-            <button class="tab" data-tab="analytics" onclick="switchTab('analytics')"><i class="fas fa-chart-bar"></i>
+            <button class="tab" data-tab="analytics"><i class="fas fa-chart-bar"></i>
                 Analytics</button>
-            <button class="tab" data-tab="coupons" onclick="switchTab('coupons')"><i class="fas fa-ticket-alt"></i>
+            <button class="tab" data-tab="coupons"><i class="fas fa-ticket-alt"></i>
                 Coupons</button>
-            <button class="tab" data-tab="announcements" onclick="switchTab('announcements')"><i
+            <button class="tab" data-tab="announcements"><i
                     class="fas fa-bullhorn"></i>
                 Announce</button>
+            <button class="tab" data-tab="assignments"><i
+                    class="fas fa-file-alt"></i> Assignments</button>
+            <button class="tab" data-tab="works"><i class="fas fa-tools"></i>
+                Works</button>
+            <button class="tab" data-tab="videos"><i class="fab fa-youtube"></i>
+                Videos</button>
+            <button class="tab" data-tab="jobs"><i class="fas fa-briefcase"></i>
+                Jobs</button>
+            <button class="tab" data-tab="settings"><i class="fas fa-cog"></i>
+                Settings</button>
         </div>
 
         <!-- ═══ BLOGS TAB ═══ -->
@@ -83,7 +71,7 @@
                     <h1><i class="fas fa-newspaper" style="color:var(--green);margin-right:.5rem;"></i>Blog Posts</h1>
                     <p class="admin-subtitle" id="blogCount">Loading...</p>
                 </div>
-                <button class="btn-new" onclick="openBlogEditor()"><i class="fas fa-plus"></i> New Post</button>
+                <button class="btn-new" id="newBlogBtn"><i class="fas fa-plus"></i> New Post</button>
             </div>
             <div class="blog-list" id="blogList"></div>
         </div>
@@ -94,8 +82,12 @@
                 <h1 id="editorTitle"><i class="fas fa-edit" style="color:var(--green);margin-right:.5rem;"></i>New Blog
                     Post</h1>
                 <div style="display:flex;gap:.6rem;">
-                    <button class="btn-cancel" onclick="closeBlogEditor()"><i class="fas fa-times"></i> Cancel</button>
-                    <button class="btn-save" onclick="saveBlog()"><i class="fas fa-save"></i> Save</button>
+                    <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;">
+                        <input type="checkbox" id="blogFeatured" style="width:18px;height:18px;" />
+                        <span style="font-style:italic;color:var(--green);">Featured on Home</span>
+                    </label>
+                    <button class="btn-cancel" id="cancelBlogBtn"><i class="fas fa-times"></i> Cancel</button>
+                    <button class="btn-save" id="saveBlogBtn"><i class="fas fa-save"></i> Save</button>
                 </div>
             </div>
             <div class="editor-form">
@@ -121,12 +113,11 @@
                 <div class="form-group"><label><i class="fas fa-image"></i> Cover Image</label>
                     <div class="cover-image-area">
                         <div class="cover-preview" id="coverPreview" style="display:none;"><img id="coverPreviewImg"
-                                alt="Cover" /><button type="button" class="cover-remove" onclick="removeCover()"><i
+                                alt="Cover" /><button type="button" class="cover-remove" id="removeCoverBtn"><i
                                     class="fas fa-times"></i></button></div>
                         <div class="cover-upload" id="coverUpload"><input type="file" id="coverFileInput"
-                                accept="image/*" onchange="handleCoverUpload(event)" style="display:none;" />
-                            <button type="button" class="btn-upload"
-                                onclick="document.getElementById('coverFileInput').click()"><i
+                                accept="image/*" style="display:none;" />
+                            <button type="button" class="btn-upload" id="uploadCoverBtn"><i
                                     class="fas fa-cloud-upload-alt"></i> Upload</button><span class="upload-hint">PNG,
                                 JPG, WEBP</span>
                         </div>
@@ -135,8 +126,7 @@
                 <div class="form-group"><label>Tags</label>
                     <div class="tags-editor">
                         <div class="tags-list" id="tagsList"></div>
-                        <div class="tag-add-row"><input type="text" id="tagInput" placeholder="Tag name"
-                                onkeydown="if(event.key==='Enter'){event.preventDefault();addTag();}" />
+                        <div class="tag-add-row"><input type="text" id="tagInput" placeholder="Tag name" />
                             <select id="tagColor">
                                 <option value="tag-green">Green</option>
                                 <option value="tag-cyan">Cyan</option>
@@ -144,7 +134,7 @@
                                 <option value="tag-purple">Purple</option>
                                 <option value="tag-orange">Orange</option>
                             </select>
-                            <button type="button" class="btn-add-tag" onclick="addTag()"><i
+                            <button type="button" class="btn-add-tag" id="addTagBtn"><i
                                     class="fas fa-plus"></i></button>
                         </div>
                     </div>
@@ -153,9 +143,8 @@
                         id="blogContent"></textarea></div>
                 <div class="form-group"><label><i class="fas fa-images"></i> Upload Image for Content</label>
                     <div class="inline-upload-area"><input type="file" id="inlineFileInput" accept="image/*"
-                            onchange="handleInlineUpload(event)" style="display:none;" />
-                        <button type="button" class="btn-upload-sm"
-                            onclick="document.getElementById('inlineFileInput').click()"><i class="fas fa-image"></i>
+                            style="display:none;" />
+                        <button type="button" class="btn-upload-sm" id="uploadInlineBtn"><i class="fas fa-image"></i>
                             Upload</button>
                         <span class="upload-hint">Inserts Markdown at cursor</span>
                         <div id="inlineUploadResult" style="display:none;"></div>
@@ -171,7 +160,7 @@
                     <h1><i class="fas fa-graduation-cap" style="color:var(--cyan);margin-right:.5rem;"></i>Courses</h1>
                     <p class="admin-subtitle" id="courseCount">Loading...</p>
                 </div>
-                <button class="btn-new" onclick="openCourseEditor()"><i class="fas fa-plus"></i> New Course</button>
+                <button class="btn-new" id="newCourseBtn"><i class="fas fa-plus"></i> New Course</button>
             </div>
             <div class="blog-list" id="courseList"></div>
         </div>
@@ -182,9 +171,9 @@
                 <h1 id="courseEditorTitle"><i class="fas fa-graduation-cap"
                         style="color:var(--cyan);margin-right:.5rem;"></i>New Course</h1>
                 <div style="display:flex;gap:.6rem;">
-                    <button class="btn-cancel" onclick="closeCourseEditor()"><i class="fas fa-times"></i>
+                    <button class="btn-cancel" id="cancelCourseBtn"><i class="fas fa-times"></i>
                         Cancel</button>
-                    <button class="btn-save" onclick="saveCourse()"><i class="fas fa-save"></i> Save Course</button>
+                    <button class="btn-save" id="saveCourseBtn"><i class="fas fa-save"></i> Save Course</button>
                 </div>
             </div>
             <div class="editor-form">
@@ -197,6 +186,29 @@
                 </div>
                 <div class="form-group"><label>Description</label><textarea id="courseDesc" rows="3"
                         placeholder="What students will learn..."></textarea></div>
+                <div class="form-group">
+                    <label>Cover Image <span style="color:var(--muted);font-weight:400;font-size:.65rem;">(Recommended:
+                            800×450px, 16:9 ratio, max 5MB)</span></label>
+                    <div style="display:flex;gap:.8rem;align-items:flex-start;">
+                        <div id="courseCoverPreview"
+                            style="width:160px;height:90px;border-radius:8px;border:1px dashed rgba(255,255,255,.1);background:rgba(255,255,255,.02);display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0;">
+                            <i class="fas fa-image" style="color:var(--muted);opacity:.3;font-size:1.5rem;"></i>
+                        </div>
+                        <div style="display:flex;flex-direction:column;gap:.6rem;flex:1;">
+                            <div style="display:flex;gap:.5rem;">
+                                <label class="btn-upload" style="background:rgba(0,212,255,.08);color:var(--cyan);border:1px solid rgba(0,212,255,.2);padding:.4rem .8rem;border-radius:6px;cursor:pointer;font-size:.7rem;text-align:center;transition:all .2s;display:inline-block;white-space:nowrap;">
+                                    <i class="fas fa-cloud-upload-alt"></i> Upload
+                                    <input type="file" id="courseCoverFileInput" accept="image/*" style="display:none;">
+                                </label>
+                                <input type="text" id="courseCoverUrl" placeholder="Or paste image URL (e.g. /uploads/banner.svg)" style="flex:1;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.1);color:#fff;padding:.4rem .7rem;border-radius:6px;font-size:.75rem;outline:none;" />
+                            </div>
+                            <button type="button" id="removeCourseCoverBtn"
+                                style="background:rgba(255,71,87,.06);color:var(--red);border:1px solid rgba(255,71,87,.15);padding:.3rem .6rem;border-radius:6px;cursor:pointer;font-size:.65rem;width:fit-content;">
+                                <i class="fas fa-trash-alt"></i> Remove Cover
+                            </button>
+                        </div>
+                    </div>
+                </div>
                 <div class="editor-row">
                     <div class="form-group" style="flex:1;"><label>Price (₹)</label><input type="number"
                             id="coursePrice" placeholder="4999" min="0" /></div>
@@ -225,7 +237,7 @@
                 <div class="add-module-row">
                     <input type="text" id="newModuleTitle"
                         placeholder="New module title (e.g. Module 02: Web Security)" />
-                    <button class="btn-new" onclick="addModule()"><i class="fas fa-plus"></i> Add Module</button>
+                    <button class="btn-new" id="addModuleBtn"><i class="fas fa-plus"></i> Add Module</button>
                 </div>
             </div>
         </div>
@@ -239,7 +251,7 @@
                 </div>
                 <div style="display:flex;gap:.6rem;align-items:center;">
                     <div class="search-box"><i class="fas fa-search"></i><input type="text" id="studentSearch"
-                            placeholder="Search name or email..." oninput="filterStudents()" /></div>
+                            placeholder="Search name or email..." /></div>
                 </div>
             </div>
             <div class="blog-list" id="studentList"></div>
@@ -250,7 +262,7 @@
             <div class="admin-title-bar">
                 <h1 id="studentDetailTitle"><i class="fas fa-user"
                         style="color:var(--green);margin-right:.5rem;"></i>Student</h1>
-                <button class="btn-cancel" onclick="closeStudentDetail()"><i class="fas fa-arrow-left"></i>
+                <button class="btn-cancel" id="closeStudentDetailBtn"><i class="fas fa-arrow-left"></i>
                     Back</button>
             </div>
             <div class="student-profile" id="studentProfile"></div>
@@ -264,7 +276,7 @@
                 <h3><i class="fas fa-plus-circle" style="color:var(--green);margin-right:.4rem;"></i>Assign Course</h3>
                 <div class="assign-course-row">
                     <select id="assignCourseSelect" class="assign-select"></select>
-                    <button class="btn-save" onclick="assignCourseToStudent()"><i class="fas fa-plus"></i>
+                    <button class="btn-save" id="assignCourseBtn"><i class="fas fa-plus"></i>
                         Assign</button>
                 </div>
             </div>
@@ -283,7 +295,7 @@
                     <h1><i class="fas fa-link" style="color:var(--purple);margin-right:.5rem;"></i>Enrollments</h1>
                     <p class="admin-subtitle" id="enrollmentCount">Loading...</p>
                 </div>
-                <button class="btn-new" onclick="showManualEnrollForm()"><i class="fas fa-user-plus"></i> Quick
+                <button class="btn-new" id="quickEnrollBtn"><i class="fas fa-user-plus"></i> Quick
                     Enroll</button>
             </div>
             <div class="manual-enroll-form" id="manualEnrollForm" style="display:none;">
@@ -294,7 +306,7 @@
                         <div class="form-group" style="flex:1;"><label>Course</label><select
                                 id="enrollCourseSelect"></select></div>
                         <div class="form-group" style="flex:0;align-self:flex-end;"><button class="btn-save"
-                                onclick="manualEnroll()"><i class="fas fa-check"></i> Enroll</button></div>
+                                id="manualEnrollSubmit"><i class="fas fa-check"></i> Enroll</button></div>
                     </div>
                 </div>
             </div>
@@ -360,7 +372,7 @@
                     <h1><i class="fas fa-shield-alt" style="color:var(--red);margin-right:.5rem;"></i>Security Logs</h1>
                     <p class="admin-subtitle" id="securityCount">Loading...</p>
                 </div>
-                <button class="btn-new" onclick="loadSecurityLogs()"
+                <button class="btn-new" id="refreshSecurityLogsBtn"
                     style="background:rgba(255,80,80,.1);border:1px solid rgba(255,80,80,.3);color:var(--red);"><i
                         class="fas fa-sync-alt"></i> Refresh</button>
             </div>
@@ -410,7 +422,7 @@
                     </h1>
                     <p class="admin-subtitle" id="couponCount">Loading...</p>
                 </div>
-                <button class="btn-new" onclick="toggleCouponForm()"
+                <button class="btn-new" id="toggleCouponFormBtn"
                     style="background:rgba(255,160,0,.1);border:1px solid rgba(255,160,0,.3);color:var(--orange);"><i
                         class="fas fa-plus"></i> New Coupon</button>
             </div>
@@ -428,7 +440,7 @@
                             id="couponValue" value="10" style="width:100%;" /></div>
                     <div><label style="font-size:.7rem;color:var(--muted);">Max Uses</label><input type="number"
                             id="couponMaxUses" value="100" style="width:100%;" /></div>
-                    <button class="btn-save" onclick="saveCoupon()" style="height:36px;"><i class="fas fa-save"></i>
+                    <button class="btn-save" id="saveCouponBtn" style="height:36px;"><i class="fas fa-save"></i>
                         Save</button>
                 </div>
             </div>
@@ -443,7 +455,7 @@
                     </h1>
                     <p class="admin-subtitle" id="announcementCount">Loading...</p>
                 </div>
-                <button class="btn-new" onclick="toggleAnnouncementForm()"
+                <button class="btn-new" id="toggleAnnouncementFormBtn"
                     style="background:rgba(168,85,247,.1);border:1px solid rgba(168,85,247,.3);color:var(--purple);"><i
                         class="fas fa-plus"></i> New Announcement</button>
             </div>
@@ -457,11 +469,348 @@
                     <select id="annCourseId" style="flex:1;">
                         <option value="">All students (global)</option>
                     </select>
-                    <button class="btn-save" onclick="saveAnnouncement()"><i class="fas fa-paper-plane"></i>
+                    <button class="btn-save" id="saveAnnouncementBtn"><i class="fas fa-paper-plane"></i>
                         Send</button>
                 </div>
             </div>
             <div id="announcementList"></div>
+        </div>
+
+        <!-- ═══ ASSIGNMENTS TAB ═══ -->
+        <div class="admin-content tab-content" id="tab-assignments" style="display:none;">
+            <div class="admin-title-bar">
+                <div>
+                    <h1><i class="fas fa-file-alt" style="color:var(--cyan);margin-right:.5rem;"></i>Assignments
+                    </h1>
+                    <p class="admin-subtitle" id="assignmentCount">Loading...</p>
+                </div>
+                <select id="assignmentCourseFilter"
+                    style="padding:.5rem;border:1px solid rgba(0,212,255,.2);background:var(--bg);color:var(--text);border-radius:6px;font-family:'Rajdhani',sans-serif;font-weight:600;font-size:.9rem;width:250px;outline:none;">
+                    <option value="">All Courses</option>
+                </select>
+            </div>
+            <div id="assignmentList" style="display:grid;grid-template-columns:1fr;gap:1rem;"></div>
+        </div>
+
+        <!-- ═══ WORKS TAB ═══ -->
+        <div class="admin-content tab-content" id="tab-works" style="display:none;">
+            <!-- List View -->
+            <div id="worksListView">
+                <div class="admin-title-bar">
+                    <div>
+                        <h1><i class="fas fa-tools" style="color:var(--cyan);margin-right:.5rem;"></i>My Work</h1>
+                        <p class="admin-subtitle" id="worksCount">Loading...</p>
+                    </div>
+                    <button class="btn-new" id="newWorkBtn"><i class="fas fa-plus"></i> New Work</button>
+                </div>
+                <div class="data-table-wrap">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Project</th>
+                                <th>Status</th>
+                                <th>Tags</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="worksList"></tbody>
+                    </table>
+                </div>
+            </div>
+            <!-- Editor View -->
+            <div id="workEditorView" style="display:none;">
+                <div class="admin-title-bar">
+                    <h1 id="workEditorTitle">Add Project</h1>
+                    <div style="display:flex;gap:1.5rem;align-items:center;">
+                        <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;">
+                            <input type="checkbox" id="workFeatured" style="width:18px;height:18px;" />
+                            <span style="font-style:italic;color:var(--cyan);">Featured on Home</span>
+                        </label>
+                        <button class="btn-cancel" id="cancelWorkBtn"><i class="fas fa-times"></i>
+                            Cancel</button>
+                    </div>
+                </div>
+                <div
+                    style="background:var(--surface);border:1px solid rgba(0,212,255,.15);border-radius:12px;padding:1.5rem;box-shadow:0 8px 32px rgba(0,0,0,.4);">
+                    <input type="hidden" id="editWorkId" />
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-bottom:1rem;">
+                        <div class="form-group">
+                            <label>Title</label>
+                            <input type="text" id="workTitle" placeholder="e.g. WebRecon Scanner" />
+                        </div>
+                        <div class="form-group">
+                            <label>Description</label>
+                            <input type="text" id="workDescription" placeholder="Brief explanation of the project" />
+                        </div>
+                    </div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1.5rem;margin-bottom:1rem;">
+                        <div class="form-group">
+                            <label>Icon Class (FontAwesome)</label>
+                            <input type="text" id="workIcon" placeholder="fas fa-spider" value="fas fa-cog" />
+                        </div>
+                        <div class="form-group">
+                            <label>Icon Color Class</label>
+                            <select id="workIconColor">
+                                <option value="cyan">Cyan</option>
+                                <option value="green">Green</option>
+                                <option value="red">Red</option>
+                                <option value="purple">Purple</option>
+                                <option value="orange">Orange</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Status</label>
+                            <select id="workStatus">
+                                <option value="Completed">Completed</option>
+                                <option value="In Progress">In Progress</option>
+                                <option value="Idea">Idea</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-bottom:1.5rem;">
+                        <div class="form-group">
+                            <label>Tags (Comma separated)</label>
+                            <input type="text" id="workTags" placeholder="Python, Tool, Web Security" />
+                        </div>
+                        <div class="form-group">
+                            <label>Link (Optional)</label>
+                            <input type="text" id="workLink" placeholder="https://github.com/..." />
+                        </div>
+                    </div>
+                    <button class="btn-save" id="saveWorkBtn" style="width:100%;"><i class="fas fa-save"></i> Save
+                        Project</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═══ VIDEOS TAB ═══ -->
+        <div class="admin-content tab-content" id="tab-videos" style="display:none;">
+            <!-- List View -->
+            <div id="videosListView">
+                <div class="admin-title-bar">
+                    <div>
+                        <h1><i class="fab fa-youtube" style="color:var(--red);margin-right:.5rem;"></i>YouTube Videos
+                        </h1>
+                        <p class="admin-subtitle" id="videosCount">Loading...</p>
+                    </div>
+                    <button class="btn-new" id="newVideoBtn"><i class="fas fa-plus"></i> Add Video</button>
+                </div>
+                <div class="data-table-wrap">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Thumbnail</th>
+                                <th>Title</th>
+                                <th>Meta</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="videosList"></tbody>
+                    </table>
+                </div>
+            </div>
+            <!-- Editor View -->
+            <div id="videoEditorView" style="display:none;">
+                <div class="admin-title-bar">
+                    <h1 id="videoEditorTitle">Add Video</h1>
+                    <div style="display:flex;gap:1.5rem;align-items:center;">
+                        <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;">
+                            <input type="checkbox" id="videoFeatured" style="width:18px;height:18px;" />
+                            <span style="font-style:italic;color:var(--red);">Featured on Site</span>
+                        </label>
+                        <button class="btn-cancel" id="cancelVideoBtn"><i class="fas fa-times"></i>
+                            Cancel</button>
+                    </div>
+                </div>
+                <div
+                    style="background:var(--surface);border:1px solid rgba(255,0,0,.15);border-radius:12px;padding:1.5rem;box-shadow:0 8px 32px rgba(0,0,0,.4);">
+                    <input type="hidden" id="editVideoId" />
+                    <div class="form-group" style="margin-bottom:1rem;">
+                        <label>YouTube Video ID</label>
+                        <input type="text" id="videoYtId" placeholder="e.g. dQw4w9WgXcQ" />
+                        <small style="color:var(--muted);font-size:0.75rem;margin-top:4px;display:block;">Extract this
+                            from the YouTube URL: https://youtube.com/watch?v=<strong>dQw4w9WgXcQ</strong></small>
+                    </div>
+                    <div class="form-group" style="margin-bottom:1rem;">
+                        <label>Title</label>
+                        <input type="text" id="videoTitle" placeholder="e.g. Nmap Full Tutorial for Beginners" />
+                    </div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-bottom:1.5rem;">
+                        <div class="form-group">
+                            <label>Meta Details</label>
+                            <input type="text" id="videoMeta" placeholder="e.g. Beginner · 10 min view" />
+                        </div>
+                        <div class="form-group">
+                            <label>Primary Tag</label>
+                            <input type="text" id="videoTag" placeholder="e.g. Tutorial" />
+                        </div>
+                    </div>
+                    <button class="btn-save" id="saveVideoBtn" style="width:100%;"><i class="fas fa-save"></i> Save
+                        Video</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═══ JOBS TAB ═══ -->
+        <div class="admin-content tab-content" id="tab-jobs" style="display:none;">
+            <!-- List View -->
+            <div id="jobsListView">
+                <div class="admin-title-bar">
+                    <div>
+                        <h1><i class="fas fa-briefcase" style="color:var(--green);margin-right:.5rem;"></i>Job Postings</h1>
+                        <p class="admin-subtitle" id="jobsCount">Loading...</p>
+                    </div>
+                    <div style="display:flex; gap:1rem;">
+                        <button class="btn-new" id="newJobBtn"><i class="fas fa-plus"></i> New Job</button>
+                        <select id="jobsFilterSelect" style="background:var(--bg);color:var(--text);border:1px solid rgba(0,255,136,0.3);border-radius:6px;padding:0.5rem;font-family:'Rajdhani',sans-serif;outline:none;">
+                            <option value="all">All Jobs</option>
+                            <option value="open">Open</option>
+                            <option value="closed">Closed</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="data-table-wrap">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Ref ID</th>
+                                <th>Title</th>
+                                <th>Linked Course</th>
+                                <th>Price</th>
+                                <th>Status</th>
+                                <th>Questions</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="jobsListAdmin"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Job Editor View -->
+            <div id="jobEditorView" style="display:none;">
+                <div class="admin-title-bar">
+                    <h1 id="jobEditorTitle"><i class="fas fa-edit" style="color:var(--green);margin-right:.5rem;"></i>New Job</h1>
+                    <div style="display:flex;gap:.6rem;">
+                        <button class="btn-cancel" id="cancelJobBtn"><i class="fas fa-times"></i> Cancel</button>
+                        <button class="btn-save" id="saveJobBtn"><i class="fas fa-save"></i> Save Job</button>
+                    </div>
+                </div>
+                <div class="editor-form">
+                    <input type="hidden" id="editJobId" />
+                    <div class="editor-row">
+                        <div class="form-group" style="flex:2;">
+                            <label>Job Title</label>
+                            <input type="text" id="jobTitle" placeholder="Cyber Security Analyst" />
+                        </div>
+                        <div class="form-group" style="flex:1;">
+                            <label>Status</label>
+                            <select id="jobStatus">
+                                <option value="open">Open (Accepting Apps)</option>
+                                <option value="closed">Closed</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Description</label>
+                        <textarea id="jobDesc" rows="4" placeholder="Brief job intro, requirements, etc..."></textarea>
+                    </div>
+
+                    <!-- Course Linking & Payment -->
+                    <div class="section-block" style="margin-top:1.5rem;background:rgba(0,255,136,0.03);border:1px solid rgba(0,255,136,0.15);padding:1.5rem;border-radius:8px;">
+                        <h3 style="margin-bottom:1rem;"><i class="fas fa-link" style="color:var(--green);margin-right:.4rem;"></i>Course / Intern Linking & Payment</h3>
+                        <p style="color:var(--muted);font-size:0.85rem;margin-bottom:1rem;">Link a course so applicants can pay and get auto-enrolled upon verification. Leave empty for no payment required.</p>
+                        <div class="editor-row">
+                            <div class="form-group" style="flex:2;">
+                                <label>Link to Course</label>
+                                <select id="jobLinkedCourse">
+                                    <option value="">— None (no payment required) —</option>
+                                    <!-- Populated by JS -->
+                                </select>
+                            </div>
+                            <div class="form-group" style="flex:1;">
+                                <label>Price (₹)</label>
+                                <input type="number" id="jobPrice" placeholder="0" min="0" value="0" />
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Custom Questions -->
+                    <div class="section-block" style="margin-top:2rem;">
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+                            <h3><i class="fas fa-clipboard-list" style="color:var(--cyan);margin-right:.4rem;"></i>Custom Application Questions</h3>
+                            <button class="btn-new" style="background:rgba(0,212,255,0.1);color:var(--cyan);border-color:rgba(0,212,255,0.3);" id="addJobQuestionBtn"><i class="fas fa-plus"></i> Add Question</button>
+                        </div>
+                        <p style="color:var(--muted);font-size:0.85rem;margin-bottom:1rem;">Name, Email, Phone, Resume Link, and Cover Letter are included automatically.</p>
+
+                        <div id="jobQuestionsList" style="display:flex;flex-direction:column;gap:1rem;">
+                            <!-- Dynamic questions will be injected here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Applications Viewer -->
+            <div id="jobAppsView" style="display:none;">
+                <div class="admin-title-bar">
+                    <div>
+                        <h1><i class="fas fa-users" style="color:var(--cyan);margin-right:.5rem;"></i><span id="appsJobTitle">Applications</span></h1>
+                        <p class="admin-subtitle" id="appsCount">Loading...</p>
+                    </div>
+                    <div style="display:flex;gap:.6rem;">
+                        <button class="btn-cancel" id="closeJobAppsBtn"><i class="fas fa-arrow-left"></i> Back to Jobs</button>
+                        <button class="btn-save" style="background:rgba(0,212,255,0.1);color:var(--cyan);border-color:rgba(0,212,255,0.3);" id="downloadJobAppsBtn"><i class="fas fa-download"></i> Download CSV</button>
+                    </div>
+                </div>
+                <div class="data-table-wrap">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Email / Contact</th>
+                                <th>Links</th>
+                                <th>Payment</th>
+                                <th>Applied At</th>
+                                <th>Custom Answers</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="jobAppsList"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═══ SETTINGS TAB ═══ -->
+        <div class="admin-content tab-content" id="tab-settings" style="display:none;">
+            <div class="admin-title-bar">
+                <h1><i class="fas fa-cog" style="color:var(--cyan);margin-right:.5rem;"></i>Site Settings</h1>
+                <p class="admin-subtitle">Manage homepage statistics and global configurations.</p>
+            </div>
+            <div class="admin-card">
+                <h3 style="margin-bottom:1.5rem;color:var(--cyan);"><i class="fas fa-chart-line"></i> Homepage
+                    Statistics</h3>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;">
+                    <div class="form-group">
+                        <label>Blog Posts</label>
+                        <input type="text" id="setting_stat_blogs" placeholder="e.g. 15" />
+                    </div>
+                    <div class="form-group">
+                        <label>CTF Solves</label>
+                        <input type="text" id="setting_stat_ctf" placeholder="e.g. 42" />
+                    </div>
+                    <div class="form-group">
+                        <label>Tools Built</label>
+                        <input type="text" id="setting_stat_tools" placeholder="e.g. 8" />
+                    </div>
+                    <div class="form-group">
+                        <label>Students</label>
+                        <input type="text" id="setting_stat_students" placeholder="e.g. 500" />
+                    </div>
+                </div>
+                <button class="btn-save" id="saveSettingsBtn" style="width:100%;margin-top:1.5rem;"><i
+                        class="fas fa-save"></i> Save Statistics</button>
+            </div>
         </div>
 
     </div>
@@ -473,8 +822,8 @@
             <h3>Delete?</h3>
             <p>This action cannot be undone.</p>
             <div class="modal-actions">
-                <button class="btn-cancel" onclick="closeDeleteModal()">Cancel</button>
-                <button class="btn-delete-confirm" onclick="confirmDelete()"><i class="fas fa-trash"></i>
+                <button class="btn-cancel" id="cancelDeleteBtn">Cancel</button>
+                <button class="btn-delete-confirm" id="confirmDeleteBtn"><i class="fas fa-trash"></i>
                     Delete</button>
             </div>
         </div>

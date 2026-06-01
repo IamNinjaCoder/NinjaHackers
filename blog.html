@@ -4,7 +4,20 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Blog | NinjaHackers</title>
+  <title>Cybersecurity Blog | NinjaHackers Insights</title>
+  <meta name="description"
+    content="Read the latest cybersecurity news, technical deep-dives, and CTF writeups from the NinjaHackers team." />
+  <meta name="keywords" content="cybersecurity blog, hacking news, CTF writeup, security research, tech blog" />
+  <link rel="canonical" href="https://bninjahacker.site/blog.html" />
+
+  <!-- Open Graph / Facebook -->
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://bninjahacker.site/blog.html" />
+  <meta property="og:title" content="Cybersecurity Blog | NinjaHackers Insights" />
+  <meta property="og:description"
+    content="Stay ahead with technical cybersecurity insights and hacking news from NinjaHackers." />
+  <meta property="og:image" content="https://bninjahacker.site/logo.png" />
+
   <link
     href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;500;600;700&family=Exo+2:wght@300;400;600;700&display=swap"
     rel="stylesheet" />
@@ -12,6 +25,8 @@
   <!-- Prism.js for code syntax highlighting -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" />
   <link rel="stylesheet" href="style.css" />
+  <link rel="icon" type="image/png" href="logo.png" />
+
   <style>
     /* ─── BLOG CARD FIXES ─── */
     /* Make all blog cards uniform height via flexbox */
@@ -403,8 +418,7 @@
   <canvas id="matrix-canvas"></canvas>
   <nav id="navbar">
     <a href="index.html" class="nav-logo">
-      <img src="logo.png" alt="NinjaHackers" class="logo-img"
-        onerror="this.style.display='none';document.getElementById('lt').style.display='flex'" />
+      <img src="logo.png" alt="NinjaHackers" class="logo-img img-fallback" />
       <span id="lt" class="logo-text-fallback" style="display:none"><i class="fas fa-terminal"></i>
         Ninja<span>Hackers</span></span>
     </a>
@@ -416,7 +430,7 @@
       <li><a href="contact.html">Contact</a></li>
       <li><a href="courses.html" class="nav-cta">Courses</a></li>
     </ul>
-    <div class="hamburger" onclick="toggleMenu()"><span></span><span></span><span></span></div>
+    <div class="hamburger" id="hamburger"><span></span><span></span><span></span></div>
   </nav>
   <div class="mobile-menu" id="mobileMenu">
     <a href="index.html">Home</a><a href="blog.html">Blog</a><a href="work.html">Work</a>
@@ -431,14 +445,14 @@
 
   <!-- FILTER BAR -->
   <div style="position:relative;z-index:1;padding:2rem 2rem 0;max-width:1100px;margin:0 auto;">
-    <div style="display:flex;gap:.6rem;flex-wrap:wrap;align-items:center;">
+    <div id="blogFilters" style="display:flex;gap:.6rem;flex-wrap:wrap;align-items:center;">
       <span
         style="font-family:'Share Tech Mono',monospace;font-size:.75rem;color:var(--muted);letter-spacing:1px;">FILTER:</span>
-      <button class="filter-btn active" onclick="filterBlogs('all')">All</button>
-      <button class="filter-btn" onclick="filterBlogs('Web Security')">Web Security</button>
-      <button class="filter-btn" onclick="filterBlogs('CTF')">CTF</button>
-      <button class="filter-btn" onclick="filterBlogs('OSINT')">OSINT</button>
-      <button class="filter-btn" onclick="filterBlogs('Tutorial')">Tutorial</button>
+      <button class="filter-btn active" data-tag="all">All</button>
+      <button class="filter-btn" data-tag="Web Security">Web Security</button>
+      <button class="filter-btn" data-tag="CTF">CTF</button>
+      <button class="filter-btn" data-tag="OSINT">OSINT</button>
+      <button class="filter-btn" data-tag="Tutorial">Tutorial</button>
     </div>
   </div>
 
@@ -474,24 +488,26 @@
 
   <footer>
     <div class="footer-logo">
-      <img src="logo.png" alt="" class="footer-logo-img" onerror="this.style.display='none'" />
-      <span>Ninja<span style="color:var(--cyan)">Hackers</span>.site</span>
+      <img src="logo.png" alt="" class="footer-logo-img img-fallback" />
+      <span>bninjahacker.site</span>
     </div>
     <div class="footer-links">
       <a href="index.html">Home</a><a href="blog.html">Blog</a><a href="work.html">Work</a>
       <a href="videos.html">Videos</a><a href="courses.html">Courses</a><a href="contact.html">Contact</a>
     </div>
     <div class="social-links">
-      <a href="#" class="social-link"><i class="fab fa-github"></i></a>
-      <a href="#" class="social-link"><i class="fab fa-youtube"></i></a>
-      <a href="#" class="social-link"><i class="fab fa-linkedin-in"></i></a>
+      <a href="https://github.com/iamninjacoder" class="social-link" target="_blank"><i class="fab fa-github"></i></a>
+      <a href="https://www.youtube.com/@Ninja_Hackers" class="social-link" target="_blank"><i
+          class="fab fa-youtube"></i></a>
+      <a href="https://www.linkedin.com/company/ninjahackers/" class="social-link" target="_blank"><i
+          class="fab fa-linkedin-in"></i></a>
       <a href="#" class="social-link"><i class="fab fa-twitter"></i></a>
     </div>
-    <div class="footer-copy">© 2025 <span>NinjaHackers.site</span> — Hack the Planet, Legally.</div>
+    <div class="footer-copy">© 2025 <span>bninjahacker.site</span> — Hack the Planet, Legally.</div>
   </footer>
 
   <!-- BLOG READER OVERLAY -->
-  <div class="blog-overlay" id="blogOverlay" onclick="closeBlogIfOutside(event)">
+  <div class="blog-overlay" id="blogOverlay">
     <div class="blog-reader">
       <!-- Cover Image -->
       <div class="reader-cover-wrap" id="readerCoverWrap" style="display:none;">
@@ -499,7 +515,7 @@
       </div>
 
       <div class="blog-reader-header">
-        <button class="blog-reader-close" onclick="closeBlog()"><i class="fas fa-times"></i></button>
+        <button class="blog-reader-close" id="closeReader"><i class="fas fa-times"></i></button>
         <div class="reader-tags" id="readerTags"></div>
         <div class="reader-title" id="readerTitle"></div>
         <div class="reader-meta" id="readerMeta"></div>
@@ -530,7 +546,7 @@
             style="font-family:'Share Tech Mono',monospace;font-size:.8rem;color:var(--muted);font-weight:400;"></span>
         </div>
 
-        <form class="comment-form" onsubmit="submitComment(event)">
+        <form class="comment-form" id="commentForm">
           <div class="comment-form-row">
             <input type="text" id="commentName" placeholder="Your name" required maxlength="100" />
           </div>
@@ -547,192 +563,8 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
 
-  <script>
-    let blogs = [];
-    let activeFilter = 'all';
-    let currentBlogId = null;
-
-    // ─── FETCH BLOGS FROM API ───
-    async function fetchBlogs() {
-      try {
-        const res = await fetch('/api/blogs');
-        blogs = await res.json();
-        renderBlogs();
-      } catch (err) {
-        // Fallback: if server isn't running, show message
-        document.getElementById('blogGrid').innerHTML = `
-      <div style="grid-column:1/-1;text-align:center;padding:4rem;color:var(--muted);font-family:'Share Tech Mono',monospace;">
-        <i class="fas fa-server" style="font-size:2rem;margin-bottom:1rem;display:block;opacity:.4;"></i>
-        Could not connect to the server. Start it with: <code>node server.js</code>
-      </div>`;
-      }
-    }
-
-    function filterBlogs(tag) {
-      activeFilter = tag;
-      document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-      event.target.classList.add('active');
-      renderBlogs();
-    }
-
-    function renderBlogs() {
-      const filtered = activeFilter === 'all' ? blogs : blogs.filter(b => b.tags.some(t => t.label === activeFilter));
-      document.getElementById('blogGrid').innerHTML = filtered.length ? filtered.map(b => `
-    <div class="blog-card" onclick="openBlog(${b.id})">
-      ${b.coverImage
-          ? `<div class="blog-card-cover-wrap"><img src="${b.coverImage}" alt="" loading="lazy"/></div>`
-          : '<div class="blog-card-no-cover"></div>'}
-      <div class="blog-card-header">
-        <div class="blog-tags">${b.tags.map(t => `<span class="tag ${t.cls}">${t.label}</span>`).join('')}</div>
-        <div class="blog-title">${escapeHtml(b.title)}</div>
-      </div>
-      <div class="blog-card-body">
-        <p class="blog-excerpt">${escapeHtml(b.excerpt)}</p>
-        <div class="blog-meta">
-          <span><i class="fas fa-user" style="margin-right:.3rem;"></i>${escapeHtml(b.author || 'NinjaHacker')} · <i class="far fa-calendar"></i> ${b.date} · ${b.readTime}</span>
-          <button class="read-more-btn">Read <i class="fas fa-arrow-right"></i></button>
-        </div>
-      </div>
-    </div>`).join('') : `<div style="grid-column:1/-1;text-align:center;padding:4rem;color:var(--muted);font-family:'Share Tech Mono',monospace;">No posts in this category yet.</div>`;
-    }
-
-    // ─── OPEN BLOG (Medium-like reader) ───
-    function openBlog(id) {
-      const post = blogs.find(b => b.id === id);
-      if (!post) return;
-      currentBlogId = id;
-
-      // Cover
-      const coverWrap = document.getElementById('readerCoverWrap');
-      const coverImg = document.getElementById('readerCoverImg');
-      if (post.coverImage) { coverImg.src = post.coverImage; coverWrap.style.display = 'flex'; }
-      else { coverWrap.style.display = 'none'; }
-
-      // Tags top
-      document.getElementById('readerTags').innerHTML = post.tags.map(t => `<span class="tag ${t.cls}">${t.label}</span>`).join('');
-
-      // Title
-      document.getElementById('readerTitle').textContent = post.title;
-
-      // Hide the old meta (we use author bar now)
-      document.getElementById('readerMeta').style.display = 'none';
-
-      // Author bar
-      const authorName = post.author || 'NinjaHacker';
-      document.getElementById('readerAvatar').textContent = authorName.charAt(0).toUpperCase();
-      document.getElementById('readerAuthorName').textContent = authorName;
-      document.getElementById('readerDate').innerHTML = `<i class="far fa-calendar"></i> ${post.date}`;
-      document.getElementById('readerReadTime').innerHTML = `<i class="far fa-clock"></i> ${post.readTime}`;
-
-      // Content
-      document.getElementById('readerBody').innerHTML = post.content;
-
-      // Tags at bottom
-      document.getElementById('readerBottomTags').innerHTML =
-        post.tags.map(t => `<span class="tag ${t.cls}">${t.label}</span>`).join('');
-
-      // Trigger Prism.js highlighting
-      document.querySelectorAll('#readerBody pre code').forEach(block => {
-        // Add language class if not present
-        if (!block.className && block.parentElement.tagName === 'PRE') {
-          block.classList.add('language-plaintext');
-        }
-        Prism.highlightElement(block);
-      });
-
-      // Open overlay
-      const ov = document.getElementById('blogOverlay');
-      ov.classList.add('open');
-      ov.scrollTop = 0;
-      document.body.style.overflow = 'hidden';
-
-      // Load comments
-      loadComments(id);
-    }
-
-    function closeBlog() {
-      document.getElementById('blogOverlay').classList.remove('open');
-      document.body.style.overflow = '';
-      currentBlogId = null;
-    }
-    function closeBlogIfOutside(e) { if (e.target === document.getElementById('blogOverlay')) closeBlog(); }
-
-    // ─── COMMENTS ───
-    async function loadComments(blogId) {
-      try {
-        const res = await fetch(`/api/blogs/${blogId}/comments`);
-        const comments = await res.json();
-        const countEl = document.getElementById('commentCount');
-        countEl.textContent = comments.length > 0 ? `(${comments.length})` : '';
-
-        const listEl = document.getElementById('commentList');
-        if (comments.length === 0) {
-          listEl.innerHTML = '<div class="no-comments"><i class="fas fa-comment-slash" style="margin-right:.4rem;"></i>No comments yet. Be the first!</div>';
-          return;
-        }
-
-        listEl.innerHTML = comments.map(c => `
-      <div class="comment-item">
-        <div class="comment-header">
-          <span class="comment-name"><i class="fas fa-user" style="font-size:.7rem;margin-right:.3rem;"></i>${escapeHtml(c.name)}</span>
-          <span class="comment-date">${formatDate(c.createdAt)}</span>
-        </div>
-        <div class="comment-body">${escapeHtml(c.comment)}</div>
-      </div>
-    `).join('');
-      } catch (err) {
-        document.getElementById('commentList').innerHTML = '<div class="no-comments">Could not load comments.</div>';
-      }
-    }
-
-    async function submitComment(e) {
-      e.preventDefault();
-      if (!currentBlogId) return;
-
-      const name = document.getElementById('commentName').value.trim();
-      const comment = document.getElementById('commentText').value.trim();
-      if (!name || !comment) return;
-
-      try {
-        const res = await fetch(`/api/blogs/${currentBlogId}/comments`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name, comment })
-        });
-        const data = await res.json();
-        if (data.success) {
-          document.getElementById('commentText').value = '';
-          loadComments(currentBlogId);
-        }
-      } catch (err) {
-        console.error('Comment error:', err);
-      }
-    }
-
-    function formatDate(dateStr) {
-      if (!dateStr) return '';
-      const d = new Date(dateStr);
-      return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-    }
-
-    function escapeHtml(str) {
-      if (!str) return '';
-      const div = document.createElement('div');
-      div.textContent = str;
-      return div.innerHTML;
-    }
-
-    // ─── COMMON SCRIPTS ───
-    document.addEventListener('keydown', e => { if (e.key === 'Escape') closeBlog(); });
-    function toggleMenu() { document.getElementById('mobileMenu').classList.toggle('open'); }
-
-    (function () { const c = document.getElementById('matrix-canvas'); if (!c) return; const x = c.getContext('2d'); c.width = window.innerWidth; c.height = window.innerHeight; const ch = '01アイウエオカキクケコサシスセソ', fs = 14; let dr = Array(Math.floor(c.width / fs)).fill(1); function d() { x.fillStyle = 'rgba(5,10,14,0.05)'; x.fillRect(0, 0, c.width, c.height); x.fillStyle = '#00ff88'; x.font = fs + 'px Share Tech Mono'; dr.forEach((y, i) => { x.fillText(ch[Math.floor(Math.random() * ch.length)], i * fs, y * fs); if (y * fs > c.height && Math.random() > 0.975) dr[i] = 0; dr[i]++; }); } setInterval(d, 50); window.addEventListener('resize', () => { c.width = window.innerWidth; c.height = window.innerHeight; dr = Array(Math.floor(c.width / fs)).fill(1); }); })();
-
-    window.addEventListener('scroll', () => { const nav = document.getElementById('navbar'); if (nav) nav.style.boxShadow = window.scrollY > 20 ? '0 4px 30px rgba(0,0,0,0.4)' : ''; });
-
-    // ─── LOAD ON PAGE READY ───
-    fetchBlogs();
-  </script>
+  <script src="js/blog-init.js"></script>
+</body>
 </body>
 
 </html>

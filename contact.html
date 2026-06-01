@@ -4,20 +4,34 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Contact | NinjaHackers</title>
+    <title>Contact Us | Get in Touch with NinjaHackers</title>
+    <meta name="description"
+        content="Have questions or need security consulting? Contact the NinjaHackers team for inquiries, support, or collaboration." />
+    <meta name="keywords" content="contact NinjaHackers, security consulting, cybersecurity support" />
+    <link rel="canonical" href="https://bninjahacker.site/contact.html" />
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://bninjahacker.site/contact.html" />
+    <meta property="og:title" content="Contact Us | Get in Touch with NinjaHackers" />
+    <meta property="og:description"
+        content="Contact NinjaHackers for professional cybersecurity inquiries and support." />
+    <meta property="og:image" content="https://bninjahacker.site/logo.png" />
+
     <link
         href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;500;600;700&family=Exo+2:wght@300;400;600;700&display=swap"
         rel="stylesheet" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
     <link rel="stylesheet" href="style.css" />
+    <link rel="icon" type="image/png" href="logo.png" />
+
 </head>
 
 <body>
     <canvas id="matrix-canvas"></canvas>
     <nav id="navbar">
         <a href="index.html" class="nav-logo">
-            <img src="logo.png" alt="NinjaHackers" class="logo-img"
-                onerror="this.style.display='none';document.getElementById('lt').style.display='flex'" />
+            <img src="logo.png" alt="NinjaHackers" class="logo-img" data-fallback="lt" />
             <span id="lt" class="logo-text-fallback" style="display:none"><i class="fas fa-terminal"></i>
                 Ninja<span>Hackers</span></span>
         </a>
@@ -29,7 +43,7 @@
             <li><a href="contact.html" class="active">Contact</a></li>
             <li><a href="courses.html" class="nav-cta">Courses</a></li>
         </ul>
-        <div class="hamburger" onclick="toggleMenu()"><span></span><span></span><span></span></div>
+        <div class="hamburger" id="hamburger"><span></span><span></span><span></span></div>
     </nav>
     <div class="mobile-menu" id="mobileMenu">
         <a href="index.html">Home</a><a href="blog.html">Blog</a><a href="work.html">Work</a>
@@ -48,16 +62,16 @@
 
                 <!-- Contact Info Cards -->
                 <div class="contact-info">
-                    <a href="mailto:ninjahackers@gmail.com" class="contact-card">
+                    <a href="mailto:ninjahacker@bninjahacker.site" class="contact-card">
                         <div class="contact-icon gmail"><i class="fas fa-envelope"></i></div>
                         <div class="contact-details">
                             <div class="contact-label">Email</div>
-                            <div class="contact-value">ninjahackers@gmail.com</div>
+                            <div class="contact-value">ninjahacker@bninjahacker.site</div>
                         </div>
                         <div class="contact-arrow"><i class="fas fa-arrow-right"></i></div>
                     </a>
 
-                    <a href="#" class="contact-card">
+                    <a href="https://www.linkedin.com/company/ninjahackers/" class="contact-card" target="_blank">
                         <div class="contact-icon linkedin"><i class="fab fa-linkedin-in"></i></div>
                         <div class="contact-details">
                             <div class="contact-label">LinkedIn</div>
@@ -66,7 +80,7 @@
                         <div class="contact-arrow"><i class="fas fa-arrow-right"></i></div>
                     </a>
 
-                    <a href="#" class="contact-card">
+                    <a href="https://github.com/iamninjacoder" class="contact-card" target="_blank">
                         <div class="contact-icon github"><i class="fab fa-github"></i></div>
                         <div class="contact-details">
                             <div class="contact-label">GitHub</div>
@@ -75,7 +89,7 @@
                         <div class="contact-arrow"><i class="fas fa-arrow-right"></i></div>
                     </a>
 
-                    <a href="#" class="contact-card">
+                    <a href="https://www.youtube.com/@Ninja_Hackers" class="contact-card" target="_blank">
                         <div class="contact-icon youtube"><i class="fab fa-youtube"></i></div>
                         <div class="contact-details">
                             <div class="contact-label">YouTube</div>
@@ -98,7 +112,7 @@
                 <div class="contact-form-wrap">
                     <h3><i class="fas fa-paper-plane" style="color:var(--green);margin-right:.5rem;"></i>Send a Message
                     </h3>
-                    <form id="contactForm" onsubmit="handleSubmit(event)">
+                    <form id="contactForm">
                         <div class="form-group">
                             <label for="name">Your Name</label>
                             <input type="text" id="name" placeholder="John Doe" required />
@@ -138,50 +152,27 @@
 
     <footer>
         <div class="footer-logo">
-            <img src="logo.png" alt="" class="footer-logo-img" onerror="this.style.display='none'" />
-            <span>Ninja<span style="color:var(--cyan)">Hackers</span>.site</span>
+            <img src="logo.png" alt="" class="footer-logo-img" style="display:none;" />
+            <span>bninjahacker.site</span>
         </div>
         <div class="footer-links">
             <a href="index.html">Home</a><a href="blog.html">Blog</a><a href="work.html">Work</a>
             <a href="videos.html">Videos</a><a href="courses.html">Courses</a><a href="contact.html">Contact</a>
         </div>
         <div class="social-links">
-            <a href="#" class="social-link"><i class="fab fa-github"></i></a>
-            <a href="#" class="social-link"><i class="fab fa-youtube"></i></a>
-            <a href="#" class="social-link"><i class="fab fa-linkedin-in"></i></a>
+            <a href="https://github.com/iamninjacoder" class="social-link" target="_blank"><i
+                    class="fab fa-github"></i></a>
+            <a href="https://www.youtube.com/@Ninja_Hackers" class="social-link" target="_blank"><i
+                    class="fab fa-youtube"></i></a>
+            <a href="https://www.linkedin.com/company/ninjahackers/" class="social-link" target="_blank"><i
+                    class="fab fa-linkedin-in"></i></a>
             <a href="#" class="social-link"><i class="fab fa-twitter"></i></a>
         </div>
-        <div class="footer-copy">© 2025 <span>NinjaHackers.site</span> — Hack the Planet, Legally.</div>
+        <div class="footer-copy">© 2025 <span>bninjahacker.site</span> — Hack the Planet, Legally.</div>
     </footer>
 
-    <script>
-        async function handleSubmit(e) {
-            e.preventDefault();
-            const name = document.getElementById('name').value.trim();
-            const email = document.getElementById('email').value.trim();
-            const subject = document.getElementById('subject').value;
-            const message = document.getElementById('message').value.trim();
-            if (!name || !email || !message) return;
-            try {
-                const res = await fetch('/api/contact', {
-                    method: 'POST', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name, email, subject, message })
-                });
-                const data = await res.json();
-                if (data.success) {
-                    document.getElementById('contactForm').style.display = 'none';
-                    document.getElementById('formSuccess').style.display = 'block';
-                } else {
-                    alert(data.error || 'Failed to send message.');
-                }
-            } catch (err) {
-                alert('Connection error. Please try again.');
-            }
-        }
-        (function () { const c = document.getElementById('matrix-canvas'); if (!c) return; const x = c.getContext('2d'); c.width = window.innerWidth; c.height = window.innerHeight; const ch = '01アイウエオカキクケコサシスセソ', fs = 14; let dr = Array(Math.floor(c.width / fs)).fill(1); function d() { x.fillStyle = 'rgba(5,10,14,0.05)'; x.fillRect(0, 0, c.width, c.height); x.fillStyle = '#00ff88'; x.font = fs + 'px Share Tech Mono'; dr.forEach((y, i) => { x.fillText(ch[Math.floor(Math.random() * ch.length)], i * fs, y * fs); if (y * fs > c.height && Math.random() > 0.975) dr[i] = 0; dr[i]++; }); } setInterval(d, 50); window.addEventListener('resize', () => { c.width = window.innerWidth; c.height = window.innerHeight; dr = Array(Math.floor(c.width / fs)).fill(1); }); })();
-        function toggleMenu() { document.getElementById('mobileMenu').classList.toggle('open'); }
-        window.addEventListener('scroll', () => { const nav = document.getElementById('navbar'); if (nav) nav.style.boxShadow = window.scrollY > 20 ? '0 4px 30px rgba(0,0,0,0.4)' : ''; });
-    </script>
+    <script src="js/contact-init.js"></script>
+</body>
 </body>
 
 </html>

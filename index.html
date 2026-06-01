@@ -1,185 +1,250 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>NinjaHackers | Cybersecurity</title>
-  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;500;600;700&family=Exo+2:wght@300;400;600;700&display=swap" rel="stylesheet"/>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
-  <link rel="stylesheet" href="style.css"/>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NinjaHackers | Cybersecurity Learning & Security Tools</title>
+  <meta name="description"
+    content="NinjaHackers is a premium cybersecurity portal providing advanced learning resources, CTF solutions, custom security tools, and live hacking sessions." />
+  <meta name="keywords"
+    content="cybersecurity, hacking, ethical hacking, CTF, security tools, kali linux, penetration testing, NinjaHackers" />
+  <meta name="author" content="NinjaHacker" />
+  <link rel="canonical" href="https://bninjahacker.site/index.html" />
+
+  <!-- Open Graph / Facebook -->
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://bninjahacker.site/" />
+  <meta property="og:title" content="NinjaHackers | Cybersecurity Learning & Security Tools" />
+  <meta property="og:description"
+    content="Join the elite. Master cybersecurity with professional resources, tools, and live classes at NinjaHackers." />
+  <meta property="og:image" content="https://bninjahacker.site/logo.png" />
+
+  <!-- Twitter -->
+  <meta property="twitter:card" content="summary_large_image" />
+  <meta property="twitter:url" content="https://bninjahacker.site/" />
+  <meta property="twitter:title" content="NinjaHackers | Cybersecurity Learning & Security Tools" />
+  <meta property="twitter:description"
+    content="Join the elite. Master cybersecurity with professional resources, tools, and live classes at NinjaHackers." />
+  <meta property="twitter:image" content="https://bninjahacker.site/logo.png" />
+
+  <link
+    href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;500;600;700&family=Exo+2:wght@300;400;600;700&display=swap"
+    rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <link rel="stylesheet" href="style.css" />
+  <link rel="icon" type="image/png" href="logo.png" />
+
 </head>
+
 <body>
-<canvas id="matrix-canvas"></canvas>
+  <canvas id="matrix-canvas"></canvas>
 
-<!-- NAV -->
-<nav id="navbar">
-  <a href="index.html" class="nav-logo">
-    <img src="logo.png" alt="NinjaHackers Logo" class="logo-img" onerror="this.style.display='none';document.getElementById('logoText').style.display='flex'"/>
-    <span id="logoText" class="logo-text-fallback" style="display:none"><i class="fas fa-terminal"></i> Ninja<span>Hackers</span></span>
-  </a>
-  <ul class="nav-links">
-    <li><a href="index.html" class="active">Home</a></li>
-    <li><a href="blog.html">Blog</a></li>
-    <li><a href="work.html">Work</a></li>
-    <li><a href="videos.html">Videos</a></li>
-    <li><a href="contact.html">Contact</a></li>
-    <li><a href="courses.html" class="nav-cta">Courses</a></li>
-  </ul>
-  <div class="hamburger" onclick="toggleMenu()"><span></span><span></span><span></span></div>
-</nav>
-<div class="mobile-menu" id="mobileMenu">
-  <a href="index.html" onclick="toggleMenu()">Home</a>
-  <a href="blog.html" onclick="toggleMenu()">Blog</a>
-  <a href="work.html" onclick="toggleMenu()">Work</a>
-  <a href="videos.html" onclick="toggleMenu()">Videos</a>
-  <a href="contact.html" onclick="toggleMenu()">Contact</a>
-  <a href="courses.html" onclick="toggleMenu()">Courses</a>
-</div>
-
-<!-- HERO -->
-<section id="hero">
-  <div class="hero-inner">
-    <div class="hero-badge"><span class="dot"></span> ETHICAL HACKER · SECURITY RESEARCHER</div>
-    <div class="hero-logo-wrap">
-      <img src="logo.png" alt="NinjaHackers" class="hero-logo" onerror="this.style.display='none'"/>
-    </div>
-    <h1>Breaking Into<br/><span class="accent">Cyber</span><span class="accent2">Security</span></h1>
-    <div class="typed-container"><span id="typed-text"></span><span class="cursor"></span></div>
-    <p class="hero-desc">Ethical hacker and security researcher sharing hands-on writeups, tool builds, CTF solutions, and real-world knowledge — one post at a time.</p>
-    <div class="hero-btns">
-      <a href="blog.html" class="btn-primary"><i class="fas fa-book-open"></i> Read Blog</a>
-      <a href="courses.html" class="btn-outline"><i class="fas fa-graduation-cap"></i> View Courses</a>
-      <a href="contact.html" class="btn-ghost"><i class="fas fa-paper-plane"></i> Connect</a>
-    </div>
-    <div class="hero-stats">
-      <div class="stat"><div class="stat-num" id="c1">0</div><div class="stat-label">Blog Posts</div></div>
-      <div class="stat"><div class="stat-num" id="c2">0</div><div class="stat-label">CTF Solves</div></div>
-      <div class="stat"><div class="stat-num" id="c3">0</div><div class="stat-label">Tools Built</div></div>
-      <div class="stat"><div class="stat-num" id="c4">0</div><div class="stat-label">Students</div></div>
-    </div>
+  <!-- NAV -->
+  <nav id="navbar">
+    <a href="index.html" class="nav-logo">
+      <img src="logo.png" alt="NinjaHackers Logo" class="logo-img img-fallback" />
+      <span id="logoText" class="logo-text-fallback" style="display:none"><i class="fas fa-terminal"></i>
+        Ninja<span>Hackers</span></span>
+    </a>
+    <ul class="nav-links">
+      <li><a href="index.html" class="active">Home</a></li>
+      <li><a href="blog.html">Blog</a></li>
+      <li><a href="work.html">Work</a></li>
+      <li><a href="videos.html">Videos</a></li>
+      <li><a href="courses.html">Courses</a></li>
+      <li><a href="jobs.html">Careers</a></li>
+      <li><a href="contact.html">Contact</a></li>
+      <li id="auth-links"><a href="/learn" class="nav-cta">Login / Sign Up</a></li>
+    </ul>
+    <div class="hamburger" id="hamburger"><span></span><span></span><span></span></div>
+  </nav>
+  <div class="mobile-menu" id="mobileMenu">
+    <a href="index.html">Home</a>
+    <a href="blog.html">Blog</a>
+    <a href="work.html">Work</a>
+    <a href="videos.html">Videos</a>
+    <a href="courses.html">Courses</a>
+    <a href="jobs.html">Careers</a>
+    <a href="contact.html">Contact</a>
+    <a href="/learn" id="mobile-auth-link">Login / Sign Up</a>
   </div>
-</section>
 
-<!-- ABOUT STRIP -->
-<section id="about" class="about-section">
-  <div class="container">
-    <div class="section-header">
-      <div class="section-tag">// WHO AM I</div>
-      <h2 class="section-title">About <span>Me</span></h2>
-      <div class="divider"></div>
-    </div>
-    <div class="about-grid">
-      <div class="about-text">
-        <p>Hey! I'm a <span>cybersecurity enthusiast</span> and ethical hacker from India, passionate about breaking things legally and understanding how systems work under the hood.</p>
-        <p>I specialize in <span>web application security</span>, <span>network pentesting</span>, and <span>CTF competitions</span>. I love documenting everything I learn through detailed writeups and tutorials.</p>
-        <p>This site is my digital notebook — from <span>bug bounty findings</span> to tool development, everything I discover ends up here.</p>
-        <a href="contact.html" class="btn-primary" style="margin-top:1rem;display:inline-flex"><i class="fas fa-paper-plane"></i> Get In Touch</a>
+  <!-- HERO -->
+  <section id="hero">
+    <div class="hero-inner">
+      <div class="hero-badge"><span class="dot"></span> ETHICAL HACKER · SECURITY RESEARCHER</div>
+      <div class="hero-logo-wrap">
+        <img src="logo.png" alt="NinjaHackers" class="hero-logo img-fallback" />
       </div>
-      <div class="skill-grid">
-        <div class="skill-item"><i class="fas fa-bug"></i> Penetration Testing</div>
-        <div class="skill-item"><i class="fas fa-globe"></i> Web App Security</div>
-        <div class="skill-item"><i class="fas fa-network-wired"></i> Network Security</div>
-        <div class="skill-item"><i class="fas fa-flag"></i> CTF Competitions</div>
-        <div class="skill-item"><i class="fas fa-code"></i> Python / Bash</div>
-        <div class="skill-item"><i class="fas fa-search"></i> OSINT</div>
-        <div class="skill-item"><i class="fas fa-lock"></i> Cryptography</div>
-        <div class="skill-item"><i class="fas fa-shield-alt"></i> Malware Analysis</div>
+      <h1>Breaking Into<br /><span class="accent">Cyber</span><span class="accent2">Security</span></h1>
+      <div class="typed-container"><span id="typed-text"></span><span class="cursor"></span></div>
+      <p class="hero-desc">Ethical hacker and security researcher sharing hands-on writeups, tool builds, CTF solutions,
+        and real-world knowledge — one post at a time.</p>
+      <div class="hero-btns">
+        <a href="blog.html" class="btn-primary"><i class="fas fa-book-open"></i> Read Blog</a>
+        <a href="courses.html" class="btn-outline"><i class="fas fa-graduation-cap"></i> View Courses</a>
+        <a href="contact.html" class="btn-ghost"><i class="fas fa-paper-plane"></i> Connect</a>
+      </div>
+      <div class="hero-stats">
+        <div class="stat">
+          <div class="stat-num" id="c1">0</div>
+          <div class="stat-label">Blog Posts</div>
+        </div>
+        <div class="stat">
+          <div class="stat-num" id="c2">0</div>
+          <div class="stat-label">CTF Solves</div>
+        </div>
+        <div class="stat">
+          <div class="stat-num" id="c3">0</div>
+          <div class="stat-label">Tools Built</div>
+        </div>
+        <div class="stat">
+          <div class="stat-num" id="c4">0</div>
+          <div class="stat-label">Students</div>
+        </div>
       </div>
     </div>
-  </div>
-</section>
+  </section>
 
-<!-- LATEST BLOG PREVIEW -->
-<section class="preview-section">
-  <div class="container">
-    <div class="section-header">
-      <div class="section-tag">// LATEST POSTS</div>
-      <h2 class="section-title">From The <span>Blog</span></h2>
-      <div class="divider"></div>
-    </div>
-    <div class="preview-grid">
-      <div class="preview-card" onclick="location.href='blog.html'">
-        <div class="preview-tags"><span class="tag tag-red">Web Security</span><span class="tag tag-cyan">Writeup</span></div>
-        <div class="preview-title">SQL Injection to RCE: A Complete Exploitation Chain</div>
-        <div class="preview-meta"><i class="far fa-calendar"></i> Feb 2025 · 8 min read</div>
+  <!-- ABOUT STRIP -->
+  <section id="about" class="about-section">
+    <div class="container">
+      <div class="section-header">
+        <div class="section-tag">// WHO AM I</div>
+        <h2 class="section-title">About <span>Me</span></h2>
+        <div class="divider"></div>
       </div>
-      <div class="preview-card" onclick="location.href='blog.html'">
-        <div class="preview-tags"><span class="tag tag-green">CTF</span><span class="tag tag-purple">Pwn</span></div>
-        <div class="preview-title">Buffer Overflow on 64-bit Linux: ret2libc Explained</div>
-        <div class="preview-meta"><i class="far fa-calendar"></i> Jan 2025 · 12 min read</div>
+      <div class="about-grid">
+        <div class="about-text">
+          <p>Hey! I'm a <span>cybersecurity enthusiast</span> and ethical hacker from India, passionate about breaking
+            things legally and understanding how systems work under the hood.</p>
+          <p>I specialize in <span>web application security</span>, <span>network pentesting</span>, and <span>CTF
+              competitions</span>. I love documenting everything I learn through detailed writeups and tutorials.</p>
+          <p>This site is my digital notebook — from <span>bug bounty findings</span> to tool development, everything I
+            discover ends up here.</p>
+          <a href="contact.html" class="btn-primary" style="margin-top:1rem;display:inline-flex"><i
+              class="fas fa-paper-plane"></i> Get In Touch</a>
+        </div>
+        <div class="skill-grid">
+          <div class="skill-item"><i class="fas fa-bug"></i> Penetration Testing</div>
+          <div class="skill-item"><i class="fas fa-globe"></i> Web App Security</div>
+          <div class="skill-item"><i class="fas fa-network-wired"></i> Network Security</div>
+          <div class="skill-item"><i class="fas fa-flag"></i> CTF Competitions</div>
+          <div class="skill-item"><i class="fas fa-code"></i> Python / Bash</div>
+          <div class="skill-item"><i class="fas fa-search"></i> OSINT</div>
+          <div class="skill-item"><i class="fas fa-lock"></i> Cryptography</div>
+          <div class="skill-item"><i class="fas fa-shield-alt"></i> Malware Analysis</div>
+        </div>
       </div>
-      <div class="preview-card" onclick="location.href='blog.html'">
-        <div class="preview-tags"><span class="tag tag-cyan">OSINT</span><span class="tag tag-green">Tutorial</span></div>
-        <div class="preview-title">OSINT Investigation: Building a Target Profile from Scratch</div>
-        <div class="preview-meta"><i class="far fa-calendar"></i> Jan 2025 · 10 min read</div>
+    </div>
+  </section>
+
+  <!-- LATEST BLOG PREVIEW -->
+  <section class="preview-section">
+    <div class="container">
+      <div class="section-header">
+        <div class="section-tag">// LATEST POSTS</div>
+        <h2 class="section-title">From The <span>Blog</span></h2>
+        <div class="divider"></div>
+      </div>
+      <div class="preview-grid" id="featuredBlogsGrid">
+        <!-- Loaded dynamically from DB -->
+      </div>
+      <div style="text-align:center;margin-top:2.5rem">
+        <a href="blog.html" class="btn-outline"><i class="fas fa-arrow-right"></i> View All Posts</a>
       </div>
     </div>
-    <div style="text-align:center;margin-top:2.5rem">
-      <a href="blog.html" class="btn-outline"><i class="fas fa-arrow-right"></i> View All Posts</a>
+  </section>
+
+  <!-- FEATURED WORK -->
+  <section class="preview-section" style="background:var(--bg);">
+    <div class="container">
+      <div class="section-header">
+        <div class="section-tag">// PROJECTS</div>
+        <h2 class="section-title">Featured <span>Work</span></h2>
+        <div class="divider"></div>
+      </div>
+      <div class="preview-grid" id="featuredWorksGrid"></div>
+      <div style="text-align:center;margin-top:2.5rem">
+        <a href="work.html" class="btn-outline"><i class="fas fa-arrow-right"></i> View All Projects</a>
+      </div>
     </div>
-  </div>
-</section>
+  </section>
 
-<!-- QUICK LINKS -->
-<section class="quick-links-section">
-  <div class="container">
-    <div class="ql-grid">
-      <a href="work.html" class="ql-card">
-        <div class="ql-icon green"><i class="fas fa-tools"></i></div>
-        <div class="ql-title">My Work</div>
-        <div class="ql-desc">Security tools and projects I've built</div>
-        <div class="ql-arrow"><i class="fas fa-arrow-right"></i></div>
-      </a>
-      <a href="videos.html" class="ql-card">
-        <div class="ql-icon cyan"><i class="fab fa-youtube"></i></div>
-        <div class="ql-title">Videos</div>
-        <div class="ql-desc">Tutorials and walkthroughs on YouTube</div>
-        <div class="ql-arrow"><i class="fas fa-arrow-right"></i></div>
-      </a>
-      <a href="courses.html" class="ql-card">
-        <div class="ql-icon purple"><i class="fas fa-graduation-cap"></i></div>
-        <div class="ql-title">Courses</div>
-        <div class="ql-desc">Structured learning paths launching soon</div>
-        <div class="ql-arrow"><i class="fas fa-arrow-right"></i></div>
-      </a>
-      <a href="contact.html" class="ql-card">
-        <div class="ql-icon orange"><i class="fas fa-paper-plane"></i></div>
-        <div class="ql-title">Contact</div>
-        <div class="ql-desc">Gmail, LinkedIn — let's connect</div>
-        <div class="ql-arrow"><i class="fas fa-arrow-right"></i></div>
-      </a>
+  <!-- LATEST VIDEOS -->
+  <section class="preview-section">
+    <div class="container">
+      <div class="section-header">
+        <div class="section-tag">// YOUTUBE</div>
+        <h2 class="section-title">Latest <span>Videos</span></h2>
+        <div class="divider"></div>
+      </div>
+      <div class="preview-grid" id="latestVideosGrid"
+        style="grid-template-columns:repeat(auto-fill,minmax(280px,1fr));"></div>
+      <div style="text-align:center;margin-top:2.5rem">
+        <a href="videos.html" class="btn-outline"><i class="fas fa-arrow-right"></i> Watch More Videos</a>
+      </div>
     </div>
-  </div>
-</section>
+  </section>
 
-<!-- FOOTER -->
-<footer>
-  <div class="footer-logo">
-    <img src="logo.png" alt="NinjaHackers" class="footer-logo-img" onerror="this.style.display='none'"/>
-    <span>Ninja<span style="color:var(--cyan)">Hackers</span>.site</span>
-  </div>
-  <div class="footer-links">
-    <a href="index.html">Home</a><a href="blog.html">Blog</a><a href="work.html">Work</a>
-    <a href="videos.html">Videos</a><a href="courses.html">Courses</a><a href="contact.html">Contact</a>
-  </div>
-  <div class="social-links">
-    <a href="#" class="social-link" title="GitHub"><i class="fab fa-github"></i></a>
-    <a href="#" class="social-link" title="YouTube"><i class="fab fa-youtube"></i></a>
-    <a href="#" class="social-link" title="LinkedIn"><i class="fab fa-linkedin-in"></i></a>
-    <a href="#" class="social-link" title="Twitter"><i class="fab fa-twitter"></i></a>
-    <a href="#" class="social-link" title="Instagram"><i class="fab fa-instagram"></i></a>
-  </div>
-  <div class="footer-copy">© 2025 <span>NinjaHackers.site</span> — Hack the Planet, Legally.</div>
-</footer>
+  <!-- QUICK LINKS -->
+  <section class="quick-links-section">
+    <div class="container">
+      <div class="ql-grid">
+        <a href="work.html" class="ql-card">
+          <div class="ql-icon green"><i class="fas fa-tools"></i></div>
+          <div class="ql-title">My Work</div>
+          <div class="ql-desc">Security tools and projects I've built</div>
+          <div class="ql-arrow"><i class="fas fa-arrow-right"></i></div>
+        </a>
+        <a href="videos.html" class="ql-card">
+          <div class="ql-icon cyan"><i class="fab fa-youtube"></i></div>
+          <div class="ql-title">Videos</div>
+          <div class="ql-desc">Tutorials and walkthroughs on YouTube</div>
+          <div class="ql-arrow"><i class="fas fa-arrow-right"></i></div>
+        </a>
+        <a href="courses.html" class="ql-card">
+          <div class="ql-icon purple"><i class="fas fa-graduation-cap"></i></div>
+          <div class="ql-title">Courses</div>
+          <div class="ql-desc">Structured learning paths launching soon</div>
+          <div class="ql-arrow"><i class="fas fa-arrow-right"></i></div>
+        </a>
+        <a href="contact.html" class="ql-card">
+          <div class="ql-icon orange"><i class="fas fa-paper-plane"></i></div>
+          <div class="ql-title">Contact</div>
+          <div class="ql-desc">Gmail, LinkedIn — let's connect</div>
+          <div class="ql-arrow"><i class="fas fa-arrow-right"></i></div>
+        </a>
+      </div>
+    </div>
+  </section>
 
-<script>
-(function(){const c=document.getElementById('matrix-canvas');if(!c)return;const x=c.getContext('2d');c.width=window.innerWidth;c.height=window.innerHeight;const ch='01アイウエオカキクケコサシスセソ',fs=14;let dr=Array(Math.floor(c.width/fs)).fill(1);function d(){x.fillStyle='rgba(5,10,14,0.05)';x.fillRect(0,0,c.width,c.height);x.fillStyle='#00ff88';x.font=fs+'px Share Tech Mono';dr.forEach((y,i)=>{x.fillText(ch[Math.floor(Math.random()*ch.length)],i*fs,y*fs);if(y*fs>c.height&&Math.random()>0.975)dr[i]=0;dr[i]++;});}setInterval(d,50);window.addEventListener('resize',()=>{c.width=window.innerWidth;c.height=window.innerHeight;dr=Array(Math.floor(c.width/fs)).fill(1);});})();
-function startTyped(eid,phrases){const el=document.getElementById(eid);if(!el)return;let pi=0,ci=0,del=false;function t(){const cur=phrases[pi];if(del){el.textContent=cur.substring(0,ci--);if(ci<0){del=false;pi=(pi+1)%phrases.length;}setTimeout(t,60);}else{el.textContent=cur.substring(0,ci++);if(ci>cur.length){del=true;setTimeout(t,1800);return;}setTimeout(t,80);}}t();}
-startTyped('typed-text',['Ethical Hacker & Security Researcher','CTF Player & Challenge Creator','Bug Bounty Hunter','Web App Pentester','Sharing Knowledge, One Hack at a Time']);
-function animateCounter(id,target,suffix=''){const el=document.getElementById(id);if(!el)return;let count=0;const step=Math.max(1,Math.ceil(target/60));const t=setInterval(()=>{count=Math.min(count+step,target);el.textContent=count+suffix;if(count>=target)clearInterval(t);},30);}
-animateCounter('c1',3);animateCounter('c2',12);animateCounter('c3',3);animateCounter('c4',0,'+');
-function toggleMenu(){document.getElementById('mobileMenu').classList.toggle('open');}
-window.addEventListener('scroll',()=>{const nav=document.getElementById('navbar');if(nav)nav.style.boxShadow=window.scrollY>20?'0 4px 30px rgba(0,0,0,0.4)':'';});
-</script>
+  <!-- FOOTER -->
+  <footer>
+    <div class="footer-logo">
+      <img src="logo.png" alt="NinjaHackers" class="footer-logo-img img-fallback" />
+      <span>bninjahacker.site</span>
+    </div>
+    <div class="footer-links">
+      <a href="index.html">Home</a><a href="blog.html">Blog</a><a href="work.html">Work</a>
+      <a href="videos.html">Videos</a><a href="courses.html">Courses</a><a href="jobs.html">Careers</a><a href="contact.html">Contact</a>
+    </div>
+    <div class="social-links">
+      <a href="https://github.com/iamninjacoder" class="social-link" title="GitHub" target="_blank"><i
+          class="fab fa-github"></i></a>
+      <a href="https://www.youtube.com/@Ninja_Hackers" class="social-link" title="YouTube" target="_blank"><i
+          class="fab fa-youtube"></i></a>
+      <a href="https://www.linkedin.com/company/ninjahackers/" class="social-link" title="LinkedIn" target="_blank"><i
+          class="fab fa-linkedin-in"></i></a>
+      <a href="#" class="social-link" title="Twitter"><i class="fab fa-twitter"></i></a>
+      <a href="#" class="social-link" title="Instagram"><i class="fab fa-instagram"></i></a>
+    </div>
+    <div class="footer-copy">© 2025 <span>bninjahacker.site</span> — Hack the Planet, Legally.</div>
+  </footer>
+
+  <script src="js/index-init.js"></script>
 </body>
+</body>
+
 </html>

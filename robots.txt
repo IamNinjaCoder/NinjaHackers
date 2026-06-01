@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Disallow: /admin/
+Disallow: /api/student/
+Disallow: /api/admin/
+
+Sitemap: https://bninjahacker.site/sitemap.xml
