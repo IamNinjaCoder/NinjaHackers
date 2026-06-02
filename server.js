@@ -1,7 +1,6 @@
 const express = require('express');
 const { Pool } = require('pg');
 const session = require('express-session');
-const pgSession = require('connect-pg-simple')(session);
 const bcrypt = require('bcryptjs');
 const { marked } = require('marked');
 const helmet = require('helmet');
@@ -118,21 +117,6 @@ try {
     console.error('❌ Email configuration error:', e.message);
 }
 
-const sendMailAsync = async (to, subject, text, html) => {
-    if (!transporter) return;
-    try {
-        await transporter.sendMail({
-            from: process.env.SMTP_FROM_NOREPLY || process.env.SMTP_FROM || process.env.SMTP_USER,
-            to,
-            subject,
-            text,
-            html
-        });
-    } catch (e) {
-        console.error(`❌ Failed to send email to ${to}:`, e.message);
-    }
-};
-
 marked.setOptions({ breaks: true, gfm: true });
 
 // ═══════════════════════════════════════
@@ -173,7 +157,8 @@ const upload = multer({
 // Determine if we should use URL or local config
 const poolConfig = process.env.DATABASE_URL
     ? {
-        connectionString: process.env.DATABASE_URL, // Local DB, no SSL needed
+        connectionString: process.env.DATABASE_URL,
+        ssl: { rejectUnauthorized: false } // Required for Neon
     }
     : {
         user: 'postgres',
@@ -230,14 +215,6 @@ pool.query = async function (...args) {
 async function initDB() {
     try {
         await pool.query(`
-      CREATE TABLE IF NOT EXISTS "session" (
-        "sid" varchar NOT NULL COLLATE "default",
-        "sess" json NOT NULL,
-        "expire" timestamp(6) NOT NULL,
-        CONSTRAINT "session_pkey" PRIMARY KEY ("sid")
-      );
-      CREATE INDEX IF NOT EXISTS "IDX_session_expire" ON "session" ("expire");
-
       CREATE TABLE IF NOT EXISTS blogs (
         id SERIAL PRIMARY KEY,
         title TEXT NOT NULL,
@@ -859,10 +836,8 @@ async function logSecurity(event, ip, details) {
 }
 
 function getClientIP(req) {
-    // Support Cloudflare or standard proxy forwarded IPs
-    return req.headers['cf-connecting-ip'] || 
-           (req.headers['x-forwarded-for'] ? req.headers['x-forwarded-for'].split(',')[0].trim() : null) || 
-           (Array.isArray(req.ips) && req.ips.length ? req.ips[0] : req.ip);
+    //return req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip || req.connection.remoteAddress;
+    return Array.isArray(req.ips) && req.ips.length ? req.ips[0] : req.ip;
 }
 
 // ═══════════════════════════════════════
@@ -905,21 +880,11 @@ app.use(helmet({
             "script-src-attr": ["'none'"],
             "style-src": ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net", "https://cdnjs.cloudflare.com", "https://fonts.googleapis.com"],
             "font-src": ["'self'", "https://fonts.gstatic.com", "https://cdnjs.cloudflare.com", "https://cdn.jsdelivr.net"],
-            "connect-src": ["'self'", "https://checkout.razorpay.com", "https://api.razorpay.com", "https://lumberjack.razorpay.com", "https://lumberjack-cx.razorpay.com"],
-            "frame-src": ["'self'", "https://checkout.razorpay.com", "https://api.razorpay.com", "https://tds.razorpay.com", "https://drive.google.com", "https://www.youtube.com", "https://youtube.com"],
+            "connect-src": ["'self'", "https://checkout.razorpay.com", "https://api.razorpay.com"],
+            "frame-src": ["'self'", "https://checkout.razorpay.com", "https://api.razorpay.com", "https://drive.google.com", "https://www.youtube.com", "https://youtube.com"],
             "img-src": ["'self'", "data:", "https:"]
         }
-    },
-    permissionsPolicy: {
-        features: {
-            "otp-credentials": ["'self'", "https://checkout.razorpay.com"]
-        }
-    },
-    hsts: process.env.NODE_ENV === 'production' ? {
-        maxAge: 31536000,
-        includeSubDomains: true,
-        preload: true
-    } : false
+    }
 }));
 
 // Security headers removed temporarily to unblock UI resources
@@ -928,14 +893,9 @@ app.use(express.json({ limit: '5mb' }));
 app.use(express.urlencoded({ extended: true, limit: '5mb' }));
 
 app.use(session({
-    store: new pgSession({
-        pool: pool,
-        tableName: 'session'
-    }),
     secret: SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
-    rolling: true,
     name: 'ninjasid',
     cookie: {
         maxAge: 4 * 60 * 60 * 1000, // 4 hours
@@ -945,11 +905,19 @@ app.use(session({
     }
 }));
 
-// ─── SESSION TIMEOUT ───
+// ─── SESSION FINGERPRINT (anti-cookie-theft) ───
+// Binds session to IP + User-Agent. Stolen cookies fail on another device.
 const SESSION_INACTIVITY_TIMEOUT = 30 * 60 * 1000; // 30 min inactivity logout
 app.use((req, res, next) => {
     if (!req.session) return next();
-    
+    const fingerprint = `${getClientIP(req)}|${(req.headers['user-agent'] || '').substring(0, 100)}`;
+    // If session has a fingerprint, verify it matches
+    if (req.session._fingerprint && req.session._fingerprint !== fingerprint) {
+        console.log(`[SESSION] Fingerprint mismatch! Expected: ${req.session._fingerprint}, Got: ${fingerprint}`);
+        logSecurity('SESSION_HIJACK_ATTEMPT', getClientIP(req), `Expected: ${req.session._fingerprint.split('|')[0]}`);
+        req.session.destroy();
+        return res.status(401).json({ error: 'Session invalid. Please log in again.' });
+    }
     // Check inactivity timeout
     if (req.session._lastActivity && (Date.now() - req.session._lastActivity > SESSION_INACTIVITY_TIMEOUT)) {
         const who = req.session.studentEmail || req.session.username || 'unknown';
@@ -984,11 +952,7 @@ app.use((req, res, next) => {
 // Static files
 
 app.use('/uploads', (req, res, next) => {
-    const ext = path.extname(req.path).toLowerCase();
-    const isImage = ['.png', '.jpg', '.jpeg', '.gif', '.svg', '.webp'].includes(ext);
-    if (!isImage) {
-        res.setHeader('Content-Disposition', 'attachment');
-    }
+    res.setHeader('Content-Disposition', 'attachment');
     next();
 }, express.static(uploadsDir));
 
@@ -996,8 +960,6 @@ const requireAuth = require('./middleware/requireAuth');
 // Allow the login page publicly, protect everything else
 app.get('/admin/login.html', (req, res) =>
     res.sendFile(path.join(__dirname, 'admin/login.html')));
-app.get('/admin/login.js', (req, res) =>
-    res.sendFile(path.join(__dirname, 'admin/login.js')));
 app.use('/admin', requireAuth, express.static(path.join(__dirname, 'admin')));
 
 // Allow the learn login page publicly, protect everything else
@@ -1007,32 +969,7 @@ app.get('/google2ecd31909313df39.html', (req, res) => {
     res.sendFile(path.join(__dirname, 'google2ecd31909313df39.html'));
 });
 
-// Silence favicon.ico 404
-app.get('/favicon.ico', (req, res) => res.status(204).end());
-
-
-// ─── Restricted Static Serving ───
-// Only allow safe file types from the root directory
-const ALLOWED_ROOT_EXTENSIONS = new Set(['.html', '.css', '.png', '.jpg', '.jpeg', '.gif', '.ico', '.txt', '.xml', '.svg', '.webmanifest']);
-
-app.use((req, res, next) => {
-    // If the request is for a root file (no subdirectory)
-    const filePath = req.path;
-    const isRootFile = !filePath.includes('/', 1); // True if no '/' after the first one
-
-    if (isRootFile && filePath !== '/') {
-        const ext = path.extname(filePath).toLowerCase();
-        if (ext && !ALLOWED_ROOT_EXTENSIONS.has(ext)) {
-            // Block sensitive files like .js, .json, .env, .db, etc.
-            logSecurity('SENSITIVE_FILE_ACCESS_BLOCKED', getClientIP(req), filePath);
-            return res.status(403).json({ error: 'Access forbidden.' });
-        }
-    }
-    next();
-});
-
-app.use(express.static(__dirname, { index: 'index.html', extensions: ['html'], dotfiles: 'ignore' }));
-
+app.use(express.static(__dirname, { index: 'index.html', extensions: ['html'] }));
 
 // ═══════════════════════════════════════
 //  AUTH MIDDLEWARE
@@ -1095,8 +1032,8 @@ app.post('/api/admin/login', async (req, res) => {
         // Set session data with fingerprint binding
         req.session.isAdmin = true;
         req.session.username = username;
+        req.session._fingerprint = `${ip}|${(req.headers['user-agent'] || '').substring(0, 100)}`;
         req.session._lastActivity = Date.now();
-
         logSecurity('ADMIN_LOGIN_OK', ip, username);
         res.json({ success: true });
     } catch (err) {
@@ -1284,8 +1221,8 @@ app.post('/api/student/login', async (req, res) => {
         req.session.studentId = student.id;
         req.session.studentName = student.name;
         req.session.studentEmail = student.email;
+        req.session._fingerprint = `${ip}|${(req.headers['user-agent'] || '').substring(0, 100)}`;
         req.session._lastActivity = Date.now();
-
         logSecurity('STUDENT_LOGIN_OK', ip, email);
         res.json({ success: true, student: { id: student.id, name: student.name, email: student.email } });
     } catch (err) {
@@ -2107,7 +2044,7 @@ app.get('/api/admin/students/:id/payments', requireAdmin, async (req, res) => {
 // Payments
 app.get('/api/admin/payments', requireAdmin, async (req, res) => {
     try {
-        const paymentsRes = await pool.query('SELECT p.*, s.name as studentName, s.email as studentEmail, c.title as courseTitle FROM payments p JOIN students s ON s.id=p.studentId LEFT JOIN courses c ON c.id=p.courseId ORDER BY p.createdAt DESC');
+        const paymentsRes = await pool.query('SELECT p.*, s.name as studentName, s.email as studentEmail, c.title as courseTitle FROM payments p JOIN students s ON s.id=p.studentId JOIN courses c ON c.id=p.courseId ORDER BY p.createdAt DESC');
         res.json(paymentsRes.rows.map(p => ({
             ...p,
             studentName: p.studentname || p.studentName,
@@ -2962,179 +2899,43 @@ app.post('/api/jobs/:id/apply', upload.fields([
     }
 
     const jobId = req.params.id;
-    // Extract and aggressively sanitize inputs using DOMPurify
-    const name = DOMPurify.sanitize((req.body.name || '').trim());
-    const email = DOMPurify.sanitize((req.body.email || '').trim());
-    const phone = DOMPurify.sanitize((req.body.phone || '').trim());
-    const resumeLink = DOMPurify.sanitize((req.body.resumeLink || '').trim());
-    const coverLetter = DOMPurify.sanitize((req.body.coverLetter || '').trim());
-    const paymentId = DOMPurify.sanitize((req.body.paymentId || '').trim());
-    const paymentMethod = DOMPurify.sanitize((req.body.paymentMethod || '').trim());
+    const { name, email, phone, resumeLink, coverLetter, paymentId } = req.body;
 
     if (!name || !email) {
         return res.status(400).json({ error: 'Name and email are required.' });
     }
 
-    // 1. Get Job Details First to check price
-    let job;
-    try {
-        const jobsRes = await pool.query('SELECT * FROM job_postings WHERE id=$1', [jobId]);
-        if (jobsRes.rows.length === 0) return res.status(404).json({ error: 'Job not found' });
-        job = jobsRes.rows[0];
-    } catch (dbErr) {
-        return res.status(500).json({ error: 'Database error' });
+    // Parse customAnswers (sent as JSON string in multipart)
+    let customAnswers = {};
+    try { customAnswers = JSON.parse(req.body.customAnswers || '{}'); } catch (e) { }
+
+    // Handle image uploads for custom questions — map field index to uploaded file path
+    if (req.files && req.files.imageUpload) {
+        req.files.imageUpload.forEach(file => {
+            // The fieldname prefix stores the question index
+            const match = file.originalname.match(/^img_q_(\d+)_/);
+            if (match) {
+                customAnswers[`__image_${match[1]}`] = '/uploads/' + file.filename;
+            }
+        });
     }
 
-    // 2. Strict Payment Validation for Paid Jobs
-    let paymentVerified = 0;
-    let isRazorpaySuccess = false;
-
-    if (job.price > 0) {
-        if (req.body.razorpay_payment_id) {
-            // Online Path: MUST verify signature
-            const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
-            if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
-                return res.status(400).json({ error: 'Incomplete Razorpay details.' });
-            }
-            const body = razorpay_order_id + '|' + razorpay_payment_id;
-            const expected = crypto.createHmac('sha256', process.env.RAZORPAY_KEY_SECRET).update(body).digest('hex');
-            
-            if (expected === razorpay_signature) {
-                paymentVerified = 1;
-                isRazorpaySuccess = true;
-            } else {
-                logSecurity('JOB_PAY_FORGERY', ip, `Forced sig mismatch for Job ${jobId} by ${email}`);
-                return res.status(403).json({ error: 'Invalid payment signature.' });
-            }
-        } else if (paymentId) {
-            // Manual Path: Just mark as unverified (requires admin check)
-            paymentVerified = 0;
-        } else {
-            // NO PAYMENT PROVIDED FOR PAID JOB
-            return res.status(400).json({ error: 'Payment is required for this role.' });
-        }
+    // Payment screenshot path
+    let screenshotPath = '';
+    if (req.files && req.files.paymentScreenshot && req.files.paymentScreenshot[0]) {
+        screenshotPath = '/uploads/' + req.files.paymentScreenshot[0].filename;
     }
 
     try {
-        // Parse customAnswers (sent as JSON string in multipart)
-        let customAnswers = {};
-        try { 
-            const parsedAnswers = JSON.parse(req.body.customAnswers || '{}');
-            for (const [key, val] of Object.entries(parsedAnswers)) {
-                customAnswers[DOMPurify.sanitize(key)] = DOMPurify.sanitize(val);
-            }
-        } catch (e) { }
-
-        // Handle image uploads for custom questions
-        if (req.files && req.files.imageUpload) {
-            req.files.imageUpload.forEach(file => {
-                const match = file.originalname.match(/^img_q_(\d+)_/);
-                if (match) customAnswers[`__image_${match[1]}`] = '/uploads/' + file.filename;
-            });
-        }
-
-        // Payment screenshot path
-        let screenshotPath = '';
-        if (req.files && req.files.paymentScreenshot && req.files.paymentScreenshot[0]) {
-            screenshotPath = '/uploads/' + req.files.paymentScreenshot[0].filename;
-        }
-
-        // 3. Insert Application with correct verification status
-        const finalPaymentId = isRazorpaySuccess ? req.body.razorpay_payment_id : (paymentId || null);
         const insert = await pool.query(
-            'INSERT INTO job_applications (jobId, name, email, phone, resumeLink, coverLetter, customAnswers, paymentId, paymentScreenshot, paymentVerified) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id',
-            [jobId, name, email, phone || '', resumeLink || '', coverLetter || '', JSON.stringify(customAnswers), finalPaymentId, screenshotPath || null, paymentVerified]
+            'INSERT INTO job_applications (jobId, name, email, phone, resumeLink, coverLetter, customAnswers, paymentId, paymentScreenshot) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id',
+            [jobId, name, email, phone || '', resumeLink || '', coverLetter || '', JSON.stringify(customAnswers), paymentId || null, screenshotPath || null]
         );
-        const appId = insert.rows[0].id;
-
-        // 4. Student Registration & Enrollment (for Online) OR Email Confirmation (for Manual)
-        let studentRes = await pool.query('SELECT id FROM students WHERE email=$1', [email]);
-        let studentId;
-        let isNewStudent = false;
-
-        if (studentRes.rows.length > 0) {
-            studentId = studentRes.rows[0].id;
-        } else if (isRazorpaySuccess) {
-            // Auto-register only for verified online payments
-            isNewStudent = true;
-            const tempHash = await bcrypt.hash(crypto.randomBytes(16).toString('hex'), 10);
-            const newStudent = await pool.query(
-                'INSERT INTO students (name, email, passwordHash, emailVerified) VALUES ($1, $2, $3, 1) RETURNING id',
-                [name || 'Applicant', email, tempHash]
-            );
-            studentId = newStudent.rows[0].id;
-        }
-
-        if (isRazorpaySuccess) {
-            // A. Log to global payments table
-            try {
-                await pool.query(
-                    'INSERT INTO payments (studentId, courseId, razorpayPaymentId, amount, status) VALUES ($1, $2, $3, $4, $5)',
-                    [studentId, job.linkedCourseId || null, req.body.razorpay_payment_id, job.price, 'completed']
-                );
-            } catch (pErr) { console.error('Error logging global payment:', pErr); }
-
-            // B. Auto-enroll
-            if (job.linkedCourseId) {
-                try {
-                    await pool.query('INSERT INTO enrollments (studentId, courseId) VALUES ($1, $2)', [studentId, job.linkedCourseId]);
-                } catch (dup) {}
-            }
-
-            // C. Send Success Email
-            const loginUrl = `${req.protocol}://${req.get('host')}/learn`;
-            const mailSubject = `Payment Successful! Application for ${job.title}`;
-            const mailText = `Hi ${name},\n\nThank you! Your payment of ₹${job.price} for the ${job.title} application was successful.\n\n${job.linkedCourseId ? "You have been automatically enrolled in the associated training course. " : ""}${isNewStudent ? `An account has been created for you. Use "Forgot Password" with your email (${email}) at the login page to set your password.` : "You can access your materials in the student portal."}\n\nLogin: ${loginUrl}\n\nRegards,\nNinjaHackers Team`;
-            const mailHtml = `
-                <div style="font-family:sans-serif; max-width:600px; margin:0 auto; padding:20px; border:1px solid #eee; border-radius:10px;">
-                    <h2 style="color:#00ff88;">Payment Successful!</h2>
-                    <p>Hi ${name}, your application for <strong>${job.title}</strong> has been received with a successful payment of <strong>₹${job.price}</strong>.</p>
-                    <div style="background:#f9f9f9; padding:15px; border-radius:8px; margin:20px 0;">
-                        ${job.linkedCourseId ? `<p>✅ <strong>Enrolled:</strong> Training course access granted.</p>` : ""}
-                        <p>🔑 <strong>Account:</strong> ${isNewStudent ? `A new account was created. Use "Forgot Password" with <code>${email}</code> to set your password.` : `Use your existing credentials to log in.`}</p>
-                    </div>
-                    <a href="${loginUrl}" style="display:inline-block; padding:10px 20px; background:#00ff88; color:#000; text-decoration:none; border-radius:5px; font-weight:bold;">Go to Portal</a>
-                </div>
-            `;
-            await sendMailAsync(email, mailSubject, mailText, mailHtml);
-        }
-
-        logSecurity('JOB_APPLY_OK', ip, `Job ${jobId} applied by ${email} (${paymentMethod})`);
-        res.json({ success: true, id: appId });
+        logSecurity('JOB_APPLY_OK', ip, `Job ${jobId} applied by ${email}`);
+        res.json({ success: true, id: insert.rows[0].id });
     } catch (err) {
-        console.error('❌ JOB_APPLY_FATAL:', err);
         logSecurity('JOB_APPLY_ERROR', ip, err.message);
-        res.status(500).json({ error: 'System error. However, your application might have been partially processed. Please check your email before trying again.' });
-    }
-});
-
-// New Endpoint for Job Payment Order
-app.post('/api/jobs/:id/order', async (req, res) => {
-    try {
-        const jobId = req.params.id;
-        const jobRes = await pool.query('SELECT title, price FROM job_postings WHERE id=$1', [jobId]);
-        if (jobRes.rows.length === 0) return res.status(404).json({ error: 'Job not found' });
-        const job = jobRes.rows[0];
-
-        if (!razorpayInstance) return res.status(503).json({ error: 'Payment gateway not configured.' });
-
-        const amountInPaise = job.price * 100;
-        const order = await razorpayInstance.orders.create({
-            amount: amountInPaise, currency: 'INR',
-            receipt: `job_${jobId}_${Date.now()}`,
-            notes: { jobId: String(jobId) }
-        });
-
-        res.json({ 
-            success: true, 
-            order: { id: order.id, amount: order.amount, currency: order.currency }, 
-            key: process.env.RAZORPAY_KEY_ID, 
-            title: job.title,
-            price: job.price
-        });
-    } catch (err) {
-        console.error('Job order error:', err);
-        res.status(500).json({ error: 'Failed to create payment order.' });
+        res.status(500).json({ error: 'Failed to submit application' });
     }
 });
 
@@ -3152,97 +2953,43 @@ app.get('/api/admin/jobs/:id/applications', requireAdmin, async (req, res) => {
 app.put('/api/admin/jobs/:jobId/applications/:appId/verify', requireAdmin, async (req, res) => {
     try {
         const { jobId, appId } = req.params;
-        const { courseId } = req.body; // Optional manual course assignment
 
         // Mark as verified
         await pool.query('UPDATE job_applications SET paymentVerified=1 WHERE id=$1 AND jobId=$2', [appId, jobId]);
 
-        // Get application details
-        const appRes = await pool.query('SELECT name, email, paymentId FROM job_applications WHERE id=$1', [appId]);
-        if (appRes.rows.length === 0) return res.status(404).json({ error: 'Application not found' });
-        
-        const { name: applicantName, email: applicantEmail, paymentId: appPaymentId } = appRes.rows[0];
+        // Get job to find linked course
+        const jobRes = await pool.query('SELECT linkedCourseId FROM job_postings WHERE id=$1', [jobId]);
+        const linkedCourseId = jobRes.rows[0]?.linkedCourseId;
 
-        // Get Job details for pricing/logging
-        const jobRes = await pool.query('SELECT title, price, linkedCourseId FROM job_postings WHERE id=$1', [jobId]);
-        if (jobRes.rows.length === 0) return res.status(404).json({ error: 'Job not found' });
-        const job = jobRes.rows[0];
+        // Get application email
+        const appRes = await pool.query('SELECT name, email FROM job_applications WHERE id=$1', [appId]);
+        const applicantEmail = appRes.rows[0]?.email;
+        const applicantName = appRes.rows[0]?.name;
 
-        // Determine target course
-        let targetCourseId = courseId ? parseInt(courseId) : job.linkedCourseId;
-        let courseTitle = 'your course';
+        // Auto-enroll if there's a linked course
+        if (linkedCourseId && applicantEmail) {
+            // Find or create student
+            let studentRes = await pool.query('SELECT id FROM students WHERE email=$1', [applicantEmail]);
+            let studentId;
+            if (studentRes.rows.length > 0) {
+                studentId = studentRes.rows[0].id;
+            } else {
+                // Create a basic student account (they can set password later via signup)
+                const tempHash = await bcrypt.hash(Math.random().toString(36).slice(2), 10);
+                const newStudent = await pool.query(
+                    'INSERT INTO students (name, email, passwordHash, emailVerified) VALUES ($1, $2, $3, 1) RETURNING id',
+                    [applicantName || 'Applicant', applicantEmail, tempHash]
+                );
+                studentId = newStudent.rows[0].id;
+            }
 
-        if (targetCourseId) {
-            const courseRes = await pool.query('SELECT title FROM courses WHERE id=$1', [targetCourseId]);
-            if (courseRes.rows.length > 0) courseTitle = courseRes.rows[0].title;
-        }
-
-        // ─── Auto-Registration ───
-        let studentRes = await pool.query('SELECT id FROM students WHERE email=$1', [applicantEmail]);
-        let studentId;
-        let isNewStudent = false;
-
-        if (studentRes.rows.length > 0) {
-            studentId = studentRes.rows[0].id;
-        } else {
-            isNewStudent = true;
-            // Create a basic student account (they can set password later via forgot-password)
-            const tempHash = await bcrypt.hash(crypto.randomBytes(16).toString('hex'), 10);
-            const newStudent = await pool.query(
-                'INSERT INTO students (name, email, passwordHash, emailVerified) VALUES ($1, $2, $3, 1) RETURNING id',
-                [applicantName || 'Applicant', applicantEmail, tempHash]
-            );
-            studentId = newStudent.rows[0].id;
-        }
-
-        // ─── Enrollment ───
-        if (targetCourseId) {
+            // Enroll (ignore duplicate)
             try {
-                await pool.query('INSERT INTO enrollments (studentId, courseId) VALUES ($1, $2)', [studentId, targetCourseId]);
+                await pool.query('INSERT INTO enrollments (studentId, courseId) VALUES ($1, $2)', [studentId, linkedCourseId]);
             } catch (dupErr) { /* already enrolled */ }
         }
 
-        // ─── Global Payment Logging (Manual) ───
-        if (job.price > 0) {
-            try {
-                // We use the app's manual paymentId as razorpayPaymentId for display in the admin table
-                await pool.query(
-                    'INSERT INTO payments (studentId, courseId, razorpayPaymentId, amount, status) VALUES ($1, $2, $3, $4, $5)',
-                    [studentId, targetCourseId || null, appPaymentId || 'MANUAL', job.price, 'completed']
-                );
-            } catch (pErr) { console.error('Error logging global payment:', pErr); }
-        }
-
-        // ─── Notification Email ───
-        const loginUrl = `${req.protocol}://${req.get('host')}/learn`;
-        const forgotUrl = `${req.protocol}://${req.get('host')}/learn?forgot=1`; // Assuming your login page handles this param or just direct them to login
-
-        const mailSubject = isNewStudent ? `Welcome to NinjaHackers! Account Created` : `Application Verified & Course Enrolled`;
-        const mailText = `Hi ${applicantName},\n\nYour application has been verified! \n\n${targetCourseId ? `You have been enrolled in: ${courseTitle}.` : ''}\n\n${isNewStudent ? `An account has been created for you. To access it, please go to the login page and use the "Forgot Password" option with your email (${applicantEmail}) to set your password.` : `You can now access your course in the student portal.`}\n\nLogin here: ${loginUrl}\n\nRegards,\nNinjaHackers Team`;
-        
-        const mailHtml = `
-            <div style="font-family:sans-serif; max-width:600px; margin:0 auto; padding:20px; background:#f9f9f9; border-radius:10px;">
-                <h2 style="color:#00ff88;">Hi ${applicantName},</h2>
-                <p>Your application has been verified successfully!</p>
-                ${targetCourseId ? `<p>You have been enrolled in <strong>${courseTitle}</strong>.</p>` : ''}
-                
-                <div style="background:#fff; padding:15px; border-radius:8px; border-left:4px solid #00ff88; margin:20px 0;">
-                    <p style="margin:0;"><strong>Account Access:</strong></p>
-                    ${isNewStudent 
-                        ? `<p>An account has been created for you. To set your password and log in, please click the link below and use the <strong>Forgot Password</strong> option with your email: <code>${applicantEmail}</code></p>`
-                        : `<p>You can now log in to the student portal using your existing credentials to access your course.</p>`
-                    }
-                </div>
-
-                <a href="${loginUrl}" style="display:inline-block; padding:12px 25px; background:#00ff88; color:#000; text-decoration:none; border-radius:5px; font-weight:bold;">Go to Student Portal</a>
-                
-                <p style="margin-top:30px; font-size:0.9rem; color:#666;">Regards,<br>NinjaHackers Team</p>
-            </div>
-        `;
-
-        await sendMailAsync(applicantEmail, mailSubject, mailText, mailHtml);
-
-        logSecurity('JOB_PAYMENT_VERIFIED', 'admin', `App #${appId} verified. Student #${studentId} enrolled in Course #${targetCourseId}`);
+        logSecurity('JOB_PAYMENT_VERIFIED', 'admin', `App #${appId} for Job #${jobId} verified`);
         res.json({ success: true });
     } catch (err) {
         console.error(err);
