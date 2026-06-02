@@ -856,7 +856,8 @@ const allowedOrigins = new Set(
             'http://127.0.0.1:10000',
             'https://bninjahacker.site',
             'https://www.bninjahacker.site',
-            'https://ninjahackers.onrender.com'
+            'https://ninjahackers.onrender.com',
+            'https://ninjahackers-j9xg.onrender.com'
         ]
     )
 );
