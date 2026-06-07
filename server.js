@@ -637,7 +637,7 @@ async function sendViaResend(to, subject, html) {
             headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
-                'Content-Length': data.length
+                'Content-Length': Buffer.byteLength(data)
             }
         };
         const req = https.request(options, (res) => {
