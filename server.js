@@ -619,19 +619,50 @@ function generateOTP() {
     return crypto.randomInt(100000, 999999).toString();
 }
 
+async function sendViaResend(to, subject, html) {
+    if (!process.env.RESEND_API_KEY) return false;
+    const https = require('https');
+    return new Promise((resolve, reject) => {
+        const data = JSON.stringify({
+            from: process.env.SMTP_FROM || 'NinjaHackers <onboarding@resend.dev>',
+            to: [to],
+            subject: subject,
+            html: html
+        });
+        const options = {
+            hostname: 'api.resend.com',
+            port: 443,
+            path: '/emails',
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
+                'Content-Length': data.length
+            }
+        };
+        const req = https.request(options, (res) => {
+            let resData = '';
+            res.on('data', (chunk) => resData += chunk);
+            res.on('end', () => {
+                if (res.statusCode >= 200 && res.statusCode < 300) resolve(true);
+                else {
+                    console.error('Resend API Error:', resData);
+                    resolve(false);
+                }
+            });
+        });
+        req.on('error', (err) => {
+            console.error('Resend Request Error:', err.message);
+            resolve(false);
+        });
+        req.write(data);
+        req.end();
+    });
+}
+
 async function sendOTPEmail(email, otp, name) {
-    if (!transporter) {
-        if (process.env.NODE_ENV !== 'production') {
-            console.warn(`📩 Email not configured. OTP for ${email}: ${otp}`);
-        }
-        return true;
-    }
-    try {
-        await transporter.sendMail({
-            from: process.env.SMTP_FROM || process.env.SMTP_USER,
-            to: email,
-            subject: '[NinjaHackers] Verify Your Email - OTP',
-            html: `<div style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f4f7f6; padding: 40px 20px; text-align: center;">
+    const subject = '[NinjaHackers] Verify Your Email - OTP';
+    const htmlContent = `<div style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f4f7f6; padding: 40px 20px; text-align: center;">
     <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.05);">
         <div style="background: linear-gradient(135deg, #0f2027, #203a43, #2c5364); padding: 40px 20px;">
             <h1 style="color: #00ff88; margin: 0; font-size: 28px; font-weight: 800; letter-spacing: 1px;">🥷 NinjaHackers</h1>
@@ -659,7 +690,21 @@ async function sendOTPEmail(email, otp, name) {
             </p>
         </div>
     </div>
-</div>`
+</div>`;
+
+    if (process.env.RESEND_API_KEY) {
+        return await sendViaResend(email, subject, htmlContent);
+    }
+    if (!transporter) {
+        if (process.env.NODE_ENV !== 'production') console.warn(`📩 Email not configured. OTP for ${email}: ${otp}`);
+        return true;
+    }
+    try {
+        await transporter.sendMail({
+            from: process.env.SMTP_FROM || process.env.SMTP_USER,
+            to: email,
+            subject: subject,
+            html: htmlContent
         });
         return true;
     } catch (err) {
@@ -669,20 +714,10 @@ async function sendOTPEmail(email, otp, name) {
 }
 
 async function sendClassReminderEmail(student, course, item, timing) {
-    if (!transporter) {
-        console.warn(`📩 Email not configured. Reminder for ${student.email}: ${item.title}`);
-        return true;
-    }
     const loginUrl = `${process.env.PUBLIC_URL || 'http://localhost:3000'}/login`;
     const subject = timing === '1h' ? `[Class Reminder] ${item.title} starts in 1 hour!` : `[IMPORTANT] ${item.title} is starting in 5 minutes!`;
     const timingText = timing === '1h' ? 'Starts in 1 hour' : 'Starting in 5 minutes';
-
-    try {
-        await transporter.sendMail({
-            from: process.env.SMTP_FROM_NOREPLY || process.env.SMTP_FROM || process.env.SMTP_USER,
-            to: student.email,
-            subject: subject,
-            html: `<div style="font-family: 'Inter', sans-serif; background-color: #f4f7f6; padding: 40px 20px;">
+    const htmlContent = `<div style="font-family: 'Inter', sans-serif; background-color: #f4f7f6; padding: 40px 20px;">
     <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.05);">
         <div style="background: linear-gradient(135deg, #0f2027, #2c5364); padding: 40px 20px; text-align: center;">
             <h1 style="color: #00ff88; margin: 0; font-size: 24px;">🥷 NinjaHackers Live</h1>
@@ -709,7 +744,21 @@ async function sendClassReminderEmail(student, course, item, timing) {
             <p style="color: #a0aec0; font-size: 12px; margin: 0;">© ${new Date().getFullYear()} NinjaHackers. All rights reserved.</p>
         </div>
     </div>
-</div>`
+</div>`;
+
+    if (process.env.RESEND_API_KEY) {
+        return await sendViaResend(student.email, subject, htmlContent);
+    }
+    if (!transporter) {
+        console.warn(`📩 Email not configured. Reminder for ${student.email}: ${item.title}`);
+        return true;
+    }
+    try {
+        await transporter.sendMail({
+            from: process.env.SMTP_FROM || process.env.SMTP_USER,
+            to: student.email,
+            subject: subject,
+            html: htmlContent
         });
         return true;
     } catch (err) {
@@ -780,18 +829,9 @@ async function sendEnrollmentEmail(studentId, course, priceLabel) {
     const result = await pool.query('SELECT name, email FROM students WHERE id = $1', [studentId]);
     const student = result.rows[0];
     if (!student) return;
-    if (!transporter) {
-        if (process.env.NODE_ENV !== 'production') {
-            console.log(`🎓 Enrollment confirmation for ${student.email}: ${course.title} (${priceLabel}) — email not configured`);
-        }
-        return;
-    }
-    try {
-        await transporter.sendMail({
-            from: process.env.SMTP_FROM || process.env.SMTP_USER,
-            to: student.email,
-            subject: `[NinjaHackers] Enrolled: ${course.title}`,
-            html: `<div style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f4f7f6; padding: 40px 20px; text-align: center;">
+
+    const subject = `[NinjaHackers] Enrolled: ${course.title}`;
+    const htmlContent = `<div style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f4f7f6; padding: 40px 20px; text-align: center;">
     <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.05);">
         <div style="background: linear-gradient(135deg, #0f2027, #203a43, #2c5364); padding: 40px 20px;">
             <h1 style="color: #00ff88; margin: 0; font-size: 28px; font-weight: 800; letter-spacing: 1px;">🥷 NinjaHackers</h1>
@@ -809,25 +849,76 @@ async function sendEnrollmentEmail(studentId, course, priceLabel) {
                     <span>📅 ${new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</span>
                 </div>
             </div>
-            <div style="text-align: center;">
-                <a href="${process.env.BASE_URL || 'https://bninjahacker.site'}/learn" style="display: inline-block; background: linear-gradient(135deg, #00ff88, #00e5ff); color: #050a0e; text-decoration: none; padding: 15px 35px; border-radius: 10px; font-weight: 800; font-size: 16px; box-shadow: 0 4px 15px rgba(0, 255, 136, 0.3);">
-                    🎓 Start Learning Now
-                </a>
-            </div>
+            <p style="color: #718096; font-size: 14px; line-height: 1.5; margin-bottom: 0;">
+                You can now log in to the student portal and begin your learning journey.
+            </p>
         </div>
-        <div style="background-color: #f8fafc; padding: 30px; border-top: 1px solid #e2e8f0;">
-            <p style="color: #4a5568; font-size: 15px; font-weight: 600; margin-bottom: 15px;">Stay connected and keep learning!</p>
-            <a href="https://www.linkedin.com/company/ninjahackers/" target="_blank" style="display: inline-block; background-color: #0077b5; color: #ffffff; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-weight: 600; font-size: 14px;">
-                Follow us on LinkedIn
-            </a>
-            <p style="color: #a0aec0; font-size: 12px; margin-top: 25px;">
+        <div style="background-color: #f8fafc; padding: 30px; border-top: 1px solid #e2e8f0; text-align: center;">
+            <p style="color: #a0aec0; font-size: 12px; margin: 0;">© ${new Date().getFullYear()} NinjaHackers. All rights reserved.</p>
+        </div>
+    </div>
+</div>`;
+
+    if (process.env.RESEND_API_KEY) {
+        return await sendViaResend(student.email, subject, htmlContent);
+    }
+
+    if (!transporter) {
+        if (process.env.NODE_ENV !== 'production') {
+            console.log(`🎓 Enrollment confirmation for ${student.email}: ${course.title} (${priceLabel}) — email not configured`);
+        }
+        return;
+    }
+    try {
+        await transporter.sendMail({
+            from: process.env.SMTP_FROM || process.env.SMTP_USER,
+            to: student.email,
+            subject: subject,
+            html: htmlContent
+        });
+    } catch (err) { console.error('Enrollment email error:', err.message); }
+}
+
+async function sendPasswordResetEmail(student, otp) {
+    const subject = '[NinjaHackers] Password Reset Code';
+    const htmlContent = `<div style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f4f7f6; padding: 40px 20px; text-align: center;">
+    <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.05);">
+        <div style="background: linear-gradient(135deg, #0f2027, #203a43, #2c5364); padding: 40px 20px;">
+            <h1 style="color: #00ff88; margin: 0; font-size: 28px; font-weight: 800; letter-spacing: 1px;">🥷 NinjaHackers</h1>
+            <p style="color: #c8d8e8; margin-top: 10px; font-size: 16px;">Security & Learning Portal</p>
+        </div>
+        <div style="padding: 40px 30px; text-align: left;">
+            <h2 style="color: #1a202c; font-size: 22px; margin-bottom: 20px;">Hi ${escapeHtml(student.name)},</h2>
+            <p style="color: #4a5568; font-size: 16px; line-height: 1.6; margin-bottom: 30px;">
+                You recently requested to reset your password for your NinjaHackers account. Please use the secure verification code below to reset your credentials.
+            </p>
+            <div style="background-color: #f8fafc; border: 2px dashed #cbd5e1; border-radius: 12px; padding: 25px; text-align: center; margin-bottom: 30px;">
+                <span style="display: block; font-family: 'Courier New', Courier, monospace; font-size: 38px; font-weight: 700; color: #0ea5e9; letter-spacing: 10px;">${otp}</span>
+            </div>
+            <p style="color: #718096; font-size: 14px; line-height: 1.5; margin-bottom: 0;">
+                For security reasons, this code will expire in <b>10 minutes</b>. If you did not request a password reset, you can safely ignore this email.
+            </p>
+        </div>
+        <div style="background-color: #f8fafc; padding: 30px; border-top: 1px solid #e2e8f0; text-align: center;">
+            <p style="color: #a0aec0; font-size: 12px; margin-top: 10px;">
                 &copy; ${new Date().getFullYear()} NinjaHackers. All rights reserved.
             </p>
         </div>
     </div>
-</div>`
+</div>`;
+
+    if (process.env.RESEND_API_KEY) {
+        return await sendViaResend(student.email, subject, htmlContent);
+    }
+    if (!transporter) return;
+    try {
+        await transporter.sendMail({
+            from: process.env.SMTP_FROM || process.env.SMTP_USER,
+            to: student.email,
+            subject: subject,
+            html: htmlContent
         });
-    } catch (err) { console.error('Enrollment email error:', err.message); }
+    } catch (err) { console.error('Reset email error:', err.message); }
 }
 
 // ═══════════════════════════════════════
@@ -1274,52 +1365,8 @@ app.post('/api/student/forgot-password', async (req, res) => {
         const otpExpiry = new Date(Date.now() + 10 * 60 * 1000).toISOString();
         await pool.query('UPDATE students SET otpCode = $1, otpExpiry = $2 WHERE id = $3', [otp, otpExpiry, student.id]);
 
-        // Send reset OTP email
-        if (transporter) {
-            try {
-                await transporter.sendMail({
-                    from: process.env.SMTP_FROM_NOREPLY || process.env.SMTP_FROM || process.env.SMTP_USER,
-                    to: student.email,
-                    subject: '[NinjaHackers] Password Reset Code',
-                    html: `<div style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f4f7f6; padding: 40px 20px; text-align: center;">
-    <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.05);">
-        <div style="background: linear-gradient(135deg, #0f2027, #203a43, #2c5364); padding: 40px 20px;">
-            <h1 style="color: #00ff88; margin: 0; font-size: 28px; font-weight: 800; letter-spacing: 1px;">🥷 NinjaHackers</h1>
-            <p style="color: #c8d8e8; margin-top: 10px; font-size: 16px;">Security & Learning Portal</p>
-        </div>
-        <div style="padding: 40px 30px; text-align: left;">
-            <h2 style="color: #1a202c; font-size: 22px; margin-bottom: 20px;">Hi ${escapeHtml(student.name)},</h2>
-            <p style="color: #4a5568; font-size: 16px; line-height: 1.6; margin-bottom: 30px;">
-                You recently requested to reset your password for your NinjaHackers account. Please use the secure verification code below to reset your credentials.
-            </p>
-            <div style="background-color: #f8fafc; border: 2px dashed #cbd5e1; border-radius: 12px; padding: 25px; text-align: center; margin-bottom: 30px;">
-                <span style="display: block; font-family: 'Courier New', Courier, monospace; font-size: 38px; font-weight: 700; color: #0ea5e9; letter-spacing: 10px;">${otp}</span>
-            </div>
-            <p style="color: #718096; font-size: 14px; line-height: 1.5; margin-bottom: 0;">
-                For security reasons, this code will expire in <b>10 minutes</b>. If you did not request a password reset, you can safely ignore this email.
-            </p>
-        </div>
-        <div style="background-color: #f8fafc; padding: 30px; border-top: 1px solid #e2e8f0;">
-            <p style="color: #4a5568; font-size: 15px; font-weight: 600; margin-bottom: 15px;">Stay connected and keep learning!</p>
-            <a href="https://linkedin.com/in/" target="_blank" style="display: inline-block; background-color: #0077b5; color: #ffffff; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-weight: 600; font-size: 14px;">
-                Follow me on LinkedIn 
-            </a>
-            <p style="color: #a0aec0; font-size: 12px; margin-top: 25px;">
-                &copy; ${new Date().getFullYear()} NinjaHackers. All rights reserved.
-            </p>
-        </div>
-    </div>
-</div>`
-                });
-            } catch (err) { console.error('Email error:', err.message); }
-        } else {
-            if (process.env.NODE_ENV !== 'production') {
-                console.log(`🔑 PASSWORD RESET OTP for ${student.email}: ${otp}`);
-            }
-        }
-
-        logSecurity('PASSWORD_RESET_REQUEST', ip, email);
-        res.json({ success: true, message: 'If this email is registered, you will receive a reset code.' });
+        await sendPasswordResetEmail(student, otp);
+        return res.json({ success: true, message: 'If this email is registered, you will receive a reset code.' });
     } catch (err) {
         logSecurity('PASSWORD_RESET_ERROR', ip, err.message);
         res.status(500).json({ error: 'Server error processing request.' });
@@ -1654,20 +1701,19 @@ app.post('/api/contact', async (req, res) => {
             [name.trim(), email.trim(), (subject || '').trim(), message.trim()]
         );
 
-        if (transporter) {
+        const toEmail = process.env.CONTACT_TO || process.env.SMTP_USER;
+        const subjectLine = `[NinjaHackers] Contact: ${subject || 'New Message'}`;
+        const htmlBody = `<h3>New Contact</h3><p><b>From:</b> ${escapeHtml(name)} (${escapeHtml(email)})</p><p><b>Subject:</b> ${escapeHtml(subject) || 'N/A'}</p><p>${escapeHtml(message).replace(/\n/g, '<br>')}</p>`;
+
+        if (process.env.RESEND_API_KEY) {
+            await sendViaResend(toEmail, subjectLine, htmlBody);
+        } else if (transporter) {
             try {
-                function escapeHtml(s) {
-                    return (s || '')
-                        .replace(/&/g, '&amp;')
-                        .replace(/</g, '&lt;')
-                        .replace(/>/g, '&gt;')
-                        .replace(/"/g, '&quot;');
-                }
                 await transporter.sendMail({
                     from: process.env.SMTP_FROM || process.env.SMTP_USER,
-                    to: process.env.CONTACT_TO || process.env.SMTP_USER,
-                    subject: `[NinjaHackers] Contact: ${escapeHtml(subject) || 'New Message'}`,
-                    html: `<h3>New Contact</h3><p><b>From:</b> ${escapeHtml(name)} (${escapeHtml(email)})</p><p><b>Subject:</b> ${escapeHtml(subject) || 'N/A'}</p><p>${escapeHtml(message).replace(/\n/g, '<br>')}</p>`
+                    to: toEmail,
+                    subject: subjectLine,
+                    html: htmlBody
                 });
             } catch (err) {
                 console.error('Email error:', err);
