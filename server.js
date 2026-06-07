@@ -115,7 +115,16 @@ try {
                 rejectUnauthorized: false // Often required for cloud environments
             }
         });
+    }
+    if (transporter || process.env.RESEND_API_KEY) {
         console.log('✅ Email configured.');
+        if (process.env.RESEND_API_KEY) {
+            console.log('🚀 Primary Mailer: Resend API');
+            console.log(`📧 Sender (No-Reply): ${process.env.SMTP_FROM_NOREPLY || 'not set'}`);
+            console.log(`📧 Sender (Support): ${process.env.SMTP_FROM_SUPPORT || 'not set'}`);
+        } else {
+            console.log('🚀 Primary Mailer: SMTP Fallback');
+        }
     } else if (process.env.NODE_ENV === 'production') {
         console.warn('⚠️ SMTP_USER is not configured or uses placeholder. Emails will not be sent.');
     }
