@@ -632,7 +632,11 @@ async function sendViaResend(to, subject, html, fromOverride) {
     if (!process.env.RESEND_API_KEY) return false;
     const https = require('https');
     return new Promise((resolve, reject) => {
-        const fromAddress = fromOverride || process.env.SMTP_FROM || 'NinjaHackers <onboarding@resend.dev>';
+        let fromAddress = fromOverride || process.env.SMTP_FROM || 'NinjaHackers <onboarding@resend.dev>';
+        // Sanitize: "Name <email@site.com>" is OK, "email@site.com" is OK, but "<email@site.com>" is NO.
+        if (fromAddress.startsWith('<') && fromAddress.endsWith('>') && !fromAddress.includes(' ')) {
+            fromAddress = fromAddress.substring(1, fromAddress.length - 1);
+        }
         console.log(`📤 Sending email via Resend: to=${to}, from=${fromAddress}, subject="${subject}"`);
         const data = JSON.stringify({
             from: fromAddress,
