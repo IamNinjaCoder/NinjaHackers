@@ -619,12 +619,12 @@ function generateOTP() {
     return crypto.randomInt(100000, 999999).toString();
 }
 
-async function sendViaResend(to, subject, html) {
+async function sendViaResend(to, subject, html, fromOverride) {
     if (!process.env.RESEND_API_KEY) return false;
     const https = require('https');
     return new Promise((resolve, reject) => {
         const data = JSON.stringify({
-            from: process.env.SMTP_FROM || 'NinjaHackers <onboarding@resend.dev>',
+            from: fromOverride || process.env.SMTP_FROM || 'NinjaHackers <onboarding@resend.dev>',
             to: [to],
             subject: subject,
             html: html
@@ -697,8 +697,10 @@ async function sendOTPEmail(email, otp, name) {
     </div>
 </div>`;
 
+    const fromAddr = process.env.SMTP_FROM_NOREPLY || process.env.SMTP_FROM || 'NinjaHackers <onboarding@resend.dev>';
+
     if (process.env.RESEND_API_KEY) {
-        return await sendViaResend(email, subject, htmlContent);
+        return await sendViaResend(email, subject, htmlContent, fromAddr);
     }
     if (!transporter) {
         if (process.env.NODE_ENV !== 'production') console.warn(`📩 Email not configured. OTP for ${email}: ${otp}`);
@@ -1706,12 +1708,13 @@ app.post('/api/contact', async (req, res) => {
             [name.trim(), email.trim(), (subject || '').trim(), message.trim()]
         );
 
+        const fromAddr = process.env.SMTP_FROM_SUPPORT || process.env.SMTP_FROM || 'NinjaHackers <onboarding@resend.dev>';
         const toEmail = process.env.CONTACT_TO || process.env.SMTP_USER;
         const subjectLine = `[NinjaHackers] Contact: ${subject || 'New Message'}`;
         const htmlBody = `<h3>New Contact</h3><p><b>From:</b> ${escapeHtml(name)} (${escapeHtml(email)})</p><p><b>Subject:</b> ${escapeHtml(subject) || 'N/A'}</p><p>${escapeHtml(message).replace(/\n/g, '<br>')}</p>`;
 
         if (process.env.RESEND_API_KEY) {
-            await sendViaResend(toEmail, subjectLine, htmlBody);
+            await sendViaResend(toEmail, subjectLine, htmlBody, fromAddr);
         } else if (transporter) {
             try {
                 await transporter.sendMail({
