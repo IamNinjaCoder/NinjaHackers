@@ -868,8 +868,10 @@ async function sendEnrollmentEmail(studentId, course, priceLabel) {
     </div>
 </div>`;
 
+    const fromAddr = process.env.SMTP_FROM_NOREPLY || process.env.SMTP_FROM || 'NinjaHackers <onboarding@resend.dev>';
+
     if (process.env.RESEND_API_KEY) {
-        return await sendViaResend(student.email, subject, htmlContent);
+        return await sendViaResend(student.email, subject, htmlContent, fromAddr);
     }
 
     if (!transporter) {
