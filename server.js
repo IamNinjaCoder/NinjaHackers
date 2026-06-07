@@ -646,10 +646,15 @@ async function sendViaResend(to, subject, html) {
             res.on('end', () => {
                 if (res.statusCode >= 200 && res.statusCode < 300) resolve(true);
                 else {
-                    console.error('Resend API Error:', resData);
+                    console.error('Resend API Error:', res.statusCode, resData);
                     resolve(false);
                 }
             });
+        });
+        req.setTimeout(5000, () => {
+            req.destroy();
+            console.error('Resend Request Timeout');
+            resolve(false);
         });
         req.on('error', (err) => {
             console.error('Resend Request Error:', err.message);
